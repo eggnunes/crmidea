@@ -6,7 +6,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Zap,
-  LogOut
+  LogOut,
+  Settings
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NavLink } from "@/components/NavLink";
@@ -23,6 +24,7 @@ const navItems = [
   { to: "/leads", icon: Users, label: "Leads" },
   { to: "/pipeline", icon: Kanban, label: "Pipeline" },
   { to: "/produtos", icon: Package, label: "Produtos" },
+  { to: "/configuracoes", icon: Settings, label: "Configurações" },
 ];
 
 export function Sidebar({ collapsed, onToggle }: SidebarProps) {
