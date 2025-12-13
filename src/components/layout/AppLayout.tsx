@@ -1,6 +1,8 @@
 import { ReactNode, useState } from "react";
 import { Sidebar } from "./Sidebar";
 import { cn } from "@/lib/utils";
+import { NotificationBell } from "@/components/NotificationBell";
+import { FollowUpSettingsDialog } from "@/components/FollowUpSettingsDialog";
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -22,6 +24,10 @@ export function AppLayout({ children }: AppLayoutProps) {
         )}
       >
         <div className="p-6">
+          <div className="flex justify-end gap-2 mb-4">
+            <FollowUpSettingsDialog />
+            <NotificationBell />
+          </div>
           {children}
         </div>
       </main>
