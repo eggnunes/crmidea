@@ -1,16 +1,16 @@
 import { useState } from "react";
-import { PRODUCTS, STATUSES, Lead, ProductType, LeadStatus } from "@/types/crm";
-import { useLeadsStore } from "@/store/leadsStore";
+import { PRODUCTS, STATUSES, Lead, ProductType, LeadStatus, Interaction } from "@/types/crm";
+import { useLeads } from "@/hooks/useLeads";
 import { 
   Plus, 
   Search, 
   Filter, 
-  MoreHorizontal,
   Phone,
   Mail,
   Trash2,
   Eye,
-  Edit
+  Edit,
+  Loader2
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -40,6 +40,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { ExportImportLeads } from "@/components/ExportImportLeads";
+import { MoreHorizontal } from "lucide-react";
 
 function LeadForm({ 
   onSubmit, 
@@ -180,28 +182,31 @@ function LeadForm({
   );
 }
 
-function LeadDetailDialog({ lead, onClose }: { lead: Lead; onClose: () => void }) {
-  const { addInteraction } = useLeadsStore();
+function LeadDetailDialog({ 
+  lead, 
+  onAddInteraction 
+}: { 
+  lead: Lead; 
+  onAddInteraction: (leadId: string, interaction: Omit<Interaction, 'id'>) => void;
+}) {
   const [newInteraction, setNewInteraction] = useState({
-    type: 'whatsapp' as const,
+    type: 'whatsapp' as Interaction['type'],
     description: ''
   });
 
   const product = PRODUCTS.find(p => p.id === lead.product);
-  const status = STATUSES.find(s => s.id === lead.status);
 
   const handleAddInteraction = () => {
     if (!newInteraction.description) {
       toast.error('Descreva a interação');
       return;
     }
-    addInteraction(lead.id, {
+    onAddInteraction(lead.id, {
       date: new Date().toISOString().split('T')[0],
       type: newInteraction.type,
       description: newInteraction.description
     });
     setNewInteraction({ type: 'whatsapp', description: '' });
-    toast.success('Interação adicionada');
   };
 
   return (
@@ -255,7 +260,7 @@ function LeadDetailDialog({ lead, onClose }: { lead: Lead; onClose: () => void }
         <div className="flex gap-2 mb-4">
           <Select
             value={newInteraction.type}
-            onValueChange={(value: any) => setNewInteraction({ ...newInteraction, type: value })}
+            onValueChange={(value: Interaction['type']) => setNewInteraction({ ...newInteraction, type: value })}
           >
             <SelectTrigger className="w-32">
               <SelectValue />
@@ -305,13 +310,21 @@ function LeadDetailDialog({ lead, onClose }: { lead: Lead; onClose: () => void }
 }
 
 export function LeadsPage() {
-  const { leads, addLead, updateLead, deleteLead } = useLeadsStore();
+  const { leads, loading, addLead, updateLead, deleteLead, addInteraction, importLeads } = useLeads();
   const [search, setSearch] = useState('');
   const [filterProduct, setFilterProduct] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
   const [viewingLead, setViewingLead] = useState<Lead | null>(null);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   const filteredLeads = leads.filter(lead => {
     const matchesSearch = lead.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -330,22 +343,23 @@ export function LeadsPage() {
     destructive: "bg-destructive/10 text-destructive border-destructive/20"
   };
 
-  const handleAddLead = (data: Omit<Lead, 'id' | 'createdAt' | 'updatedAt' | 'interactions'>) => {
-    addLead(data);
-    toast.success('Lead adicionado com sucesso!');
+  const handleAddLead = async (data: Omit<Lead, 'id' | 'createdAt' | 'updatedAt' | 'interactions'>) => {
+    await addLead(data);
   };
 
-  const handleEditLead = (data: Omit<Lead, 'id' | 'createdAt' | 'updatedAt' | 'interactions'>) => {
+  const handleEditLead = async (data: Omit<Lead, 'id' | 'createdAt' | 'updatedAt' | 'interactions'>) => {
     if (editingLead) {
-      updateLead(editingLead.id, data);
-      toast.success('Lead atualizado com sucesso!');
+      await updateLead(editingLead.id, data);
       setEditingLead(null);
     }
   };
 
-  const handleDeleteLead = (id: string) => {
-    deleteLead(id);
-    toast.success('Lead removido');
+  const handleDeleteLead = async (id: string) => {
+    await deleteLead(id);
+  };
+
+  const handleImport = async (leadsToImport: Omit<Lead, 'id' | 'createdAt' | 'updatedAt' | 'interactions'>[]) => {
+    await importLeads(leadsToImport);
   };
 
   return (
@@ -356,23 +370,26 @@ export function LeadsPage() {
           <h1 className="text-3xl font-bold text-foreground">Leads</h1>
           <p className="text-muted-foreground mt-1">Gerencie seus potenciais clientes</p>
         </div>
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="gradient-primary text-primary-foreground hover:opacity-90">
-              <Plus className="w-4 h-4 mr-2" />
-              Novo Lead
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-lg">
-            <DialogHeader>
-              <DialogTitle>Adicionar Novo Lead</DialogTitle>
-            </DialogHeader>
-            <LeadForm 
-              onSubmit={handleAddLead} 
-              onClose={() => setIsAddDialogOpen(false)} 
-            />
-          </DialogContent>
-        </Dialog>
+        <div className="flex items-center gap-3 flex-wrap">
+          <ExportImportLeads leads={leads} onImport={handleImport} />
+          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="gradient-primary text-primary-foreground hover:opacity-90">
+                <Plus className="w-4 h-4 mr-2" />
+                Novo Lead
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Adicionar Novo Lead</DialogTitle>
+              </DialogHeader>
+              <LeadForm 
+                onSubmit={handleAddLead} 
+                onClose={() => setIsAddDialogOpen(false)} 
+              />
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       {/* Filters */}
@@ -480,46 +497,58 @@ export function LeadsPage() {
                         </div>
                       </td>
                       <td className="p-4">
-                        <span className="text-sm">{product?.shortName}</span>
+                        <Badge variant="secondary" className="text-xs">
+                          {product?.shortName}
+                        </Badge>
                       </td>
                       <td className="p-4">
                         <Badge 
-                          variant="outline"
+                          variant="outline" 
                           className={cn("text-xs", statusColors[status?.color || 'primary'])}
                         >
                           {status?.name}
                         </Badge>
                       </td>
                       <td className="p-4">
-                        <span className="font-medium">
+                        <span className="font-medium text-accent">
                           R$ {lead.value.toLocaleString('pt-BR')}
                         </span>
                       </td>
-                      <td className="p-4 text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                              <MoreHorizontal className="w-4 h-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => setViewingLead(lead)}>
-                              <Eye className="w-4 h-4 mr-2" />
-                              Visualizar
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setEditingLead(lead)}>
-                              <Edit className="w-4 h-4 mr-2" />
-                              Editar
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              className="text-destructive"
-                              onClick={() => handleDeleteLead(lead.id)}
-                            >
-                              <Trash2 className="w-4 h-4 mr-2" />
-                              Excluir
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                      <td className="p-4">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button 
+                            variant="ghost" 
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => setViewingLead(lead)}
+                          >
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => setEditingLead(lead)}
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <MoreHorizontal className="w-4 h-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem 
+                                onClick={() => handleDeleteLead(lead.id)}
+                                className="text-destructive"
+                              >
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                Excluir
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -527,7 +556,10 @@ export function LeadsPage() {
               ) : (
                 <tr>
                   <td colSpan={6} className="p-8 text-center text-muted-foreground">
-                    Nenhum lead encontrado
+                    {leads.length === 0 
+                      ? "Nenhum lead cadastrado. Adicione seu primeiro lead!"
+                      : "Nenhum lead encontrado com os filtros aplicados"
+                    }
                   </td>
                 </tr>
               )}
@@ -537,29 +569,32 @@ export function LeadsPage() {
       </Card>
 
       {/* Edit Dialog */}
-      <Dialog open={!!editingLead} onOpenChange={() => setEditingLead(null)}>
+      <Dialog open={!!editingLead} onOpenChange={(open) => !open && setEditingLead(null)}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Editar Lead</DialogTitle>
           </DialogHeader>
           {editingLead && (
             <LeadForm 
+              onSubmit={handleEditLead}
+              onClose={() => setEditingLead(null)}
               initialData={editingLead}
-              onSubmit={handleEditLead} 
-              onClose={() => setEditingLead(null)} 
             />
           )}
         </DialogContent>
       </Dialog>
 
       {/* View Dialog */}
-      <Dialog open={!!viewingLead} onOpenChange={() => setViewingLead(null)}>
+      <Dialog open={!!viewingLead} onOpenChange={(open) => !open && setViewingLead(null)}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Detalhes do Lead</DialogTitle>
           </DialogHeader>
           {viewingLead && (
-            <LeadDetailDialog lead={viewingLead} onClose={() => setViewingLead(null)} />
+            <LeadDetailDialog 
+              lead={viewingLead} 
+              onAddInteraction={addInteraction}
+            />
           )}
         </DialogContent>
       </Dialog>

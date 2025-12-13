@@ -5,11 +5,13 @@ import {
   Package,
   ChevronLeft,
   ChevronRight,
-  Zap
+  Zap,
+  LogOut
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NavLink } from "@/components/NavLink";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
 
 interface SidebarProps {
   collapsed: boolean;
@@ -24,6 +26,8 @@ const navItems = [
 ];
 
 export function Sidebar({ collapsed, onToggle }: SidebarProps) {
+  const { user, signOut } = useAuth();
+
   return (
     <aside 
       className={cn(
@@ -74,14 +78,25 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       </nav>
 
       {/* Footer */}
-      {!collapsed && (
-        <div className="p-4 border-t border-sidebar-border">
-          <div className="text-xs text-muted-foreground">
-            <p className="font-medium text-foreground mb-1">Rafael EGG</p>
-            <p>Mentoria em IA para Advogados</p>
+      <div className="p-4 border-t border-sidebar-border">
+        {!collapsed && user && (
+          <div className="text-xs text-muted-foreground mb-3">
+            <p className="font-medium text-foreground truncate">{user.email}</p>
           </div>
-        </div>
-      )}
+        )}
+        <Button
+          variant="ghost"
+          size={collapsed ? "icon" : "sm"}
+          onClick={signOut}
+          className={cn(
+            "text-muted-foreground hover:text-destructive w-full",
+            collapsed ? "justify-center" : "justify-start gap-2"
+          )}
+        >
+          <LogOut className="w-4 h-4" />
+          {!collapsed && <span>Sair</span>}
+        </Button>
+      </div>
     </aside>
   );
 }

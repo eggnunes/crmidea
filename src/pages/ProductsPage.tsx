@@ -1,5 +1,5 @@
 import { PRODUCTS } from "@/types/crm";
-import { useLeadsStore } from "@/store/leadsStore";
+import { useLeads } from "@/hooks/useLeads";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -32,7 +32,7 @@ const productUrls: Record<string, string> = {
 };
 
 export function ProductsPage() {
-  const { leads } = useLeadsStore();
+  const { leads } = useLeads();
 
   const productStats = PRODUCTS.map(product => {
     const productLeads = leads.filter(l => l.product === product.id);

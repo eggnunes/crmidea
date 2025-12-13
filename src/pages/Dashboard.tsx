@@ -1,16 +1,18 @@
 import { PRODUCTS, STATUSES, Lead } from "@/types/crm";
-import { useLeadsStore } from "@/store/leadsStore";
+import { useLeads } from "@/hooks/useLeads";
 import { 
   Users, 
   TrendingUp, 
   DollarSign, 
   Target,
   ArrowUpRight,
-  ArrowDownRight
+  ArrowDownRight,
+  Loader2
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { DashboardCharts } from "@/components/DashboardCharts";
 
 function StatCard({ 
   title, 
@@ -139,7 +141,15 @@ function RecentLeadRow({ lead }: { lead: Lead }) {
 }
 
 export function DashboardPage() {
-  const { leads } = useLeadsStore();
+  const { leads, loading } = useLeads();
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   const totalLeads = leads.length;
   const activeLeads = leads.filter(l => !['fechado-ganho', 'fechado-perdido'].includes(l.status)).length;
@@ -176,7 +186,6 @@ export function DashboardPage() {
           value={totalLeads}
           subtitle={`${activeLeads} ativos`}
           icon={Users}
-          trend={{ value: 12, positive: true }}
           color="primary"
         />
         <StatCard
@@ -198,10 +207,12 @@ export function DashboardPage() {
           value={`R$ ${totalRevenue.toLocaleString('pt-BR')}`}
           subtitle={`${wonDeals.length} vendas fechadas`}
           icon={DollarSign}
-          trend={{ value: 8, positive: true }}
           color="success"
         />
       </div>
+
+      {/* Charts Section */}
+      <DashboardCharts leads={leads} />
 
       {/* Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
