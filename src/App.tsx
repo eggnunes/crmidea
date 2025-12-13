@@ -10,6 +10,7 @@ import { LeadsPage } from "./pages/LeadsPage";
 import { PipelinePage } from "./pages/PipelinePage";
 import { ProductsPage } from "./pages/ProductsPage";
 import { SettingsPage } from "./pages/SettingsPage";
+import AdminUsersPage from "./pages/AdminUsersPage";
 import { AuthPage } from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 import { Loader2 } from "lucide-react";
@@ -49,6 +50,7 @@ function AppRoutes() {
                 <Route path="/pipeline" element={<PipelinePage />} />
                 <Route path="/produtos" element={<ProductsPage />} />
                 <Route path="/configuracoes" element={<SettingsPage />} />
+                <Route path="/admin/usuarios" element={<AdminUsersPage />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </AppLayout>
