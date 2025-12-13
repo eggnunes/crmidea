@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { STATUSES, Lead, LeadStatus, PRODUCTS } from "@/types/crm";
-import { useLeadsStore } from "@/store/leadsStore";
+import { useLeads } from "@/hooks/useLeads";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { Loader2 } from "lucide-react";
 import {
   DndContext,
   DragEndEvent,
@@ -136,7 +137,7 @@ function PipelineColumn({
 }
 
 export function PipelinePage() {
-  const { leads, updateLeadStatus } = useLeadsStore();
+  const { leads, loading, updateLeadStatus } = useLeads();
   const [activeId, setActiveId] = useState<string | null>(null);
 
   const sensors = useSensors(
@@ -147,13 +148,21 @@ export function PipelinePage() {
     })
   );
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   const activeLead = leads.find(l => l.id === activeId);
 
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(event.active.id as string);
   };
 
-  const handleDragEnd = (event: DragEndEvent) => {
+  const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveId(null);
 
@@ -165,20 +174,17 @@ export function PipelinePage() {
     // Check if dropped on a status column
     const targetStatus = STATUSES.find(s => s.id === overId);
     if (targetStatus) {
-      updateLeadStatus(leadId, targetStatus.id);
+      await updateLeadStatus(leadId, targetStatus.id);
       return;
     }
 
     // Check if dropped on another lead - get that lead's status
     const targetLead = leads.find(l => l.id === overId);
     if (targetLead) {
-      updateLeadStatus(leadId, targetLead.status);
+      await updateLeadStatus(leadId, targetLead.status);
     }
   };
 
-  // Filter only active pipeline statuses (exclude closed)
-  const pipelineStatuses = STATUSES.filter(s => !s.id.startsWith('fechado'));
-  
   // Group leads by status
   const leadsByStatus = STATUSES.reduce((acc, status) => {
     acc[status.id] = leads.filter(l => l.status === status.id);
