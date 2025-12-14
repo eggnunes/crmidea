@@ -58,17 +58,18 @@ serve(async (req) => {
         body: JSON.stringify({
           subscriber_id: subscriber_id,
           message_tag: 'ACCOUNT_UPDATE',
-          data: {
-            version: 'v2',
-            content: {
-              messages: [
-                {
-                  type: 'text',
-                  text: message || '🧪 Teste de integração ManyChat-CRM realizado com sucesso!'
-                }
-              ]
-            }
-          }
+       data: {
+         version: 'v2',
+         content: {
+           type: 'whatsapp',
+           messages: [
+             {
+               type: 'text',
+               text: message || '🧪 Teste de integração ManyChat-CRM realizado com sucesso!'
+             }
+           ]
+         }
+       }
         }),
       }
     );

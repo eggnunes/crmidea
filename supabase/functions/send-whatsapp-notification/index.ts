@@ -48,6 +48,7 @@ serve(async (req) => {
         data: {
           version: "v2",
           content: {
+            type: "whatsapp",
             messages: [
               {
                 type: "text",
