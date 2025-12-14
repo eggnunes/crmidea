@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Settings, Bell, User, Palette, Database, Shield } from "lucide-react";
+import { Settings, Bell, User, Palette, Database, Shield, Send, Loader2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
@@ -11,11 +11,13 @@ import { useAuth } from "@/hooks/useAuth";
 import { useFollowUpSettings } from "@/hooks/useFollowUpSettings";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
+import { supabase } from "@/integrations/supabase/client";
 
 export function SettingsPage() {
   const { user } = useAuth();
   const { settings, loading, saveSettings } = useFollowUpSettings();
   const { toast } = useToast();
+  const [testingManyChat, setTestingManyChat] = useState(false);
   
   const [daysWithoutInteraction, setDaysWithoutInteraction] = useState(settings?.days_without_interaction ?? 7);
   const [notifyInApp, setNotifyInApp] = useState(settings?.notify_in_app ?? true);
@@ -39,6 +41,51 @@ export function SettingsPage() {
       notify_whatsapp: notifyWhatsapp,
       manychat_subscriber_id: manychatSubscriberId || null,
     });
+  };
+
+  const handleTestManyChat = async () => {
+    if (!manychatSubscriberId) {
+      toast({
+        title: "ID não configurado",
+        description: "Por favor, insira seu ID de subscriber do ManyChat primeiro.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setTestingManyChat(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("test-manychat", {
+        body: {
+          subscriber_id: manychatSubscriberId,
+          message: "🧪 Teste de integração ManyChat-CRM realizado com sucesso! Se você está vendo esta mensagem, a integração está funcionando.",
+        },
+      });
+
+      if (error) throw error;
+
+      if (data.success) {
+        toast({
+          title: "Teste enviado!",
+          description: "Verifique seu WhatsApp para a mensagem de teste.",
+        });
+      } else {
+        toast({
+          title: "Erro no teste",
+          description: data.error || "Não foi possível enviar a mensagem de teste.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error testing ManyChat:", error);
+      toast({
+        title: "Erro",
+        description: "Falha ao testar integração com ManyChat.",
+        variant: "destructive",
+      });
+    } finally {
+      setTestingManyChat(false);
+    }
   };
 
   return (
@@ -155,6 +202,24 @@ export function SettingsPage() {
                         Encontre seu ID no painel do ManyChat em Audience → Subscribers
                       </p>
                     </div>
+                    <Button 
+                      variant="outline" 
+                      onClick={handleTestManyChat}
+                      disabled={testingManyChat || !manychatSubscriberId}
+                      className="w-full"
+                    >
+                      {testingManyChat ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Enviando teste...
+                        </>
+                      ) : (
+                        <>
+                          <Send className="w-4 h-4 mr-2" />
+                          Testar Integração ManyChat
+                        </>
+                      )}
+                    </Button>
                   </>
                 )}
               </div>

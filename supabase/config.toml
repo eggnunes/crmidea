@@ -5,3 +5,6 @@ verify_jwt = true
 
 [functions.check-follow-ups]
 verify_jwt = false
+
+[functions.test-manychat]
+verify_jwt = false
