@@ -6,6 +6,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const FLOW_ID = 'content20251214024458_954194';
+
 interface FollowUpRequest {
   leadId: string;
   leadName: string;
@@ -34,34 +36,48 @@ serve(async (req) => {
     console.log(`Product: ${product}`);
     console.log(`Subscriber ID: ${subscriberId}`);
 
-    // Send message via ManyChat API
-    // Using the sendContent endpoint with message_tag to allow sending after 24h window
-    const response = await fetch(`https://api.manychat.com/fb/sending/sendContent`, {
+    // Step 1: Set Custom Fields for the subscriber
+    console.log('Setting custom fields...');
+    const setFieldsResponse = await fetch(`https://api.manychat.com/fb/subscriber/setCustomFields`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${manychatApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        subscriber_id: subscriberId,
-        message_tag: 'ACCOUNT_UPDATE',
-        data: {
-          version: "v2",
-          content: {
-            type: "whatsapp",
-            messages: [
-              {
-                type: "text",
-                text: `🔔 Lembrete de Follow-up\n\nO lead "${leadName}" está há ${daysSinceLastInteraction} dias sem interação.\n\nProduto de interesse: ${product}\n\nNão esqueça de fazer o acompanhamento!`
-              }
-            ]
-          }
-        }
+        subscriber_id: parseInt(subscriberId),
+        fields: [
+          { field_name: 'lead_name', field_value: leadName },
+          { field_name: 'days_inactive', field_value: String(daysSinceLastInteraction) },
+          { field_name: 'product_name', field_value: product }
+        ]
+      }),
+    });
+
+    const setFieldsData = await setFieldsResponse.json();
+    console.log('Set Custom Fields response:', JSON.stringify(setFieldsData));
+
+    if (!setFieldsResponse.ok) {
+      console.error('Failed to set custom fields:', setFieldsData);
+      throw new Error(`Failed to set custom fields: ${JSON.stringify(setFieldsData)}`);
+    }
+
+    // Step 2: Send the Flow with the approved template
+    console.log('Sending Flow...');
+    const response = await fetch(`https://api.manychat.com/fb/sending/sendFlow`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${manychatApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        subscriber_id: parseInt(subscriberId),
+        flow_ns: FLOW_ID
       }),
     });
 
     const responseData = await response.json();
-    console.log('ManyChat API response:', JSON.stringify(responseData));
+    console.log('ManyChat sendFlow response:', JSON.stringify(responseData));
 
     if (!response.ok) {
       console.error('ManyChat API error:', responseData);
