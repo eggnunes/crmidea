@@ -5,6 +5,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const FLOW_ID = 'content20251214024458_954194';
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -28,7 +30,7 @@ serve(async (req) => {
       );
     }
 
-    const { subscriber_id, message } = await req.json();
+    const { subscriber_id } = await req.json();
 
     if (!subscriber_id) {
       return new Response(
@@ -43,39 +45,60 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Testing ManyChat integration for subscriber: ${subscriber_id}`);
+    console.log(`Testing ManyChat Flow integration for subscriber: ${subscriber_id}`);
 
-    // Send test message via ManyChat API
-    // Using message_tag to allow sending after 24h window
-    const manychatResponse = await fetch(
-      `https://api.manychat.com/fb/sending/sendContent`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${MANYCHAT_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          subscriber_id: subscriber_id,
-          message_tag: 'ACCOUNT_UPDATE',
-       data: {
-         version: 'v2',
-         content: {
-           type: 'whatsapp',
-           messages: [
-             {
-               type: 'text',
-               text: message || '🧪 Teste de integração ManyChat-CRM realizado com sucesso!'
-             }
-           ]
-         }
-       }
+    // Step 1: Set Custom Fields with test data
+    console.log('Setting custom fields for test...');
+    const setFieldsResponse = await fetch(`https://api.manychat.com/fb/subscriber/setCustomFields`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${MANYCHAT_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        subscriber_id: parseInt(subscriber_id),
+        fields: [
+          { field_name: 'lead_name', field_value: 'Lead Teste' },
+          { field_name: 'days_inactive', field_value: '5' },
+          { field_name: 'product_name', field_value: 'Consultoria' }
+        ]
+      }),
+    });
+
+    const setFieldsData = await setFieldsResponse.json();
+    console.log('Set Custom Fields response:', JSON.stringify(setFieldsData));
+
+    if (!setFieldsResponse.ok) {
+      console.error('Failed to set custom fields:', setFieldsData);
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'Erro ao definir Custom Fields',
+          details: setFieldsData
         }),
-      }
-    );
+        { 
+          status: setFieldsResponse.status, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+
+    // Step 2: Send the Flow with the approved template
+    console.log('Sending Flow...');
+    const manychatResponse = await fetch(`https://api.manychat.com/fb/sending/sendFlow`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${MANYCHAT_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        subscriber_id: parseInt(subscriber_id),
+        flow_ns: FLOW_ID
+      }),
+    });
 
     const manychatData = await manychatResponse.json();
-    console.log('ManyChat API response:', JSON.stringify(manychatData));
+    console.log('ManyChat sendFlow response:', JSON.stringify(manychatData));
 
     if (!manychatResponse.ok) {
       console.error('ManyChat API error:', manychatData);
@@ -92,12 +115,12 @@ serve(async (req) => {
       );
     }
 
-    console.log('Test message sent successfully');
+    console.log('Test Flow sent successfully');
     
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: 'Mensagem de teste enviada com sucesso!',
+        message: 'Flow de teste enviado com sucesso! Verifique seu WhatsApp.',
         response: manychatData
       }),
       { 
