@@ -12,6 +12,7 @@ import { useFollowUpSettings } from "@/hooks/useFollowUpSettings";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
+import { FollowUpLogsCard } from "@/components/FollowUpLogsCard";
 
 export function SettingsPage() {
   const { user } = useAuth();
@@ -229,6 +230,8 @@ export function SettingsPage() {
               </Button>
             </CardContent>
           </Card>
+
+          <FollowUpLogsCard />
         </TabsContent>
 
         {/* Profile Tab */}
