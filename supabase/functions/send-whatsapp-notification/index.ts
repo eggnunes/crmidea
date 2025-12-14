@@ -35,7 +35,7 @@ serve(async (req) => {
     console.log(`Subscriber ID: ${subscriberId}`);
 
     // Send message via ManyChat API
-    // Using the sendContent endpoint to trigger a flow or send a message
+    // Using the sendContent endpoint with message_tag to allow sending after 24h window
     const response = await fetch(`https://api.manychat.com/fb/sending/sendContent`, {
       method: 'POST',
       headers: {
@@ -44,6 +44,7 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         subscriber_id: subscriberId,
+        message_tag: 'ACCOUNT_UPDATE',
         data: {
           version: "v2",
           content: {
