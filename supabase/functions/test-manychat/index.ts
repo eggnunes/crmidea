@@ -46,6 +46,7 @@ serve(async (req) => {
     console.log(`Testing ManyChat integration for subscriber: ${subscriber_id}`);
 
     // Send test message via ManyChat API
+    // Using message_tag to allow sending after 24h window
     const manychatResponse = await fetch(
       `https://api.manychat.com/fb/sending/sendContent`,
       {
@@ -56,6 +57,7 @@ serve(async (req) => {
         },
         body: JSON.stringify({
           subscriber_id: subscriber_id,
+          message_tag: 'ACCOUNT_UPDATE',
           data: {
             version: 'v2',
             content: {
