@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { MessageSquare, User, Briefcase, BookOpen, Target, Settings2, Webhook, Users, Zap, Clock, Sliders, Tag } from "lucide-react";
+import { MessageSquare, User, Briefcase, BookOpen, Target, Settings2, Webhook, Users, Zap, Clock, Sliders, Tag, Radio } from "lucide-react";
 import { WhatsAppConversations } from "@/components/whatsapp/WhatsAppConversations";
 import { AIProfileSettings } from "@/components/whatsapp/AIProfileSettings";
 import { AIWorkSettings } from "@/components/whatsapp/AIWorkSettings";
@@ -13,6 +13,7 @@ import { QuickResponsesManager } from "@/components/whatsapp/QuickResponsesManag
 import { ScheduledMessagesManager } from "@/components/whatsapp/ScheduledMessagesManager";
 import { AdvancedSettings } from "@/components/whatsapp/AdvancedSettings";
 import { TagsManager } from "@/components/whatsapp/TagsManager";
+import { ChannelSettings } from "@/components/whatsapp/ChannelSettings";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 
 export function WhatsAppPage() {
@@ -74,6 +75,10 @@ export function WhatsAppPage() {
               <Settings2 className="w-4 h-4" />
               <span className="hidden sm:inline">Configurações</span>
             </TabsTrigger>
+            <TabsTrigger value="canais" className="flex items-center gap-2 py-2 px-3">
+              <Radio className="w-4 h-4" />
+              <span className="hidden sm:inline">Canais</span>
+            </TabsTrigger>
             <TabsTrigger value="webhook" className="flex items-center gap-2 py-2 px-3">
               <Webhook className="w-4 h-4" />
               <span className="hidden sm:inline">Webhook</span>
@@ -124,6 +129,10 @@ export function WhatsAppPage() {
 
         <TabsContent value="config" className="space-y-4">
           <AIConfigSettings />
+        </TabsContent>
+
+        <TabsContent value="canais" className="space-y-4">
+          <ChannelSettings />
         </TabsContent>
 
         <TabsContent value="webhook" className="space-y-4">
