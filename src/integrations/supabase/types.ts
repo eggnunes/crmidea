@@ -18,61 +18,100 @@ export type Database = {
         Row: {
           agent_name: string
           allow_reminders: boolean
+          auto_create_contacts: boolean | null
           behavior_prompt: string | null
           communication_style: string
           company_description: string | null
           company_name: string | null
           created_at: string
+          disable_group_messages: boolean | null
+          elevenlabs_enabled: boolean | null
+          elevenlabs_voice_id: string | null
+          google_calendar_enabled: boolean | null
+          google_calendar_id: string | null
           id: string
+          inactivity_action: string | null
+          inactivity_message: string | null
+          inactivity_timeout_minutes: number | null
           is_active: boolean
           purpose: string
+          response_delay_seconds: number | null
           restrict_topics: boolean
+          show_recording_indicator: boolean | null
+          show_typing_indicator: boolean | null
           sign_agent_name: boolean
           smart_training_search: boolean
           split_long_messages: boolean
           updated_at: string
           use_emojis: boolean
           user_id: string
+          voice_response_enabled: boolean | null
           website_url: string | null
         }
         Insert: {
           agent_name?: string
           allow_reminders?: boolean
+          auto_create_contacts?: boolean | null
           behavior_prompt?: string | null
           communication_style?: string
           company_description?: string | null
           company_name?: string | null
           created_at?: string
+          disable_group_messages?: boolean | null
+          elevenlabs_enabled?: boolean | null
+          elevenlabs_voice_id?: string | null
+          google_calendar_enabled?: boolean | null
+          google_calendar_id?: string | null
           id?: string
+          inactivity_action?: string | null
+          inactivity_message?: string | null
+          inactivity_timeout_minutes?: number | null
           is_active?: boolean
           purpose?: string
+          response_delay_seconds?: number | null
           restrict_topics?: boolean
+          show_recording_indicator?: boolean | null
+          show_typing_indicator?: boolean | null
           sign_agent_name?: boolean
           smart_training_search?: boolean
           split_long_messages?: boolean
           updated_at?: string
           use_emojis?: boolean
           user_id: string
+          voice_response_enabled?: boolean | null
           website_url?: string | null
         }
         Update: {
           agent_name?: string
           allow_reminders?: boolean
+          auto_create_contacts?: boolean | null
           behavior_prompt?: string | null
           communication_style?: string
           company_description?: string | null
           company_name?: string | null
           created_at?: string
+          disable_group_messages?: boolean | null
+          elevenlabs_enabled?: boolean | null
+          elevenlabs_voice_id?: string | null
+          google_calendar_enabled?: boolean | null
+          google_calendar_id?: string | null
           id?: string
+          inactivity_action?: string | null
+          inactivity_message?: string | null
+          inactivity_timeout_minutes?: number | null
           is_active?: boolean
           purpose?: string
+          response_delay_seconds?: number | null
           restrict_topics?: boolean
+          show_recording_indicator?: boolean | null
+          show_typing_indicator?: boolean | null
           sign_agent_name?: boolean
           smart_training_search?: boolean
           split_long_messages?: boolean
           updated_at?: string
           use_emojis?: boolean
           user_id?: string
+          voice_response_enabled?: boolean | null
           website_url?: string | null
         }
         Relationships: []
@@ -145,6 +184,30 @@ export type Database = {
           id?: string
           status?: string
           title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      contact_tags: {
+        Row: {
+          color: string | null
+          created_at: string
+          id: string
+          name: string
+          user_id: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          user_id: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          name?: string
           user_id?: string
         }
         Relationships: []
@@ -368,6 +431,72 @@ export type Database = {
         }
         Relationships: []
       }
+      quick_responses: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          shortcut: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          shortcut: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          shortcut?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      scheduled_messages: {
+        Row: {
+          contact_phone: string
+          created_at: string
+          error_message: string | null
+          id: string
+          message: string
+          scheduled_at: string
+          sent_at: string | null
+          status: string | null
+          user_id: string
+        }
+        Insert: {
+          contact_phone: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          message: string
+          scheduled_at: string
+          sent_at?: string | null
+          status?: string | null
+          user_id: string
+        }
+        Update: {
+          contact_phone?: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          message?: string
+          scheduled_at?: string
+          sent_at?: string | null
+          status?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -385,6 +514,75 @@ export type Database = {
           created_at?: string
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      whatsapp_contact_tags: {
+        Row: {
+          contact_id: string
+          created_at: string
+          id: string
+          tag_id: string
+        }
+        Insert: {
+          contact_id: string
+          created_at?: string
+          id?: string
+          tag_id: string
+        }
+        Update: {
+          contact_id?: string
+          created_at?: string
+          id?: string
+          tag_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_contact_tags_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_contact_tags_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "contact_tags"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_contacts: {
+        Row: {
+          bot_disabled: boolean | null
+          created_at: string
+          id: string
+          name: string | null
+          notes: string | null
+          phone: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          bot_disabled?: boolean | null
+          created_at?: string
+          id?: string
+          name?: string | null
+          notes?: string | null
+          phone: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          bot_disabled?: boolean | null
+          created_at?: string
+          id?: string
+          name?: string | null
+          notes?: string | null
+          phone?: string
+          updated_at?: string
           user_id?: string
         }
         Relationships: []
