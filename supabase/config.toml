@@ -23,3 +23,6 @@ verify_jwt = true
 
 [functions.manychat-webhook]
 verify_jwt = false
+
+[functions.abandoned-cart-alert]
+verify_jwt = true
