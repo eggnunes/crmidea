@@ -8,3 +8,15 @@ verify_jwt = false
 
 [functions.test-manychat]
 verify_jwt = false
+
+[functions.kiwify-webhook]
+verify_jwt = false
+
+[functions.kiwify-auth]
+verify_jwt = true
+
+[functions.kiwify-setup-webhook]
+verify_jwt = true
+
+[functions.sync-manychat-leads]
+verify_jwt = true
