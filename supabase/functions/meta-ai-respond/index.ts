@@ -110,6 +110,14 @@ serve(async (req) => {
       });
     }
 
+    // Check if AI is enabled for this channel
+    if (channelConfig.ai_enabled === false) {
+      console.log(`AI is disabled for ${channel} channel`);
+      return new Response(JSON.stringify({ status: 'skipped', reason: 'ai_disabled_for_channel' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     // Get conversation details
     const { data: conversation } = await supabase
       .from('whatsapp_conversations')
