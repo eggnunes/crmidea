@@ -14,6 +14,7 @@ import { IntegrationsDashboardPage } from "./pages/IntegrationsDashboardPage";
 import { WhatsAppPage } from "./pages/WhatsAppPage";
 import AdminUsersPage from "./pages/AdminUsersPage";
 import { AuthPage } from "./pages/AuthPage";
+import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
 import NotFound from "./pages/NotFound";
 import { Loader2 } from "lucide-react";
 
@@ -41,6 +42,7 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/auth" element={<AuthPage />} />
+      <Route path="/privacidade" element={<PrivacyPolicyPage />} />
       <Route
         path="/*"
         element={
