@@ -26,17 +26,41 @@ serve(async (req) => {
     // Handle incoming message
     if (eventType === 'ReceivedCallback' || payload.isNewsletter === false) {
       const phone = payload.phone || payload.from?.replace('@c.us', '').replace('@s.whatsapp.net', '');
-      const messageContent = payload.text?.message || payload.body || payload.message;
-      const messageType = payload.type || 'text';
       const senderName = payload.senderName || payload.pushName || null;
       const zapiMessageId = payload.messageId || payload.id?.id;
       const isGroup = payload.isGroup || payload.chatId?.includes('@g.us') || false;
-      const isAudioMessage = messageType === 'audio' || messageType === 'ptt';
+      
+      // Detect message type - Z-API uses different structures for different message types
+      // Audio messages come with "audio" or "ptt" object, not "text"
+      const hasAudio = payload.audio || payload.ptt;
+      const isAudioMessage = hasAudio !== undefined;
+      const messageType = isAudioMessage ? (payload.ptt ? 'ptt' : 'audio') : 'text';
+      
       // Get audio URL for transcription
-      const audioUrl = isAudioMessage ? (payload.audio?.audioUrl || payload.audio || payload.url || null) : null;
-
-      if (!phone || !messageContent) {
-        console.log('Missing phone or content, skipping');
+      let audioUrl: string | null = null;
+      if (isAudioMessage) {
+        // Z-API sends audio info in different formats
+        const audioData = payload.audio || payload.ptt;
+        audioUrl = audioData?.audioUrl || audioData?.pttUrl || audioData?.url || 
+                   (typeof audioData === 'string' ? audioData : null);
+        console.log('Audio message detected, audioUrl:', audioUrl);
+        console.log('Full audio payload:', JSON.stringify(audioData, null, 2));
+      }
+      
+      // Get text content (will be empty for audio messages)
+      const messageContent = payload.text?.message || payload.body || payload.message || '';
+      
+      // For audio messages, we don't require text content
+      if (!phone) {
+        console.log('Missing phone, skipping');
+        return new Response(JSON.stringify({ status: 'skipped' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      
+      // Skip if no content AND not an audio message
+      if (!messageContent && !isAudioMessage) {
+        console.log('Missing content and not audio, skipping');
         return new Response(JSON.stringify({ status: 'skipped' }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
@@ -58,7 +82,7 @@ serve(async (req) => {
         }
       }
 
-      console.log(`Processing ${messageType} message from ${phone}: ${messageContent.substring(0, 50)}...`);
+      console.log(`Processing ${messageType} message from ${phone}: ${isAudioMessage ? '[AUDIO]' : messageContent.substring(0, 50)}...`);
 
       // Find or create conversation
       // First, we need to find the user who owns this Z-API instance
@@ -117,13 +141,14 @@ serve(async (req) => {
       }
 
       // Save the message
+      const contentToSave = isAudioMessage ? (audioUrl ? `[Áudio: ${audioUrl}]` : '[Áudio recebido]') : messageContent;
       const { data: savedMessage, error: msgError } = await supabase
         .from('whatsapp_messages')
         .insert({
           conversation_id: conversation.id,
           user_id: userId,
           message_type: messageType,
-          content: messageContent,
+          content: contentToSave,
           is_from_contact: true,
           is_ai_response: false,
           zapi_message_id: zapiMessageId,
