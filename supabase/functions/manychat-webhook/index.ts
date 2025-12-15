@@ -72,21 +72,25 @@ Deno.serve(async (req) => {
     const payload: ManyChatWebhookPayload = await req.json();
     console.log('Payload:', JSON.stringify(payload, null, 2));
 
-    // Get subscriber info
-    const name = payload.name || `${payload.first_name || ''} ${payload.last_name || ''}`.trim() || 'Lead Instagram';
-    const email = payload.email || payload.optin_email || `instagram_${payload.ig_id || payload.id}@lead.local`;
-    const phone = payload.whatsapp_phone || payload.optin_phone || payload.phone || null;
-    const igUsername = payload.ig_username || null;
+  // Get subscriber info - support both ManyChat format and direct JSON
+  const subscriberId = (payload as Record<string, unknown>).subscriber_id as string | undefined;
+  const name = payload.name || `${payload.first_name || ''} ${payload.last_name || ''}`.trim() || 'Lead Instagram';
+  const email = payload.email || payload.optin_email || (subscriberId ? `manychat_${subscriberId}@lead.local` : `instagram_${payload.ig_id || payload.id || Date.now()}@lead.local`);
+  const phone = payload.whatsapp_phone || payload.optin_phone || payload.phone || null;
+  const igUsername = payload.ig_username || null;
+  const directProduct = (payload as Record<string, unknown>).product as string | undefined;
+  const directSource = (payload as Record<string, unknown>).source as string | undefined;
 
-    console.log('Subscriber:', { name, email, phone, igUsername });
+  console.log('Subscriber:', { name, email, phone, igUsername, subscriberId, directProduct, directSource });
 
-    if (!payload.id && !payload.ig_id) {
-      console.log('No subscriber ID in payload');
-      return new Response(
-        JSON.stringify({ success: false, error: 'No subscriber ID' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
-      );
-    }
+  // Accept request if we have at least name or email (for direct flow calls)
+  if (!payload.id && !payload.ig_id && !subscriberId && !name && !email) {
+    console.log('No subscriber info in payload');
+    return new Response(
+      JSON.stringify({ success: false, error: 'No subscriber info provided' }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+    );
+  }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -118,8 +122,8 @@ Deno.serve(async (req) => {
       .or(`email.eq.${email},phone.eq.${phone}`)
       .maybeSingle();
 
-    const productType = mapTagToProduct(payload.tags, payload.trigger_keyword);
-    const source = igUsername ? `Instagram (@${igUsername})` : 'ManyChat';
+    const productType = directProduct || mapTagToProduct(payload.tags, payload.trigger_keyword);
+    const source = directSource || (igUsername ? `Instagram (@${igUsername})` : 'ManyChat');
 
     let leadId: string;
     let leadAction: 'created' | 'updated';
