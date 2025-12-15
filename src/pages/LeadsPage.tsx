@@ -10,7 +10,8 @@ import {
   Trash2,
   Eye,
   Edit,
-  Loader2
+  Loader2,
+  MoreHorizontal
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -41,7 +42,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { ExportImportLeads } from "@/components/ExportImportLeads";
-import { MoreHorizontal } from "lucide-react";
+import { LeadAssignees } from "@/components/LeadAssignees";
 
 function LeadForm({ 
   onSubmit, 
@@ -250,6 +251,11 @@ function LeadDetailDialog({
             <p className="text-sm mt-1">{lead.notes}</p>
           </div>
         )}
+
+        {/* Lead Assignees */}
+        <div className="border-t border-border pt-4">
+          <LeadAssignees leadId={lead.id} />
+        </div>
       </div>
 
       {/* Interactions */}

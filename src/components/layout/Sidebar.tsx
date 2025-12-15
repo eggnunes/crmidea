@@ -29,7 +29,7 @@ const navItems = [
   { to: "/pipeline", icon: Kanban, label: "Pipeline" },
   { to: "/produtos", icon: Package, label: "Produtos" },
   { to: "/integracoes", icon: BarChart3, label: "Integrações" },
-  { to: "/whatsapp", icon: MessageCircle, label: "WhatsApp IA" },
+  { to: "/whatsapp", icon: MessageCircle, label: "Central de Atendimento" },
   { to: "/configuracoes", icon: Settings, label: "Configurações" },
 ];
 
