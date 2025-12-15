@@ -26,3 +26,18 @@ verify_jwt = false
 
 [functions.abandoned-cart-alert]
 verify_jwt = true
+
+[functions.zapi-webhook]
+verify_jwt = false
+
+[functions.zapi-send-message]
+verify_jwt = true
+
+[functions.zapi-ai-respond]
+verify_jwt = true
+
+[functions.process-training-document]
+verify_jwt = true
+
+[functions.zapi-setup-webhook]
+verify_jwt = true
