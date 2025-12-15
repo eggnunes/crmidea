@@ -60,6 +60,31 @@ function mapTagToProduct(tags: Array<{ name: string }> | undefined, keyword?: st
   return 'guia_ia'; // Default
 }
 
+// Normalize product name to valid enum value
+function normalizeProductType(product: string | undefined): string {
+  if (!product) return 'guia_ia';
+  
+  const normalized = product.toLowerCase().trim()
+    .replace(/\s+/g, '_')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, ''); // Remove accents
+  
+  const validProducts = ['consultoria', 'mentoria_coletiva', 'mentoria_individual', 'curso_idea', 'guia_ia', 'codigo_prompts', 'combo_ebooks'];
+  
+  // Direct match
+  if (validProducts.includes(normalized)) return normalized;
+  
+  // Partial match
+  if (normalized.includes('consultoria')) return 'consultoria';
+  if (normalized.includes('coletiva')) return 'mentoria_coletiva';
+  if (normalized.includes('individual')) return 'mentoria_individual';
+  if (normalized.includes('idea') || normalized.includes('curso')) return 'curso_idea';
+  if (normalized.includes('guia') || normalized.includes('ia')) return 'guia_ia';
+  if (normalized.includes('prompt') || normalized.includes('codigo')) return 'codigo_prompts';
+  if (normalized.includes('combo') || normalized.includes('ebook')) return 'combo_ebooks';
+  
+  return 'guia_ia';
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -122,7 +147,7 @@ Deno.serve(async (req) => {
       .or(`email.eq.${email},phone.eq.${phone}`)
       .maybeSingle();
 
-    const productType = directProduct || mapTagToProduct(payload.tags, payload.trigger_keyword);
+    const productType = normalizeProductType(directProduct) || mapTagToProduct(payload.tags, payload.trigger_keyword);
     const source = directSource || (igUsername ? `Instagram (@${igUsername})` : 'ManyChat');
 
     let leadId: string;
