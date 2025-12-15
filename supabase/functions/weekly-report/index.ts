@@ -53,14 +53,14 @@ serve(async (req) => {
       // Get leads stats
       const { data: newLeads } = await supabase
         .from('leads')
-        .select('id', { count: 'exact' })
+        .select('id, product, value, name')
         .eq('user_id', userId)
         .gte('created_at', startDateStr)
         .lte('created_at', endDateStr);
 
       const { data: closedWon } = await supabase
         .from('leads')
-        .select('id, value', { count: 'exact' })
+        .select('id, value, product')
         .eq('user_id', userId)
         .eq('status', 'fechado_ganho')
         .gte('updated_at', startDateStr)
@@ -68,7 +68,7 @@ serve(async (req) => {
 
       const { data: closedLost } = await supabase
         .from('leads')
-        .select('id', { count: 'exact' })
+        .select('id')
         .eq('user_id', userId)
         .eq('status', 'fechado_perdido')
         .gte('updated_at', startDateStr)
@@ -77,7 +77,7 @@ serve(async (req) => {
       // Get conversations stats
       const { data: conversations } = await supabase
         .from('whatsapp_conversations')
-        .select('id', { count: 'exact' })
+        .select('id, contact_name, unread_count, channel')
         .eq('user_id', userId)
         .gte('created_at', startDateStr)
         .lte('created_at', endDateStr);
@@ -85,28 +85,28 @@ serve(async (req) => {
       // Get messages stats
       const { data: messages } = await supabase
         .from('whatsapp_messages')
-        .select('id, is_ai_response, channel')
+        .select('id, is_ai_response, channel, conversation_id')
         .eq('user_id', userId)
         .gte('created_at', startDateStr)
         .lte('created_at', endDateStr);
 
-      // Get interactions
-      const { data: interactions } = await supabase
+      // Get interactions for lead engagement analysis
+      const { data: allInteractions } = await supabase
         .from('interactions')
-        .select('id, lead_id')
+        .select('id, lead_id, type')
         .gte('created_at', startDateStr)
         .lte('created_at', endDateStr);
 
-      // Filter interactions by user's leads
-      const { data: userLeadIds } = await supabase
+      // Get user's leads for filtering interactions
+      const { data: userLeads } = await supabase
         .from('leads')
-        .select('id')
+        .select('id, name')
         .eq('user_id', userId);
 
-      const userLeadIdSet = new Set(userLeadIds?.map(l => l.id) || []);
-      const userInteractions = interactions?.filter(i => userLeadIdSet.has(i.lead_id)) || [];
+      const userLeadIds = new Set(userLeads?.map(l => l.id) || []);
+      const userInteractions = allInteractions?.filter(i => userLeadIds.has(i.lead_id)) || [];
 
-      // Calculate metrics
+      // Calculate basic metrics
       const newLeadsCount = newLeads?.length || 0;
       const closedWonCount = closedWon?.length || 0;
       const closedLostCount = closedLost?.length || 0;
@@ -116,6 +116,35 @@ serve(async (req) => {
       const aiResponsesCount = messages?.filter(m => m.is_ai_response).length || 0;
       const interactionsCount = userInteractions.length;
 
+      // Calculate TOP PRODUCTS by revenue
+      const productRevenue: Record<string, { count: number; revenue: number }> = {};
+      closedWon?.forEach(lead => {
+        if (!productRevenue[lead.product]) {
+          productRevenue[lead.product] = { count: 0, revenue: 0 };
+        }
+        productRevenue[lead.product].count++;
+        productRevenue[lead.product].revenue += lead.value || 0;
+      });
+
+      const topProducts = Object.entries(productRevenue)
+        .sort((a, b) => b[1].revenue - a[1].revenue)
+        .slice(0, 3)
+        .map(([product, data]) => `• ${product}: ${data.count} vendas (R$ ${data.revenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })})`)
+        .join('\n') || '• Nenhuma venda no período';
+
+      // Calculate MOST ENGAGED LEADS (by interaction count)
+      const leadInteractionCount: Record<string, number> = {};
+      userInteractions.forEach(interaction => {
+        leadInteractionCount[interaction.lead_id] = (leadInteractionCount[interaction.lead_id] || 0) + 1;
+      });
+
+      const leadIdToName = new Map(userLeads?.map(l => [l.id, l.name]) || []);
+      const topEngagedLeads = Object.entries(leadInteractionCount)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([leadId, count]) => `• ${leadIdToName.get(leadId) || 'Lead desconhecido'}: ${count} interações`)
+        .join('\n') || '• Nenhuma interação no período';
+
       // Calculate channel distribution
       const channelCounts: Record<string, number> = {};
       messages?.forEach(m => {
@@ -123,31 +152,83 @@ serve(async (req) => {
       });
 
       const channelDistribution = Object.entries(channelCounts)
-        .map(([channel, count]) => `${channel}: ${count}`)
-        .join(', ') || 'Nenhuma mensagem';
+        .sort((a, b) => b[1] - a[1])
+        .map(([channel, count]) => `• ${channel}: ${count} mensagens`)
+        .join('\n') || '• Nenhuma mensagem no período';
+
+      // Calculate most active conversations
+      const conversationMessageCount: Record<string, number> = {};
+      messages?.forEach(m => {
+        conversationMessageCount[m.conversation_id] = (conversationMessageCount[m.conversation_id] || 0) + 1;
+      });
+
+      const conversationIdToName = new Map(
+        conversations?.map(c => [c.id, c.contact_name || c.channel]) || []
+      );
+
+      const topConversations = Object.entries(conversationMessageCount)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([convId, count]) => `• ${conversationIdToName.get(convId) || 'Conversa'}: ${count} mensagens`)
+        .join('\n') || '• Nenhuma conversa ativa';
+
+      // Calculate leads by product (new leads)
+      const newLeadsByProduct: Record<string, number> = {};
+      newLeads?.forEach(l => {
+        newLeadsByProduct[l.product] = (newLeadsByProduct[l.product] || 0) + 1;
+      });
+
+      const leadsByProductText = Object.entries(newLeadsByProduct)
+        .sort((a, b) => b[1] - a[1])
+        .map(([product, count]) => `• ${product}: ${count} leads`)
+        .join('\n') || '• Nenhum novo lead';
 
       // Format the report message
       const reportMessage = `📊 **Relatório Semanal de Desempenho**
 
 📅 Período: ${startDate.toLocaleDateString('pt-BR')} a ${endDate.toLocaleDateString('pt-BR')}
 
-**Leads:**
+━━━━━━━━━━━━━━━━━━━━
+📈 **RESUMO DE VENDAS**
+━━━━━━━━━━━━━━━━━━━━
 • Novos leads: ${newLeadsCount}
 • Fechados (ganhos): ${closedWonCount}
 • Fechados (perdidos): ${closedLostCount}
 • Receita gerada: R$ ${totalRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+• Taxa de conversão: ${newLeadsCount > 0 ? ((closedWonCount / newLeadsCount) * 100).toFixed(1) : 0}%
 
-**Conversas:**
+━━━━━━━━━━━━━━━━━━━━
+🏆 **TOP PRODUTOS (por receita)**
+━━━━━━━━━━━━━━━━━━━━
+${topProducts}
+
+━━━━━━━━━━━━━━━━━━━━
+📥 **NOVOS LEADS POR PRODUTO**
+━━━━━━━━━━━━━━━━━━━━
+${leadsByProductText}
+
+━━━━━━━━━━━━━━━━━━━━
+🔥 **LEADS MAIS ENGAJADOS**
+━━━━━━━━━━━━━━━━━━━━
+${topEngagedLeads}
+
+━━━━━━━━━━━━━━━━━━━━
+💬 **COMUNICAÇÃO**
+━━━━━━━━━━━━━━━━━━━━
 • Novas conversas: ${conversationsCount}
 • Total de mensagens: ${messagesCount}
-• Respostas da IA: ${aiResponsesCount}
+• Respostas da IA: ${aiResponsesCount} (${messagesCount > 0 ? ((aiResponsesCount / messagesCount) * 100).toFixed(1) : 0}%)
 • Interações com leads: ${interactionsCount}
 
-**Distribuição por Canal:**
+━━━━━━━━━━━━━━━━━━━━
+📱 **MENSAGENS POR CANAL**
+━━━━━━━━━━━━━━━━━━━━
 ${channelDistribution}
 
-**Taxa de Conversão:**
-${newLeadsCount > 0 ? ((closedWonCount / newLeadsCount) * 100).toFixed(1) : 0}%`;
+━━━━━━━━━━━━━━━━━━━━
+🗣️ **CONVERSAS MAIS ATIVAS**
+━━━━━━━━━━━━━━━━━━━━
+${topConversations}`;
 
       // Get a random lead ID for the notification link (or null if no leads)
       const { data: anyLead } = await supabase
@@ -155,7 +236,7 @@ ${newLeadsCount > 0 ? ((closedWonCount / newLeadsCount) * 100).toFixed(1) : 0}%`
         .select('id')
         .eq('user_id', userId)
         .limit(1)
-        .single();
+        .maybeSingle();
 
       // Create in-app notification
       const { error: notifError } = await supabase
@@ -165,7 +246,7 @@ ${newLeadsCount > 0 ? ((closedWonCount / newLeadsCount) * 100).toFixed(1) : 0}%`
           title: '📊 Relatório Semanal',
           message: reportMessage,
           type: 'weekly_report',
-          lead_id: anyLead?.id || null,
+          lead_id: anyLead?.id || '00000000-0000-0000-0000-000000000000',
           is_read: false
         });
 

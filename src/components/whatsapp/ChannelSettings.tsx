@@ -219,6 +219,17 @@ export function ChannelSettings() {
               
               {isEditing && (
                 <CardContent className="space-y-4 border-t pt-4">
+                  <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4 space-y-2">
+                    <h4 className="font-medium text-sm">📋 Passo a passo para configurar:</h4>
+                    <ol className="text-xs text-muted-foreground list-decimal list-inside space-y-1">
+                      <li>Acesse <a href="https://developers.facebook.com" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Meta for Developers</a> e crie um App</li>
+                      <li>Adicione o produto "{channel.id === 'instagram' ? 'Instagram' : 'Messenger'}" ao seu App</li>
+                      <li>Gere um Access Token com permissões de mensagens</li>
+                      <li>Configure o Webhook URL abaixo no painel do Meta</li>
+                      <li>Inscreva-se nos eventos de mensagens</li>
+                    </ol>
+                  </div>
+
                   <div className="space-y-2">
                     <Label>Access Token (Meta)</Label>
                     <Input
@@ -228,44 +239,67 @@ export function ChannelSettings() {
                       placeholder="Digite seu Access Token do Meta"
                     />
                     <p className="text-xs text-muted-foreground">
-                      Obtenha em{' '}
-                      <a 
-                        href="https://developers.facebook.com" 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-primary hover:underline inline-flex items-center gap-1"
-                      >
-                        Meta for Developers <ExternalLink className="h-3 w-3" />
-                      </a>
+                      Token de acesso com permissões: {channel.id === 'instagram' ? 'instagram_manage_messages, instagram_basic' : 'pages_messaging, pages_manage_metadata'}
                     </p>
                   </div>
                   
                   <div className="space-y-2">
-                    <Label>Page ID / Instagram Business Account ID</Label>
+                    <Label>{channel.id === 'instagram' ? 'Instagram Business Account ID' : 'Facebook Page ID'}</Label>
                     <Input
                       value={formData.page_id || ''}
                       onChange={(e) => setFormData(prev => ({ ...prev, page_id: e.target.value }))}
-                      placeholder="ID da página ou conta"
+                      placeholder={channel.id === 'instagram' ? 'ID da conta Instagram Business' : 'ID da página do Facebook'}
                     />
+                    <p className="text-xs text-muted-foreground">
+                      {channel.id === 'instagram' 
+                        ? 'Encontre em: Business Suite → Configurações → Instagram → ID da conta'
+                        : 'Encontre em: Configurações da Página → Sobre → ID da Página'
+                      }
+                    </p>
+                  </div>
+
+                  <Separator />
+
+                  <div className="space-y-2">
+                    <Label>Webhook URL (configure no Meta)</Label>
+                    <div className="flex gap-2">
+                      <Input value={getWebhookUrl(channel.id)} readOnly className="font-mono text-xs bg-muted" />
+                      <Button variant="outline" size="icon" onClick={() => handleCopyWebhook(channel.id)}>
+                        {copied === channel.id ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                      </Button>
+                    </div>
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Webhook URL (para configurar no Meta)</Label>
+                    <Label>Verify Token (para validação do webhook)</Label>
                     <div className="flex gap-2">
-                      <Input value={getWebhookUrl(channel.id)} readOnly className="font-mono text-xs" />
-                      <Button variant="outline" size="icon" onClick={() => handleCopyWebhook(channel.id)}>
-                        {copied === channel.id ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                      </Button>
+                      <Input 
+                        value={config?.webhook_verify_token || 'Será gerado ao salvar'} 
+                        readOnly 
+                        className="font-mono text-xs bg-muted" 
+                      />
+                      {config?.webhook_verify_token && (
+                        <Button 
+                          variant="outline" 
+                          size="icon" 
+                          onClick={() => {
+                            navigator.clipboard.writeText(config.webhook_verify_token || '');
+                            toast.success('Verify Token copiado!');
+                          }}
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      Configure este URL como webhook callback no painel do Meta.
+                      Use este token no campo "Verify Token" ao configurar o webhook no Meta.
                     </p>
                   </div>
                   
                   <div className="flex gap-2 pt-2">
                     <Button onClick={handleSave} disabled={saving}>
                       {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                      Salvar
+                      Salvar Configurações
                     </Button>
                     <Button variant="outline" onClick={() => setEditingChannel(null)}>
                       Cancelar
