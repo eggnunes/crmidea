@@ -3,16 +3,48 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Search, Send, MessageSquare, User, Bot, Mic, Square, Play, Trash2 } from "lucide-react";
-import { useWhatsAppConversations } from "@/hooks/useWhatsAppConversations";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Loader2, Search, Send, MessageSquare, User, Bot, Mic, Square, Play, Trash2, MessageCircle, Instagram, Facebook } from "lucide-react";
+import { useWhatsAppConversations, ChannelType } from "@/hooks/useWhatsAppConversations";
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+
+const CHANNEL_OPTIONS = [
+  { value: 'all', label: 'Todos os canais', icon: MessageSquare },
+  { value: 'whatsapp', label: 'WhatsApp', icon: MessageCircle },
+  { value: 'instagram', label: 'Instagram', icon: Instagram },
+  { value: 'facebook', label: 'Facebook', icon: Facebook },
+];
+
+const getChannelIcon = (channel?: ChannelType) => {
+  switch (channel) {
+    case 'instagram':
+      return <Instagram className="w-4 h-4 text-pink-500" />;
+    case 'facebook':
+      return <Facebook className="w-4 h-4 text-blue-600" />;
+    case 'whatsapp':
+    default:
+      return <MessageCircle className="w-4 h-4 text-green-500" />;
+  }
+};
+
+const getChannelColor = (channel?: ChannelType) => {
+  switch (channel) {
+    case 'instagram':
+      return 'bg-gradient-to-r from-purple-500 to-pink-500';
+    case 'facebook':
+      return 'bg-blue-600';
+    case 'whatsapp':
+    default:
+      return 'bg-green-500';
+  }
+};
 
 export function WhatsAppConversations() {
   const {
@@ -23,6 +55,8 @@ export function WhatsAppConversations() {
     messages,
     loadingMessages,
     sendMessage,
+    channelFilter,
+    setChannelFilter,
   } = useWhatsAppConversations();
   
   const { toast } = useToast();
@@ -50,7 +84,7 @@ export function WhatsAppConversations() {
     if (!selectedConversation || !newMessage.trim()) return;
     
     setSending(true);
-    await sendMessage(selectedConversation.id, newMessage);
+    await sendMessage(selectedConversation.id, newMessage, selectedConversation);
     setNewMessage("");
     setSending(false);
   };
@@ -113,10 +147,27 @@ export function WhatsAppConversations() {
       {/* Conversations List */}
       <Card className="lg:col-span-1 flex flex-col">
         <CardHeader className="pb-3">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <MessageSquare className="w-5 h-5" />
-            Conversas
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <MessageSquare className="w-5 h-5" />
+              Conversas
+            </CardTitle>
+          </div>
+          <Select value={channelFilter} onValueChange={(value) => setChannelFilter(value as ChannelType | 'all')}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Filtrar por canal" />
+            </SelectTrigger>
+            <SelectContent>
+              {CHANNEL_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  <div className="flex items-center gap-2">
+                    <option.icon className="w-4 h-4" />
+                    {option.label}
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
@@ -147,11 +198,22 @@ export function WhatsAppConversations() {
                     )}
                   >
                     <div className="flex items-center gap-3">
-                      <Avatar>
-                        <AvatarFallback>
-                          {conv.contact_name?.[0]?.toUpperCase() || "?"}
-                        </AvatarFallback>
-                      </Avatar>
+                      <div className="relative">
+                        <Avatar>
+                          {conv.profile_picture_url ? (
+                            <AvatarImage src={conv.profile_picture_url} />
+                          ) : null}
+                          <AvatarFallback>
+                            {conv.contact_name?.[0]?.toUpperCase() || "?"}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className={cn(
+                          "absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center",
+                          getChannelColor(conv.channel)
+                        )}>
+                          {getChannelIcon(conv.channel)}
+                        </div>
+                      </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between">
                           <span className="font-medium truncate">
@@ -164,7 +226,10 @@ export function WhatsAppConversations() {
                           )}
                         </div>
                         <p className="text-sm text-muted-foreground truncate">
-                          {formatPhone(conv.contact_phone)}
+                          {conv.channel === 'whatsapp' 
+                            ? formatPhone(conv.contact_phone) 
+                            : `${conv.channel?.charAt(0).toUpperCase()}${conv.channel?.slice(1)} ID: ${conv.channel_user_id?.slice(-8) || ''}`
+                          }
                         </p>
                         {conv.last_message_at && (
                           <p className="text-xs text-muted-foreground">
@@ -190,17 +255,34 @@ export function WhatsAppConversations() {
           <>
             <CardHeader className="pb-3 border-b">
               <div className="flex items-center gap-3">
-                <Avatar>
-                  <AvatarFallback>
-                    {selectedConversation.contact_name?.[0]?.toUpperCase() || "?"}
-                  </AvatarFallback>
-                </Avatar>
+                <div className="relative">
+                  <Avatar>
+                    {selectedConversation.profile_picture_url ? (
+                      <AvatarImage src={selectedConversation.profile_picture_url} />
+                    ) : null}
+                    <AvatarFallback>
+                      {selectedConversation.contact_name?.[0]?.toUpperCase() || "?"}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className={cn(
+                    "absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center",
+                    getChannelColor(selectedConversation.channel)
+                  )}>
+                    {getChannelIcon(selectedConversation.channel)}
+                  </div>
+                </div>
                 <div>
-                  <CardTitle className="text-lg">
+                  <CardTitle className="text-lg flex items-center gap-2">
                     {selectedConversation.contact_name || formatPhone(selectedConversation.contact_phone)}
+                    <Badge variant="outline" className="text-xs">
+                      {selectedConversation.channel?.toUpperCase() || 'WHATSAPP'}
+                    </Badge>
                   </CardTitle>
                   <p className="text-sm text-muted-foreground">
-                    {formatPhone(selectedConversation.contact_phone)}
+                    {selectedConversation.channel === 'whatsapp' 
+                      ? formatPhone(selectedConversation.contact_phone)
+                      : `ID: ${selectedConversation.channel_user_id || selectedConversation.contact_phone}`
+                    }
                   </p>
                 </div>
               </div>

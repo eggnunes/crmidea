@@ -3,6 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 
+export type ChannelType = 'whatsapp' | 'instagram' | 'facebook' | 'tiktok' | 'email' | 'telegram';
+
 export interface WhatsAppMessage {
   id: string;
   conversation_id: string;
@@ -14,6 +16,8 @@ export interface WhatsAppMessage {
   zapi_message_id: string | null;
   status: "sent" | "delivered" | "read" | "failed";
   created_at: string;
+  channel?: ChannelType;
+  channel_message_id?: string | null;
 }
 
 export interface WhatsAppConversation {
@@ -27,6 +31,10 @@ export interface WhatsAppConversation {
   created_at: string;
   updated_at: string;
   messages?: WhatsAppMessage[];
+  channel?: ChannelType;
+  channel_user_id?: string | null;
+  channel_page_id?: string | null;
+  profile_picture_url?: string | null;
 }
 
 export function useWhatsAppConversations() {
@@ -37,6 +45,7 @@ export function useWhatsAppConversations() {
   const [selectedConversation, setSelectedConversation] = useState<WhatsAppConversation | null>(null);
   const [messages, setMessages] = useState<WhatsAppMessage[]>([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
+  const [channelFilter, setChannelFilter] = useState<ChannelType | 'all'>('all');
 
   const fetchConversations = useCallback(async () => {
     if (!user) return;
@@ -133,19 +142,34 @@ export function useWhatsAppConversations() {
     };
   }, [user, selectedConversation, fetchConversations]);
 
-  const sendMessage = async (conversationId: string, content: string) => {
+  const sendMessage = async (conversationId: string, content: string, conversation?: WhatsAppConversation) => {
     if (!user) return;
 
-    try {
-      // Send via Z-API
-      const { data: sendResult, error: sendError } = await supabase.functions.invoke("zapi-send-message", {
-        body: {
-          conversationId,
-          content,
-        },
-      });
+    const conv = conversation || selectedConversation;
+    const channel = conv?.channel || 'whatsapp';
 
-      if (sendError) throw sendError;
+    try {
+      if (channel === 'whatsapp') {
+        // Send via Z-API for WhatsApp
+        const { error: sendError } = await supabase.functions.invoke("zapi-send-message", {
+          body: {
+            conversationId,
+            content,
+          },
+        });
+        if (sendError) throw sendError;
+      } else if (channel === 'instagram' || channel === 'facebook') {
+        // Send via Meta API for Instagram/Facebook
+        const { error: sendError } = await supabase.functions.invoke("meta-send-message", {
+          body: {
+            conversationId,
+            content,
+            channel,
+            recipientId: conv?.channel_user_id,
+          },
+        });
+        if (sendError) throw sendError;
+      }
 
       // Refresh messages
       await fetchMessages(conversationId);
@@ -160,8 +184,13 @@ export function useWhatsAppConversations() {
     }
   };
 
+  const filteredConversations = channelFilter === 'all' 
+    ? conversations 
+    : conversations.filter(c => c.channel === channelFilter);
+
   return {
-    conversations,
+    conversations: filteredConversations,
+    allConversations: conversations,
     loading,
     selectedConversation,
     setSelectedConversation,
@@ -169,5 +198,7 @@ export function useWhatsAppConversations() {
     loadingMessages,
     sendMessage,
     refetch: fetchConversations,
+    channelFilter,
+    setChannelFilter,
   };
 }
