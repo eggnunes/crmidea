@@ -44,11 +44,14 @@ export function SettingsPage() {
     });
   };
 
-  const handleTestManyChat = async () => {
-    if (!manychatSubscriberId) {
+  const handleTestWhatsApp = async () => {
+    // Usa o ID salvo no banco de dados (settings) ou o valor local
+    const subscriberId = settings?.manychat_subscriber_id || manychatSubscriberId;
+    
+    if (!subscriberId) {
       toast({
         title: "ID não configurado",
-        description: "Por favor, insira seu ID de subscriber do ManyChat primeiro.",
+        description: "Por favor, insira e salve seu ID de subscriber do ManyChat primeiro.",
         variant: "destructive",
       });
       return;
@@ -56,32 +59,35 @@ export function SettingsPage() {
 
     setTestingManyChat(true);
     try {
+      console.log("Calling test-manychat with subscriber_id:", subscriberId);
+      
       const { data, error } = await supabase.functions.invoke("test-manychat", {
         body: {
-          subscriber_id: manychatSubscriberId,
-          message: "🧪 Teste de integração ManyChat-CRM realizado com sucesso! Se você está vendo esta mensagem, a integração está funcionando.",
+          subscriber_id: subscriberId,
         },
       });
+
+      console.log("test-manychat response:", data, error);
 
       if (error) throw error;
 
       if (data.success) {
         toast({
           title: "Teste enviado!",
-          description: "Verifique seu WhatsApp para a mensagem de teste.",
+          description: "Verifique seu WhatsApp para a mensagem de teste com o Flow de follow-up.",
         });
       } else {
         toast({
           title: "Erro no teste",
-          description: data.error || "Não foi possível enviar a mensagem de teste.",
+          description: data.error || data.details?.message || "Não foi possível enviar o Flow de teste.",
           variant: "destructive",
         });
       }
     } catch (error) {
-      console.error("Error testing ManyChat:", error);
+      console.error("Error testing WhatsApp:", error);
       toast({
         title: "Erro",
-        description: "Falha ao testar integração com ManyChat.",
+        description: "Falha ao testar integração com WhatsApp/ManyChat.",
         variant: "destructive",
       });
     } finally {
@@ -205,8 +211,8 @@ export function SettingsPage() {
                     </div>
                     <Button 
                       variant="outline" 
-                      onClick={handleTestManyChat}
-                      disabled={testingManyChat || !manychatSubscriberId}
+                      onClick={handleTestWhatsApp}
+                      disabled={testingManyChat || (!settings?.manychat_subscriber_id && !manychatSubscriberId)}
                       className="w-full"
                     >
                       {testingManyChat ? (
@@ -217,7 +223,7 @@ export function SettingsPage() {
                       ) : (
                         <>
                           <Send className="w-4 h-4 mr-2" />
-                          Testar Integração ManyChat
+                          Testar WhatsApp
                         </>
                       )}
                     </Button>
