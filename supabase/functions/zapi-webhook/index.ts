@@ -42,6 +42,22 @@ serve(async (req) => {
         });
       }
 
+      // Check for duplicate message by zapi_message_id
+      if (zapiMessageId) {
+        const { data: existingMessage } = await supabase
+          .from('whatsapp_messages')
+          .select('id')
+          .eq('zapi_message_id', zapiMessageId)
+          .maybeSingle();
+
+        if (existingMessage) {
+          console.log(`Duplicate message detected: ${zapiMessageId}, skipping`);
+          return new Response(JSON.stringify({ status: 'duplicate' }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+      }
+
       console.log(`Processing ${messageType} message from ${phone}: ${messageContent.substring(0, 50)}...`);
 
       // Find or create conversation
@@ -132,18 +148,34 @@ serve(async (req) => {
       if (aiConfig?.is_active && !shouldSkipGroup) {
         console.log('AI is active, triggering response...');
         
-        // Call AI processing function
+        // Call AI processing function directly via HTTP (bypass invoke issues)
         try {
-          await supabase.functions.invoke('zapi-ai-respond', {
-            body: {
+          const aiResponseUrl = `${supabaseUrl}/functions/v1/zapi-ai-respond`;
+          console.log('Calling AI respond function at:', aiResponseUrl);
+          
+          const aiCallResponse = await fetch(aiResponseUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${supabaseServiceKey}`,
+            },
+            body: JSON.stringify({
               conversationId: conversation.id,
               messageContent,
               contactPhone: phone,
               userId,
               isAudioMessage,
               audioUrl,
-            },
+            }),
           });
+
+          if (!aiCallResponse.ok) {
+            const errorText = await aiCallResponse.text();
+            console.error('AI respond function error:', aiCallResponse.status, errorText);
+          } else {
+            const aiResult = await aiCallResponse.json();
+            console.log('AI respond result:', aiResult);
+          }
         } catch (aiError) {
           console.error('Error calling AI respond function:', aiError);
         }
