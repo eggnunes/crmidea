@@ -5,7 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, MessageCircle, Instagram, Facebook, Music2, Mail, Send, ExternalLink, Copy, Check } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
+import { Loader2, MessageCircle, Instagram, Facebook, Music2, Mail, Send, ExternalLink, Copy, Check, Bot } from "lucide-react";
 import { useChannelConfigs, ChannelType } from "@/hooks/useChannelConfigs";
 import { toast } from "sonner";
 
@@ -16,7 +17,8 @@ const CHANNELS = [
     icon: MessageCircle,
     color: 'bg-green-500',
     description: 'Conectado via Z-API',
-    configurable: false
+    configurable: false,
+    hasAI: true
   },
   {
     id: 'instagram' as ChannelType,
@@ -25,6 +27,7 @@ const CHANNELS = [
     color: 'bg-gradient-to-r from-purple-500 to-pink-500',
     description: 'Instagram Direct Messages via Meta API',
     configurable: true,
+    hasAI: true,
     fields: ['access_token', 'page_id']
   },
   {
@@ -34,6 +37,7 @@ const CHANNELS = [
     color: 'bg-blue-600',
     description: 'Facebook Messenger via Meta API',
     configurable: true,
+    hasAI: true,
     fields: ['access_token', 'page_id']
   },
   {
@@ -43,6 +47,7 @@ const CHANNELS = [
     color: 'bg-black',
     description: 'TikTok Messages (em breve)',
     configurable: false,
+    hasAI: false,
     comingSoon: true
   },
   {
@@ -52,6 +57,7 @@ const CHANNELS = [
     color: 'bg-sky-500',
     description: 'Telegram Bot API (em breve)',
     configurable: false,
+    hasAI: false,
     comingSoon: true
   },
   {
@@ -61,24 +67,31 @@ const CHANNELS = [
     color: 'bg-gray-600',
     description: 'Email via SMTP/API (em breve)',
     configurable: false,
+    hasAI: false,
     comingSoon: true
   }
 ];
 
 export function ChannelSettings() {
-  const { configs, loading, getChannelConfig, saveChannelConfig, toggleChannel } = useChannelConfigs();
+  const { configs, loading, getChannelConfig, saveChannelConfig, toggleChannel, toggleAI } = useChannelConfigs();
   const [editingChannel, setEditingChannel] = useState<ChannelType | null>(null);
   const [formData, setFormData] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<string | null>(null);
 
-  const webhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/instagram-webhook`;
+  const getWebhookUrl = (channel: ChannelType) => {
+    if (channel === 'instagram') {
+      return `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/instagram-webhook`;
+    }
+    return `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/facebook-webhook`;
+  };
 
-  const handleCopyWebhook = async () => {
-    await navigator.clipboard.writeText(webhookUrl);
-    setCopied(true);
+  const handleCopyWebhook = async (channel: ChannelType) => {
+    const url = getWebhookUrl(channel);
+    await navigator.clipboard.writeText(url);
+    setCopied(channel);
     toast.success('URL do webhook copiada!');
-    setTimeout(() => setCopied(false), 2000);
+    setTimeout(() => setCopied(null), 2000);
   };
 
   const handleEdit = (channel: ChannelType) => {
@@ -128,6 +141,7 @@ export function ChannelSettings() {
           const config = getChannelConfig(channel.id);
           const Icon = channel.icon;
           const isEditing = editingChannel === channel.id;
+          const isWhatsApp = channel.id === 'whatsapp';
           
           return (
             <Card key={channel.id} className={channel.comingSoon ? 'opacity-60' : ''}>
@@ -143,7 +157,7 @@ export function ChannelSettings() {
                         {channel.comingSoon && (
                           <Badge variant="secondary" className="text-xs">Em breve</Badge>
                         )}
-                        {config?.is_active && !channel.comingSoon && (
+                        {config?.is_active && !channel.comingSoon && !isWhatsApp && (
                           <Badge variant="default" className="text-xs bg-green-500">Ativo</Badge>
                         )}
                       </CardTitle>
@@ -151,7 +165,7 @@ export function ChannelSettings() {
                     </div>
                   </div>
                   
-                  {!channel.comingSoon && channel.id !== 'whatsapp' && (
+                  {!channel.comingSoon && !isWhatsApp && (
                     <div className="flex items-center gap-2">
                       <Switch
                         checked={config?.is_active || false}
@@ -170,11 +184,38 @@ export function ChannelSettings() {
                     </div>
                   )}
                   
-                  {channel.id === 'whatsapp' && (
+                  {isWhatsApp && (
                     <Badge variant="default" className="bg-green-500">Conectado via Z-API</Badge>
                   )}
                 </div>
               </CardHeader>
+              
+              {/* AI Toggle Section */}
+              {channel.hasAI && !channel.comingSoon && (config?.is_active || isWhatsApp) && (
+                <CardContent className="pt-0 pb-3">
+                  <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <Bot className="h-4 w-4 text-primary" />
+                      <div>
+                        <p className="text-sm font-medium">IA Automática</p>
+                        <p className="text-xs text-muted-foreground">
+                          Respostas automáticas para este canal
+                        </p>
+                      </div>
+                    </div>
+                    <Switch
+                      checked={isWhatsApp ? true : (config?.ai_enabled ?? true)}
+                      onCheckedChange={(checked) => toggleAI(channel.id, checked)}
+                      disabled={isWhatsApp}
+                    />
+                  </div>
+                  {isWhatsApp && (
+                    <p className="text-xs text-muted-foreground mt-2">
+                      A IA do WhatsApp é controlada nas configurações principais do assistente.
+                    </p>
+                  )}
+                </CardContent>
+              )}
               
               {isEditing && (
                 <CardContent className="space-y-4 border-t pt-4">
@@ -211,9 +252,9 @@ export function ChannelSettings() {
                   <div className="space-y-2">
                     <Label>Webhook URL (para configurar no Meta)</Label>
                     <div className="flex gap-2">
-                      <Input value={webhookUrl} readOnly className="font-mono text-xs" />
-                      <Button variant="outline" size="icon" onClick={handleCopyWebhook}>
-                        {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                      <Input value={getWebhookUrl(channel.id)} readOnly className="font-mono text-xs" />
+                      <Button variant="outline" size="icon" onClick={() => handleCopyWebhook(channel.id)}>
+                        {copied === channel.id ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                       </Button>
                     </div>
                     <p className="text-xs text-muted-foreground">

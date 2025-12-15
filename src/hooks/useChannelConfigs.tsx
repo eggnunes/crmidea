@@ -10,6 +10,7 @@ export interface ChannelConfig {
   user_id: string;
   channel: ChannelType;
   is_active: boolean;
+  ai_enabled: boolean;
   config: Record<string, any>;
   access_token?: string;
   page_id?: string;
@@ -75,6 +76,7 @@ export function useChannelConfigs() {
           .insert({
             user_id: user.id,
             channel,
+            ai_enabled: true,
             ...data
           });
 
@@ -93,12 +95,17 @@ export function useChannelConfigs() {
     await saveChannelConfig(channel, { is_active: isActive });
   };
 
+  const toggleAI = async (channel: ChannelType, aiEnabled: boolean) => {
+    await saveChannelConfig(channel, { ai_enabled: aiEnabled });
+  };
+
   return {
     configs,
     loading,
     getChannelConfig,
     saveChannelConfig,
     toggleChannel,
+    toggleAI,
     refetch: fetchConfigs
   };
 }
