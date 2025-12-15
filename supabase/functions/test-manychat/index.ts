@@ -5,8 +5,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const FLOW_ID = 'content20251214024458_954194';
-
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -47,7 +45,62 @@ serve(async (req) => {
 
     console.log(`Testing ManyChat Flow integration for subscriber: ${subscriber_id}`);
 
-    // Step 1: Set Custom Fields with test data
+    // Step 1: Get available flows to find the correct flow_ns
+    console.log('Fetching available flows...');
+    const flowsResponse = await fetch(`https://api.manychat.com/fb/page/getFlows`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${MANYCHAT_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    const flowsData = await flowsResponse.json();
+    console.log('Available flows:', JSON.stringify(flowsData));
+
+    // Find the "Follow-up CRM" flow
+    let flowNs = null;
+    let flowName = null;
+    if (flowsData.status === 'success' && flowsData.data) {
+      const followUpFlow = flowsData.data.find((flow: { name: string }) => 
+        flow.name.toLowerCase().includes('follow-up') || 
+        flow.name.toLowerCase().includes('follow up') ||
+        flow.name.toLowerCase().includes('crm')
+      );
+      
+      if (followUpFlow) {
+        flowNs = followUpFlow.ns;
+        flowName = followUpFlow.name;
+        console.log(`Found flow: "${followUpFlow.name}" with ns: ${flowNs}`);
+      } else {
+        console.log('Flow "Follow-up CRM" not found. Available flows:', 
+          flowsData.data.map((f: { name: string; ns: string }) => `${f.name} (${f.ns})`).join(', ')
+        );
+        // Use the first available flow as fallback
+        if (flowsData.data.length > 0) {
+          flowNs = flowsData.data[0].ns;
+          flowName = flowsData.data[0].name;
+          console.log(`Using first available flow: ${flowName} with ns: ${flowNs}`);
+        }
+      }
+    }
+
+    if (!flowNs) {
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'Nenhum flow encontrado na conta ManyChat',
+          availableFlows: flowsData.data || [],
+          rawResponse: flowsData
+        }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+
+    // Step 2: Set Custom Fields with test data
     console.log('Setting custom fields for test...');
     const setFieldsResponse = await fetch(`https://api.manychat.com/fb/subscriber/setCustomFields`, {
       method: 'POST',
@@ -68,7 +121,7 @@ serve(async (req) => {
     const setFieldsData = await setFieldsResponse.json();
     console.log('Set Custom Fields response:', JSON.stringify(setFieldsData));
 
-    if (!setFieldsResponse.ok) {
+    if (setFieldsData.status === 'error') {
       console.error('Failed to set custom fields:', setFieldsData);
       return new Response(
         JSON.stringify({ 
@@ -77,14 +130,14 @@ serve(async (req) => {
           details: setFieldsData
         }),
         { 
-          status: setFieldsResponse.status, 
+          status: 400, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
         }
       );
     }
 
-    // Step 2: Send the Flow with the approved template
-    console.log('Sending Flow...');
+    // Step 3: Send the Flow with the correct flow_ns
+    console.log(`Sending Flow "${flowName}" with ns: ${flowNs}...`);
     const manychatResponse = await fetch(`https://api.manychat.com/fb/sending/sendFlow`, {
       method: 'POST',
       headers: {
@@ -93,23 +146,24 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         subscriber_id: parseInt(subscriber_id),
-        flow_ns: FLOW_ID
+        flow_ns: flowNs
       }),
     });
 
     const manychatData = await manychatResponse.json();
     console.log('ManyChat sendFlow response:', JSON.stringify(manychatData));
 
-    if (!manychatResponse.ok) {
+    if (manychatData.status === 'error') {
       console.error('ManyChat API error:', manychatData);
       return new Response(
         JSON.stringify({ 
           success: false, 
           error: 'Erro na API do ManyChat',
-          details: manychatData
+          details: manychatData,
+          flowUsed: { name: flowName, ns: flowNs }
         }),
         { 
-          status: manychatResponse.status, 
+          status: 400, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
         }
       );
@@ -120,8 +174,9 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: 'Flow de teste enviado com sucesso! Verifique seu WhatsApp.',
-        response: manychatData
+        message: `Flow "${flowName}" enviado com sucesso! Verifique seu WhatsApp.`,
+        response: manychatData,
+        flowUsed: { name: flowName, ns: flowNs }
       }),
       { 
         status: 200, 
