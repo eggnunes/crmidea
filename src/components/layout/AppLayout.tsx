@@ -3,6 +3,7 @@ import { Sidebar } from "./Sidebar";
 import { cn } from "@/lib/utils";
 import { NotificationBell } from "@/components/NotificationBell";
 import { FollowUpSettingsDialog } from "@/components/FollowUpSettingsDialog";
+import { useMessageNotifications } from "@/hooks/useMessageNotifications";
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -10,6 +11,9 @@ interface AppLayoutProps {
 
 export function AppLayout({ children }: AppLayoutProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  
+  // Initialize message notifications listener
+  useMessageNotifications();
 
   return (
     <div className="min-h-screen bg-background">
