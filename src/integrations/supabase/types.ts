@@ -14,6 +14,141 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_assistant_config: {
+        Row: {
+          agent_name: string
+          allow_reminders: boolean
+          behavior_prompt: string | null
+          communication_style: string
+          company_description: string | null
+          company_name: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          purpose: string
+          restrict_topics: boolean
+          sign_agent_name: boolean
+          smart_training_search: boolean
+          split_long_messages: boolean
+          updated_at: string
+          use_emojis: boolean
+          user_id: string
+          website_url: string | null
+        }
+        Insert: {
+          agent_name?: string
+          allow_reminders?: boolean
+          behavior_prompt?: string | null
+          communication_style?: string
+          company_description?: string | null
+          company_name?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          purpose?: string
+          restrict_topics?: boolean
+          sign_agent_name?: boolean
+          smart_training_search?: boolean
+          split_long_messages?: boolean
+          updated_at?: string
+          use_emojis?: boolean
+          user_id: string
+          website_url?: string | null
+        }
+        Update: {
+          agent_name?: string
+          allow_reminders?: boolean
+          behavior_prompt?: string | null
+          communication_style?: string
+          company_description?: string | null
+          company_name?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          purpose?: string
+          restrict_topics?: boolean
+          sign_agent_name?: boolean
+          smart_training_search?: boolean
+          split_long_messages?: boolean
+          updated_at?: string
+          use_emojis?: boolean
+          user_id?: string
+          website_url?: string | null
+        }
+        Relationships: []
+      }
+      ai_intents: {
+        Row: {
+          action_type: string
+          action_value: string
+          created_at: string
+          description: string | null
+          id: string
+          intent_name: string
+          is_active: boolean
+          trigger_phrases: string[]
+          user_id: string
+        }
+        Insert: {
+          action_type?: string
+          action_value: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          intent_name: string
+          is_active?: boolean
+          trigger_phrases?: string[]
+          user_id: string
+        }
+        Update: {
+          action_type?: string
+          action_value?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          intent_name?: string
+          is_active?: boolean
+          trigger_phrases?: string[]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      ai_training_documents: {
+        Row: {
+          content: string
+          content_type: string
+          created_at: string
+          file_name: string | null
+          file_url: string | null
+          id: string
+          status: string
+          title: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          content_type?: string
+          created_at?: string
+          file_name?: string | null
+          file_url?: string | null
+          id?: string
+          status?: string
+          title: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          content_type?: string
+          created_at?: string
+          file_name?: string | null
+          file_url?: string | null
+          id?: string
+          status?: string
+          title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       follow_up_logs: {
         Row: {
           error_message: string | null
@@ -253,6 +388,97 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      whatsapp_conversations: {
+        Row: {
+          contact_name: string | null
+          contact_phone: string
+          created_at: string
+          id: string
+          last_message_at: string | null
+          lead_id: string | null
+          unread_count: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          contact_name?: string | null
+          contact_phone: string
+          created_at?: string
+          id?: string
+          last_message_at?: string | null
+          lead_id?: string | null
+          unread_count?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          contact_name?: string | null
+          contact_phone?: string
+          created_at?: string
+          id?: string
+          last_message_at?: string | null
+          lead_id?: string | null
+          unread_count?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_conversations_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_messages: {
+        Row: {
+          content: string
+          conversation_id: string
+          created_at: string
+          id: string
+          is_ai_response: boolean
+          is_from_contact: boolean
+          message_type: string
+          status: string
+          user_id: string
+          zapi_message_id: string | null
+        }
+        Insert: {
+          content: string
+          conversation_id: string
+          created_at?: string
+          id?: string
+          is_ai_response?: boolean
+          is_from_contact?: boolean
+          message_type?: string
+          status?: string
+          user_id: string
+          zapi_message_id?: string | null
+        }
+        Update: {
+          content?: string
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          is_ai_response?: boolean
+          is_from_contact?: boolean
+          message_type?: string
+          status?: string
+          user_id?: string
+          zapi_message_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
