@@ -21,9 +21,9 @@ export function WhatsAppPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">WhatsApp IA</h1>
+        <h1 className="text-2xl font-bold text-foreground">Central de Atendimento</h1>
         <p className="text-muted-foreground">
-          Configure seu assistente de IA e visualize as conversas do WhatsApp
+          Gerencie conversas de WhatsApp, Instagram, Facebook e outros canais com IA
         </p>
       </div>
 
