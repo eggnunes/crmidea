@@ -5,6 +5,30 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Fetch user profile from Facebook
+async function fetchFacebookProfile(userId: string, accessToken: string): Promise<{name?: string, profile_pic?: string}> {
+  try {
+    const response = await fetch(
+      `https://graph.facebook.com/v18.0/${userId}?fields=first_name,last_name,profile_pic&access_token=${accessToken}`
+    );
+    
+    if (!response.ok) {
+      console.log('Failed to fetch Facebook profile:', await response.text());
+      return {};
+    }
+    
+    const data = await response.json();
+    console.log('Facebook profile data:', data);
+    return {
+      name: data.first_name && data.last_name ? `${data.first_name} ${data.last_name}` : data.first_name,
+      profile_pic: data.profile_pic
+    };
+  } catch (error) {
+    console.error('Error fetching Facebook profile:', error);
+    return {};
+  }
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -50,7 +74,7 @@ Deno.serve(async (req) => {
           // Find the user who owns this Facebook page
           const { data: channelConfig } = await supabase
             .from('channel_configs')
-            .select('user_id')
+            .select('user_id, access_token')
             .eq('channel', 'facebook')
             .eq('page_id', pageId)
             .eq('is_active', true)
@@ -81,6 +105,9 @@ Deno.serve(async (req) => {
               messageId: message.mid
             });
 
+            // Fetch user profile
+            const profile = await fetchFacebookProfile(senderId, channelConfig.access_token);
+
             // Find or create conversation
             let { data: conversation } = await supabase
               .from('whatsapp_conversations')
@@ -91,16 +118,17 @@ Deno.serve(async (req) => {
               .single();
 
             if (!conversation) {
-              // Create new conversation
+              // Create new conversation with profile info
               const { data: newConversation, error: convError } = await supabase
                 .from('whatsapp_conversations')
                 .insert({
                   user_id: userId,
                   contact_phone: senderId,
-                  contact_name: `Facebook User ${senderId.slice(-6)}`,
+                  contact_name: profile.name || `Facebook User ${senderId.slice(-6)}`,
                   channel: 'facebook',
                   channel_user_id: senderId,
                   channel_page_id: pageId,
+                  profile_picture_url: profile.profile_pic,
                   last_message_at: new Date(timestamp).toISOString(),
                   unread_count: 1
                 })
@@ -116,12 +144,22 @@ Deno.serve(async (req) => {
               console.log('Created new Facebook conversation:', conversation.id);
             } else {
               // Update existing conversation
+              const updates: any = {
+                last_message_at: new Date(timestamp).toISOString(),
+                unread_count: (conversation.unread_count || 0) + 1
+              };
+              
+              // Update profile if we have new info
+              if (profile.name && (!conversation.contact_name || conversation.contact_name.startsWith('Facebook User'))) {
+                updates.contact_name = profile.name;
+              }
+              if (profile.profile_pic && !conversation.profile_picture_url) {
+                updates.profile_picture_url = profile.profile_pic;
+              }
+              
               await supabase
                 .from('whatsapp_conversations')
-                .update({
-                  last_message_at: new Date(timestamp).toISOString(),
-                  unread_count: (conversation.unread_count || 0) + 1
-                })
+                .update(updates)
                 .eq('id', conversation.id);
             }
 
@@ -165,6 +203,22 @@ Deno.serve(async (req) => {
               console.error('Error saving message:', msgError);
             } else {
               console.log('Facebook message saved successfully');
+            }
+
+            // Trigger AI response
+            console.log('Triggering AI response for Facebook message');
+            try {
+              await supabase.functions.invoke('meta-ai-respond', {
+                body: {
+                  conversationId: conversation.id,
+                  messageContent: content,
+                  contactId: senderId,
+                  userId,
+                  channel: 'facebook'
+                }
+              });
+            } catch (aiError) {
+              console.error('Error triggering AI response:', aiError);
             }
           }
         }
