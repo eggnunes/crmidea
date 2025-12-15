@@ -11,6 +11,7 @@ import { PipelinePage } from "./pages/PipelinePage";
 import { ProductsPage } from "./pages/ProductsPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { IntegrationsDashboardPage } from "./pages/IntegrationsDashboardPage";
+import { WhatsAppPage } from "./pages/WhatsAppPage";
 import AdminUsersPage from "./pages/AdminUsersPage";
 import { AuthPage } from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
@@ -51,6 +52,7 @@ function AppRoutes() {
                 <Route path="/pipeline" element={<PipelinePage />} />
                 <Route path="/produtos" element={<ProductsPage />} />
                 <Route path="/integracoes" element={<IntegrationsDashboardPage />} />
+                <Route path="/whatsapp" element={<WhatsAppPage />} />
                 <Route path="/configuracoes" element={<SettingsPage />} />
                 <Route path="/admin/usuarios" element={<AdminUsersPage />} />
                 <Route path="*" element={<NotFound />} />

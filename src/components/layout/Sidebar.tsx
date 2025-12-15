@@ -9,7 +9,8 @@ import {
   LogOut,
   Settings,
   ShieldCheck,
-  BarChart3
+  BarChart3,
+  MessageCircle
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NavLink } from "@/components/NavLink";
@@ -28,6 +29,7 @@ const navItems = [
   { to: "/pipeline", icon: Kanban, label: "Pipeline" },
   { to: "/produtos", icon: Package, label: "Produtos" },
   { to: "/integracoes", icon: BarChart3, label: "Integrações" },
+  { to: "/whatsapp", icon: MessageCircle, label: "WhatsApp IA" },
   { to: "/configuracoes", icon: Settings, label: "Configurações" },
 ];
 
