@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Settings, Bell, User, Palette, Database, Shield, Send, Loader2 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Settings, Bell, User, Palette, Database, Shield, Send, Loader2, Link2, CheckCircle, XCircle, RefreshCw } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
@@ -13,12 +13,18 @@ import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { FollowUpLogsCard } from "@/components/FollowUpLogsCard";
+import { Badge } from "@/components/ui/badge";
 
 export function SettingsPage() {
   const { user } = useAuth();
   const { settings, loading, saveSettings } = useFollowUpSettings();
   const { toast } = useToast();
   const [testingManyChat, setTestingManyChat] = useState(false);
+  const [testingKiwify, setTestingKiwify] = useState(false);
+  const [settingUpKiwifyWebhook, setSettingUpKiwifyWebhook] = useState(false);
+  const [syncingManyChat, setSyncingManyChat] = useState(false);
+  const [kiwifyStatus, setKiwifyStatus] = useState<'unknown' | 'connected' | 'error'>('unknown');
+  const [manychatTags, setManychatTags] = useState<string[]>([]);
   
   const [daysWithoutInteraction, setDaysWithoutInteraction] = useState(settings?.days_without_interaction ?? 7);
   const [notifyInApp, setNotifyInApp] = useState(settings?.notify_in_app ?? true);
@@ -26,14 +32,14 @@ export function SettingsPage() {
   const [manychatSubscriberId, setManychatSubscriberId] = useState(settings?.manychat_subscriber_id ?? "");
 
   // Update local state when settings load
-  useState(() => {
+  useEffect(() => {
     if (settings) {
       setDaysWithoutInteraction(settings.days_without_interaction);
       setNotifyInApp(settings.notify_in_app);
       setNotifyWhatsapp(settings.notify_whatsapp);
       setManychatSubscriberId(settings.manychat_subscriber_id ?? "");
     }
-  });
+  }, [settings]);
 
   const handleSaveNotifications = async () => {
     await saveSettings({
@@ -95,6 +101,130 @@ export function SettingsPage() {
     }
   };
 
+  const handleTestKiwify = async () => {
+    setTestingKiwify(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("kiwify-auth");
+      
+      if (error) throw error;
+      
+      if (data.success) {
+        setKiwifyStatus('connected');
+        toast({
+          title: "Kiwify conectada!",
+          description: "Autenticação com a API da Kiwify funcionando corretamente.",
+        });
+      } else {
+        setKiwifyStatus('error');
+        toast({
+          title: "Erro na conexão",
+          description: data.error || "Verifique suas credenciais da Kiwify.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error testing Kiwify:", error);
+      setKiwifyStatus('error');
+      toast({
+        title: "Erro",
+        description: "Falha ao testar integração com Kiwify.",
+        variant: "destructive",
+      });
+    } finally {
+      setTestingKiwify(false);
+    }
+  };
+
+  const handleSetupKiwifyWebhook = async () => {
+    setSettingUpKiwifyWebhook(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("kiwify-setup-webhook");
+      
+      if (error) throw error;
+      
+      if (data.success) {
+        toast({
+          title: "Webhook configurado!",
+          description: data.message || "Webhook da Kiwify configurado com sucesso.",
+        });
+      } else {
+        toast({
+          title: "Erro na configuração",
+          description: data.error || "Não foi possível configurar o webhook.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error setting up Kiwify webhook:", error);
+      toast({
+        title: "Erro",
+        description: "Falha ao configurar webhook da Kiwify.",
+        variant: "destructive",
+      });
+    } finally {
+      setSettingUpKiwifyWebhook(false);
+    }
+  };
+
+  const handleSyncManyChat = async () => {
+    setSyncingManyChat(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("sync-manychat-leads", {
+        body: { action: 'sync_all' }
+      });
+      
+      if (error) throw error;
+      
+      if (data.success) {
+        toast({
+          title: "Sincronização concluída!",
+          description: `${data.synced} leads sincronizados com ManyChat.`,
+        });
+      } else {
+        toast({
+          title: "Erro na sincronização",
+          description: data.error || "Não foi possível sincronizar.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error syncing ManyChat:", error);
+      toast({
+        title: "Erro",
+        description: "Falha ao sincronizar com ManyChat.",
+        variant: "destructive",
+      });
+    } finally {
+      setSyncingManyChat(false);
+    }
+  };
+
+  const handleGetManyChatTags = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke("sync-manychat-leads", {
+        body: { action: 'get_tags' }
+      });
+      
+      if (error) throw error;
+      
+      if (data.success && data.tags?.data) {
+        const tagNames = data.tags.data.map((t: { name: string }) => t.name);
+        setManychatTags(tagNames);
+        toast({
+          title: "Tags carregadas",
+          description: `${tagNames.length} tags encontradas no ManyChat.`,
+        });
+      }
+    } catch (error) {
+      console.error("Error getting ManyChat tags:", error);
+      toast({
+        title: "Erro",
+        description: "Falha ao buscar tags do ManyChat.",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -110,10 +240,14 @@ export function SettingsPage() {
 
       {/* Settings Tabs */}
       <Tabs defaultValue="notifications" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-flex">
+        <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-flex">
           <TabsTrigger value="notifications" className="gap-2">
             <Bell className="w-4 h-4" />
             <span className="hidden sm:inline">Notificações</span>
+          </TabsTrigger>
+          <TabsTrigger value="integrations" className="gap-2">
+            <Link2 className="w-4 h-4" />
+            <span className="hidden sm:inline">Integrações</span>
           </TabsTrigger>
           <TabsTrigger value="profile" className="gap-2">
             <User className="w-4 h-4" />
@@ -238,6 +372,167 @@ export function SettingsPage() {
           </Card>
 
           <FollowUpLogsCard />
+        </TabsContent>
+
+        {/* Integrations Tab */}
+        <TabsContent value="integrations" className="space-y-6">
+          {/* Kiwify Integration */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-green-600 flex items-center justify-center">
+                    <span className="text-white font-bold text-sm">K</span>
+                  </div>
+                  <div>
+                    <CardTitle>Kiwify</CardTitle>
+                    <CardDescription>Receba leads automaticamente das suas vendas</CardDescription>
+                  </div>
+                </div>
+                <Badge variant={kiwifyStatus === 'connected' ? 'default' : kiwifyStatus === 'error' ? 'destructive' : 'secondary'}>
+                  {kiwifyStatus === 'connected' && <CheckCircle className="w-3 h-3 mr-1" />}
+                  {kiwifyStatus === 'error' && <XCircle className="w-3 h-3 mr-1" />}
+                  {kiwifyStatus === 'connected' ? 'Conectado' : kiwifyStatus === 'error' ? 'Erro' : 'Não testado'}
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                A integração com Kiwify permite receber automaticamente novos leads quando:
+              </p>
+              <ul className="text-sm text-muted-foreground list-disc list-inside space-y-1">
+                <li>PIX ou Boleto é gerado (lead qualificado)</li>
+                <li>Carrinho é abandonado (lead em contato)</li>
+                <li>Compra é aprovada (lead fechado ganho)</li>
+                <li>Reembolso ou chargeback (lead fechado perdido)</li>
+              </ul>
+              
+              <Separator />
+              
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Button 
+                  variant="outline" 
+                  onClick={handleTestKiwify}
+                  disabled={testingKiwify}
+                  className="flex-1"
+                >
+                  {testingKiwify ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Testando...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="w-4 h-4 mr-2" />
+                      Testar Conexão
+                    </>
+                  )}
+                </Button>
+                <Button 
+                  onClick={handleSetupKiwifyWebhook}
+                  disabled={settingUpKiwifyWebhook}
+                  className="flex-1"
+                >
+                  {settingUpKiwifyWebhook ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Configurando...
+                    </>
+                  ) : (
+                    <>
+                      <Link2 className="w-4 h-4 mr-2" />
+                      Configurar Webhook
+                    </>
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* ManyChat Integration */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center">
+                    <span className="text-white font-bold text-sm">M</span>
+                  </div>
+                  <div>
+                    <CardTitle>ManyChat</CardTitle>
+                    <CardDescription>Sincronize leads e tags com Instagram/WhatsApp</CardDescription>
+                  </div>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                A integração com ManyChat permite:
+              </p>
+              <ul className="text-sm text-muted-foreground list-disc list-inside space-y-1">
+                <li>Sincronizar status de leads como tags</li>
+                <li>Atualizar campos customizados do subscriber</li>
+                <li>Receber notificações de follow-up via WhatsApp</li>
+                <li>Identificar leads vindos do Instagram</li>
+              </ul>
+              
+              <Separator />
+              
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Button 
+                  variant="outline" 
+                  onClick={handleGetManyChatTags}
+                  className="flex-1"
+                >
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Carregar Tags
+                </Button>
+                <Button 
+                  onClick={handleSyncManyChat}
+                  disabled={syncingManyChat}
+                  className="flex-1"
+                >
+                  {syncingManyChat ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Sincronizando...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="w-4 h-4 mr-2" />
+                      Sincronizar Leads
+                    </>
+                  )}
+                </Button>
+              </div>
+
+              {manychatTags.length > 0 && (
+                <div className="space-y-2">
+                  <Label>Tags disponíveis no ManyChat:</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {manychatTags.slice(0, 20).map((tag) => (
+                      <Badge key={tag} variant="outline">{tag}</Badge>
+                    ))}
+                    {manychatTags.length > 20 && (
+                      <Badge variant="secondary">+{manychatTags.length - 20} mais</Badge>
+                    )}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Integration Info */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">Como funciona a automação?</CardTitle>
+            </CardHeader>
+            <CardContent className="text-sm text-muted-foreground space-y-2">
+              <p>1. <strong>Kiwify → CRM:</strong> Quando alguém gera PIX/boleto ou compra, um lead é criado automaticamente</p>
+              <p>2. <strong>CRM → ManyChat:</strong> O status e produto do lead são sincronizados como tags no ManyChat</p>
+              <p>3. <strong>ManyChat → WhatsApp:</strong> Você pode criar automações no ManyChat baseadas nessas tags</p>
+              <p>4. <strong>Follow-up automático:</strong> Leads sem interação por X dias geram notificações no app e WhatsApp</p>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* Profile Tab */}
