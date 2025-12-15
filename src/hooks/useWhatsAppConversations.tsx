@@ -130,7 +130,12 @@ export function useWhatsAppConversations() {
         (payload) => {
           const newMessage = payload.new as WhatsAppMessage;
           if (selectedConversation && newMessage.conversation_id === selectedConversation.id) {
-            setMessages((prev) => [...prev, newMessage]);
+            // Check if message already exists to prevent duplicates
+            setMessages((prev) => {
+              const exists = prev.some(m => m.id === newMessage.id);
+              if (exists) return prev;
+              return [...prev, newMessage];
+            });
           }
           fetchConversations();
         }
