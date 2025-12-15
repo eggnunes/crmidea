@@ -41,3 +41,6 @@ verify_jwt = true
 
 [functions.zapi-setup-webhook]
 verify_jwt = true
+
+[functions.send-scheduled-messages]
+verify_jwt = false
