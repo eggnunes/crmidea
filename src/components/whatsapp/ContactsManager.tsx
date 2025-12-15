@@ -38,7 +38,7 @@ export function ContactsManager() {
 
   const handleCreateTag = async () => {
     if (!tagForm.name) return;
-    const result = await createTag(tagForm.name, tagForm.color);
+    const result = await createTag({ name: tagForm.name, color: tagForm.color });
     if (result) {
       setTagForm({ name: "", color: "#3b82f6" });
       setIsTagDialogOpen(false);

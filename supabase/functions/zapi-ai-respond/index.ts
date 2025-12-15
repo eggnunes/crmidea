@@ -6,13 +6,74 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Transcribe audio using OpenAI Whisper via Lovable AI
+async function transcribeAudio(audioUrl: string, lovableApiKey: string): Promise<string> {
+  console.log("Transcribing audio from:", audioUrl);
+  
+  try {
+    // Download the audio file
+    const audioResponse = await fetch(audioUrl);
+    if (!audioResponse.ok) {
+      throw new Error(`Failed to download audio: ${audioResponse.status}`);
+    }
+    
+    const audioBuffer = await audioResponse.arrayBuffer();
+    const audioBase64 = btoa(String.fromCharCode(...new Uint8Array(audioBuffer)));
+    
+    // Use Lovable AI for transcription with a prompt
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${lovableApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash',
+        messages: [
+          { 
+            role: 'user', 
+            content: [
+              {
+                type: 'text',
+                text: 'Transcreva o áudio a seguir. Retorne APENAS o texto transcrito, sem explicações ou formatação adicional.'
+              },
+              {
+                type: 'input_audio',
+                input_audio: {
+                  data: audioBase64,
+                  format: 'mp3'
+                }
+              }
+            ]
+          }
+        ],
+        max_tokens: 1000,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      console.error('Transcription error:', error);
+      throw new Error(`Transcription failed: ${error}`);
+    }
+
+    const data = await response.json();
+    const transcription = data.choices?.[0]?.message?.content || '';
+    console.log("Transcription result:", transcription);
+    return transcription;
+  } catch (error) {
+    console.error("Error transcribing audio:", error);
+    throw error;
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { conversationId, messageContent, contactPhone, userId, isAudioMessage } = await req.json();
+    const { conversationId, messageContent, contactPhone, userId, isAudioMessage, audioUrl } = await req.json();
 
     console.log(`Processing AI response for conversation ${conversationId}, isAudio: ${isAudioMessage}`);
 
@@ -26,6 +87,18 @@ serve(async (req) => {
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Transcribe audio if it's an audio message
+    let processedContent = messageContent;
+    if (isAudioMessage && audioUrl) {
+      try {
+        processedContent = await transcribeAudio(audioUrl, lovableApiKey);
+        console.log("Using transcribed content:", processedContent);
+      } catch (transcriptionError) {
+        console.error("Transcription failed, using original content:", transcriptionError);
+        processedContent = "[Áudio recebido - transcrição indisponível]";
+      }
+    }
 
     // Get AI configuration
     const { data: aiConfig } = await supabase
@@ -195,7 +268,7 @@ ${aiConfig.sign_agent_name ? `- Assine suas mensagens como "${aiConfig.agent_nam
         messages: [
           { role: 'system', content: systemPrompt },
           ...conversationHistory,
-          { role: 'user', content: messageContent },
+          { role: 'user', content: processedContent },
         ],
         max_tokens: 1000,
       }),
