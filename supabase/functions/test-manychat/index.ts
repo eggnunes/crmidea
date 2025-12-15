@@ -61,8 +61,10 @@ serve(async (req) => {
     // Find the "Follow-up CRM" flow
     let flowNs = null;
     let flowName = null;
-    if (flowsData.status === 'success' && flowsData.data) {
-      const followUpFlow = flowsData.data.find((flow: { name: string }) => 
+    const flows = flowsData.data?.flows || [];
+    
+    if (flowsData.status === 'success' && flows.length > 0) {
+      const followUpFlow = flows.find((flow: { name: string }) => 
         flow.name.toLowerCase().includes('follow-up') || 
         flow.name.toLowerCase().includes('follow up') ||
         flow.name.toLowerCase().includes('crm')
@@ -74,14 +76,12 @@ serve(async (req) => {
         console.log(`Found flow: "${followUpFlow.name}" with ns: ${flowNs}`);
       } else {
         console.log('Flow "Follow-up CRM" not found. Available flows:', 
-          flowsData.data.map((f: { name: string; ns: string }) => `${f.name} (${f.ns})`).join(', ')
+          flows.map((f: { name: string; ns: string }) => `${f.name} (${f.ns})`).join(', ')
         );
         // Use the first available flow as fallback
-        if (flowsData.data.length > 0) {
-          flowNs = flowsData.data[0].ns;
-          flowName = flowsData.data[0].name;
-          console.log(`Using first available flow: ${flowName} with ns: ${flowNs}`);
-        }
+        flowNs = flows[0].ns;
+        flowName = flows[0].name;
+        console.log(`Using first available flow: ${flowName} with ns: ${flowNs}`);
       }
     }
 
@@ -90,7 +90,7 @@ serve(async (req) => {
         JSON.stringify({ 
           success: false, 
           error: 'Nenhum flow encontrado na conta ManyChat',
-          availableFlows: flowsData.data || [],
+          availableFlows: flows,
           rawResponse: flowsData
         }),
         { 
