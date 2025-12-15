@@ -4,6 +4,7 @@ import { Loader2, MessageSquare, MessageCircle, Instagram, Facebook, Send, Mail,
 import { useChannelAnalytics, ChannelMetrics, ChannelType } from "@/hooks/useChannelAnalytics";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState } from "react";
+import { MessageEvolutionChart } from "./MessageEvolutionChart";
 
 const CHANNEL_INFO: Record<ChannelType, { name: string; icon: typeof MessageCircle; color: string }> = {
   whatsapp: { name: 'WhatsApp', icon: MessageCircle, color: 'bg-green-500' },
@@ -216,6 +217,9 @@ export function ChannelAnalytics() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Message Evolution Chart */}
+      <MessageEvolutionChart days={parseInt(period)} />
 
       {/* Channel Cards */}
       {metrics.byChannel.length > 0 ? (
