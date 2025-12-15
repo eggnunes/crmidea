@@ -5,6 +5,30 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Fetch user profile from Instagram
+async function fetchInstagramProfile(userId: string, accessToken: string): Promise<{name?: string, profile_pic?: string}> {
+  try {
+    const response = await fetch(
+      `https://graph.facebook.com/v18.0/${userId}?fields=name,profile_pic&access_token=${accessToken}`
+    );
+    
+    if (!response.ok) {
+      console.log('Failed to fetch Instagram profile:', await response.text());
+      return {};
+    }
+    
+    const data = await response.json();
+    console.log('Instagram profile data:', data);
+    return {
+      name: data.name,
+      profile_pic: data.profile_pic
+    };
+  } catch (error) {
+    console.error('Error fetching Instagram profile:', error);
+    return {};
+  }
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -21,7 +45,6 @@ Deno.serve(async (req) => {
 
     console.log('Instagram webhook verification:', { mode, token, challenge });
 
-    // For now, accept any verification (in production, verify the token)
     if (mode === 'subscribe' && challenge) {
       console.log('Webhook verified successfully');
       return new Response(challenge, {
@@ -51,7 +74,7 @@ Deno.serve(async (req) => {
           // Find the user who owns this Instagram page
           const { data: channelConfig } = await supabase
             .from('channel_configs')
-            .select('user_id')
+            .select('user_id, access_token')
             .eq('channel', 'instagram')
             .eq('page_id', pageId)
             .eq('is_active', true)
@@ -82,6 +105,9 @@ Deno.serve(async (req) => {
               messageId: message.mid
             });
 
+            // Fetch user profile
+            const profile = await fetchInstagramProfile(senderId, channelConfig.access_token);
+
             // Find or create conversation
             let { data: conversation } = await supabase
               .from('whatsapp_conversations')
@@ -92,16 +118,17 @@ Deno.serve(async (req) => {
               .single();
 
             if (!conversation) {
-              // Create new conversation
+              // Create new conversation with profile info
               const { data: newConversation, error: convError } = await supabase
                 .from('whatsapp_conversations')
                 .insert({
                   user_id: userId,
-                  contact_phone: senderId, // Using sender ID as identifier
-                  contact_name: `Instagram User ${senderId.slice(-6)}`,
+                  contact_phone: senderId,
+                  contact_name: profile.name || `Instagram User ${senderId.slice(-6)}`,
                   channel: 'instagram',
                   channel_user_id: senderId,
                   channel_page_id: pageId,
+                  profile_picture_url: profile.profile_pic,
                   last_message_at: new Date(timestamp).toISOString(),
                   unread_count: 1
                 })
@@ -117,12 +144,22 @@ Deno.serve(async (req) => {
               console.log('Created new Instagram conversation:', conversation.id);
             } else {
               // Update existing conversation
+              const updates: any = {
+                last_message_at: new Date(timestamp).toISOString(),
+                unread_count: (conversation.unread_count || 0) + 1
+              };
+              
+              // Update profile if we have new info
+              if (profile.name && (!conversation.contact_name || conversation.contact_name.startsWith('Instagram User'))) {
+                updates.contact_name = profile.name;
+              }
+              if (profile.profile_pic && !conversation.profile_picture_url) {
+                updates.profile_picture_url = profile.profile_pic;
+              }
+              
               await supabase
                 .from('whatsapp_conversations')
-                .update({
-                  last_message_at: new Date(timestamp).toISOString(),
-                  unread_count: (conversation.unread_count || 0) + 1
-                })
+                .update(updates)
                 .eq('id', conversation.id);
             }
 
@@ -165,9 +202,21 @@ Deno.serve(async (req) => {
               console.log('Instagram message saved successfully');
             }
 
-            // TODO: Trigger AI response if enabled for Instagram channel
-            // For now, just log that we would trigger AI
-            console.log('Would trigger AI response for Instagram message');
+            // Trigger AI response
+            console.log('Triggering AI response for Instagram message');
+            try {
+              await supabase.functions.invoke('meta-ai-respond', {
+                body: {
+                  conversationId: conversation.id,
+                  messageContent: content,
+                  contactId: senderId,
+                  userId,
+                  channel: 'instagram'
+                }
+              });
+            } catch (aiError) {
+              console.error('Error triggering AI response:', aiError);
+            }
           }
         }
       }

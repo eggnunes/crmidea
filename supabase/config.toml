@@ -53,3 +53,6 @@ verify_jwt = false
 
 [functions.meta-send-message]
 verify_jwt = true
+
+[functions.meta-ai-respond]
+verify_jwt = true
