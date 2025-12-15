@@ -8,7 +8,8 @@ import {
   Zap,
   LogOut,
   Settings,
-  ShieldCheck
+  ShieldCheck,
+  BarChart3
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NavLink } from "@/components/NavLink";
@@ -26,6 +27,7 @@ const navItems = [
   { to: "/leads", icon: Users, label: "Leads" },
   { to: "/pipeline", icon: Kanban, label: "Pipeline" },
   { to: "/produtos", icon: Package, label: "Produtos" },
+  { to: "/integracoes", icon: BarChart3, label: "Integrações" },
   { to: "/configuracoes", icon: Settings, label: "Configurações" },
 ];
 
