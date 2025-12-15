@@ -231,9 +231,18 @@ ${aiConfig.sign_agent_name ? `- Assine suas mensagens como "${aiConfig.agent_nam
 
     const zapiInstanceId = Deno.env.get('ZAPI_INSTANCE_ID');
     const zapiToken = Deno.env.get('ZAPI_TOKEN');
+    const zapiClientToken = Deno.env.get('ZAPI_CLIENT_TOKEN');
 
     if (!zapiInstanceId || !zapiToken) {
       throw new Error('Z-API credentials not configured');
+    }
+
+    // Build Z-API headers with Client-Token
+    const zapiHeaders: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (zapiClientToken) {
+      zapiHeaders['Client-Token'] = zapiClientToken;
     }
 
     let formattedPhone = contactPhone.replace(/\D/g, '');
@@ -246,7 +255,7 @@ ${aiConfig.sign_agent_name ? `- Assine suas mensagens como "${aiConfig.agent_nam
       try {
         await fetch(`https://api.z-api.io/instances/${zapiInstanceId}/token/${zapiToken}/send-typing`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: zapiHeaders,
           body: JSON.stringify({ phone: formattedPhone }),
         });
       } catch (e) {
@@ -311,7 +320,7 @@ ${aiConfig.sign_agent_name ? `- Assine suas mensagens como "${aiConfig.agent_nam
         try {
           await fetch(`https://api.z-api.io/instances/${zapiInstanceId}/token/${zapiToken}/send-recording`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: zapiHeaders,
             body: JSON.stringify({ phone: formattedPhone }),
           });
         } catch (e) {
@@ -354,7 +363,7 @@ ${aiConfig.sign_agent_name ? `- Assine suas mensagens como "${aiConfig.agent_nam
         
         const sendResponse = await fetch(audioUrl, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: zapiHeaders,
           body: JSON.stringify({
             phone: formattedPhone,
             audio: `data:audio/mpeg;base64,${audioBase64}`,
@@ -435,7 +444,7 @@ ${aiConfig.sign_agent_name ? `- Assine suas mensagens como "${aiConfig.agent_nam
       
       const sendResponse = await fetch(zapiUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: zapiHeaders,
         body: JSON.stringify({
           phone: formattedPhone,
           message: msgContent,
