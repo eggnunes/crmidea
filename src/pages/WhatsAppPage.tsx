@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { MessageSquare, User, Briefcase, BookOpen, Target, Settings2, Webhook, Users, Zap, Clock, Sliders } from "lucide-react";
+import { MessageSquare, User, Briefcase, BookOpen, Target, Settings2, Webhook, Users, Zap, Clock, Sliders, Tag } from "lucide-react";
 import { WhatsAppConversations } from "@/components/whatsapp/WhatsAppConversations";
 import { AIProfileSettings } from "@/components/whatsapp/AIProfileSettings";
 import { AIWorkSettings } from "@/components/whatsapp/AIWorkSettings";
@@ -12,6 +12,7 @@ import { ContactsManager } from "@/components/whatsapp/ContactsManager";
 import { QuickResponsesManager } from "@/components/whatsapp/QuickResponsesManager";
 import { ScheduledMessagesManager } from "@/components/whatsapp/ScheduledMessagesManager";
 import { AdvancedSettings } from "@/components/whatsapp/AdvancedSettings";
+import { TagsManager } from "@/components/whatsapp/TagsManager";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 
 export function WhatsAppPage() {
@@ -52,6 +53,10 @@ export function WhatsAppPage() {
             <TabsTrigger value="contatos" className="flex items-center gap-2 py-2 px-3">
               <Users className="w-4 h-4" />
               <span className="hidden sm:inline">Contatos</span>
+            </TabsTrigger>
+            <TabsTrigger value="tags" className="flex items-center gap-2 py-2 px-3">
+              <Tag className="w-4 h-4" />
+              <span className="hidden sm:inline">Tags</span>
             </TabsTrigger>
             <TabsTrigger value="respostas" className="flex items-center gap-2 py-2 px-3">
               <Zap className="w-4 h-4" />
@@ -99,6 +104,10 @@ export function WhatsAppPage() {
 
         <TabsContent value="contatos" className="space-y-4">
           <ContactsManager />
+        </TabsContent>
+
+        <TabsContent value="tags" className="space-y-4">
+          <TagsManager />
         </TabsContent>
 
         <TabsContent value="respostas" className="space-y-4">

@@ -32,6 +32,8 @@ serve(async (req) => {
       const zapiMessageId = payload.messageId || payload.id?.id;
       const isGroup = payload.isGroup || payload.chatId?.includes('@g.us') || false;
       const isAudioMessage = messageType === 'audio' || messageType === 'ptt';
+      // Get audio URL for transcription
+      const audioUrl = isAudioMessage ? (payload.audio?.audioUrl || payload.audio || payload.url || null) : null;
 
       if (!phone || !messageContent) {
         console.log('Missing phone or content, skipping');
@@ -139,6 +141,7 @@ serve(async (req) => {
               contactPhone: phone,
               userId,
               isAudioMessage,
+              audioUrl,
             },
           });
         } catch (aiError) {

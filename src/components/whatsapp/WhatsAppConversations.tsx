@@ -1,15 +1,18 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Search, Send, MessageSquare, User, Bot } from "lucide-react";
+import { Loader2, Search, Send, MessageSquare, User, Bot, Mic, Square, Play, Trash2 } from "lucide-react";
 import { useWhatsAppConversations } from "@/hooks/useWhatsAppConversations";
+import { useAudioRecorder } from "@/hooks/useAudioRecorder";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 export function WhatsAppConversations() {
   const {
@@ -22,15 +25,26 @@ export function WhatsAppConversations() {
     sendMessage,
   } = useWhatsAppConversations();
   
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [newMessage, setNewMessage] = useState("");
   const [sending, setSending] = useState(false);
+  const [sendingAudio, setSendingAudio] = useState(false);
+  const { isRecording, audioBlob, startRecording, stopRecording, clearRecording, getBase64Audio } = useAudioRecorder();
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   const filteredConversations = conversations.filter(
     (conv) =>
       conv.contact_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       conv.contact_phone.includes(searchTerm)
   );
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages]);
 
   const handleSendMessage = async () => {
     if (!selectedConversation || !newMessage.trim()) return;
@@ -39,6 +53,42 @@ export function WhatsAppConversations() {
     await sendMessage(selectedConversation.id, newMessage);
     setNewMessage("");
     setSending(false);
+  };
+
+  const handleSendAudio = async () => {
+    if (!selectedConversation || !audioBlob) return;
+
+    setSendingAudio(true);
+    try {
+      const base64Audio = await getBase64Audio();
+      if (!base64Audio) throw new Error("Failed to get audio data");
+
+      const { error } = await supabase.functions.invoke("zapi-send-message", {
+        body: {
+          conversationId: selectedConversation.id,
+          phone: selectedConversation.contact_phone,
+          type: "audio",
+          audio: base64Audio,
+        },
+      });
+
+      if (error) throw error;
+
+      clearRecording();
+      toast({ title: "Sucesso", description: "Áudio enviado com sucesso" });
+    } catch (error) {
+      console.error("Error sending audio:", error);
+      toast({ title: "Erro", description: "Não foi possível enviar o áudio", variant: "destructive" });
+    } finally {
+      setSendingAudio(false);
+    }
+  };
+
+  const playRecordedAudio = () => {
+    if (audioBlob && audioRef.current) {
+      audioRef.current.src = URL.createObjectURL(audioBlob);
+      audioRef.current.play();
+    }
   };
 
   const formatPhone = (phone: string) => {
@@ -156,7 +206,7 @@ export function WhatsAppConversations() {
               </div>
             </CardHeader>
             <CardContent className="flex-1 p-0 flex flex-col">
-              <ScrollArea className="flex-1 p-4">
+              <ScrollArea className="flex-1 p-4" ref={scrollRef}>
                 {loadingMessages ? (
                   <div className="flex items-center justify-center py-12">
                     <Loader2 className="w-6 h-6 animate-spin text-primary" />
@@ -199,6 +249,12 @@ export function WhatsAppConversations() {
                               <span>IA</span>
                             </div>
                           )}
+                          {msg.message_type === "audio" && (
+                            <div className="flex items-center gap-1 text-xs opacity-70 mb-1">
+                              <Mic className="w-3 h-3" />
+                              <span>Áudio</span>
+                            </div>
+                          )}
                           <p className="whitespace-pre-wrap">{msg.content}</p>
                           <p className="text-xs opacity-70 mt-1">
                             {new Date(msg.created_at).toLocaleTimeString("pt-BR", {
@@ -219,16 +275,55 @@ export function WhatsAppConversations() {
                   </div>
                 )}
               </ScrollArea>
-              <div className="p-4 border-t">
+              <div className="p-4 border-t space-y-3">
+                {/* Audio Recording UI */}
+                {(isRecording || audioBlob) && (
+                  <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
+                    {isRecording ? (
+                      <>
+                        <div className="w-3 h-3 bg-destructive rounded-full animate-pulse" />
+                        <span className="text-sm flex-1">Gravando...</span>
+                        <Button size="sm" variant="destructive" onClick={stopRecording}>
+                          <Square className="w-4 h-4" />
+                        </Button>
+                      </>
+                    ) : audioBlob ? (
+                      <>
+                        <Button size="sm" variant="ghost" onClick={playRecordedAudio}>
+                          <Play className="w-4 h-4" />
+                        </Button>
+                        <span className="text-sm flex-1">Áudio gravado</span>
+                        <Button size="sm" variant="ghost" onClick={clearRecording}>
+                          <Trash2 className="w-4 h-4 text-destructive" />
+                        </Button>
+                        <Button size="sm" onClick={handleSendAudio} disabled={sendingAudio}>
+                          {sendingAudio ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                        </Button>
+                      </>
+                    ) : null}
+                    <audio ref={audioRef} className="hidden" />
+                  </div>
+                )}
+                
+                {/* Text Message Input */}
                 <div className="flex gap-2">
                   <Input
                     placeholder="Digite sua mensagem..."
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
                     onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
-                    disabled={sending}
+                    disabled={sending || isRecording}
                   />
-                  <Button onClick={handleSendMessage} disabled={sending || !newMessage.trim()}>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={startRecording}
+                    disabled={isRecording || !!audioBlob || sending}
+                    title="Gravar áudio"
+                  >
+                    <Mic className="w-4 h-4" />
+                  </Button>
+                  <Button onClick={handleSendMessage} disabled={sending || !newMessage.trim() || isRecording}>
                     {sending ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
                     ) : (

@@ -158,13 +158,13 @@ export function useWhatsAppContacts() {
     await updateContact(id, { bot_disabled: disabled });
   };
 
-  const createTag = async (name: string, color: string) => {
+  const createTag = async (tag: { name: string; color: string }) => {
     if (!user) return null;
 
     try {
       const { data, error } = await supabase
         .from("contact_tags")
-        .insert({ user_id: user.id, name, color })
+        .insert({ user_id: user.id, name: tag.name, color: tag.color })
         .select()
         .single();
 
@@ -181,6 +181,31 @@ export function useWhatsAppContacts() {
         variant: "destructive",
       });
       return null;
+    }
+  };
+
+  const updateTag = async (id: string, updates: { name?: string; color?: string }) => {
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from("contact_tags")
+        .update(updates)
+        .eq("id", id);
+
+      if (error) throw error;
+
+      setTags((prev) =>
+        prev.map((t) => (t.id === id ? { ...t, ...updates } : t))
+      );
+      toast({ title: "Sucesso", description: "Tag atualizada" });
+    } catch (error) {
+      console.error("Error updating tag:", error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível atualizar a tag",
+        variant: "destructive",
+      });
     }
   };
 
@@ -216,6 +241,7 @@ export function useWhatsAppContacts() {
     deleteContact,
     toggleBotDisabled,
     createTag,
+    updateTag,
     deleteTag,
     refetch: () => Promise.all([fetchContacts(), fetchTags()]),
   };
