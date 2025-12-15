@@ -5,6 +5,7 @@ import { useChannelAnalytics, ChannelMetrics, ChannelType } from "@/hooks/useCha
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState } from "react";
 import { MessageEvolutionChart } from "./MessageEvolutionChart";
+import { AnalyticsExport } from "./AnalyticsExport";
 
 const CHANNEL_INFO: Record<ChannelType, { name: string; icon: typeof MessageCircle; color: string }> = {
   whatsapp: { name: 'WhatsApp', icon: MessageCircle, color: 'bg-green-500' },
@@ -109,7 +110,7 @@ function ChannelCard({ metrics }: { metrics: ChannelMetrics }) {
 }
 
 export function ChannelAnalytics() {
-  const { metrics, loading, setDateRange } = useChannelAnalytics();
+  const { metrics, loading, dateRange, setDateRange } = useChannelAnalytics();
   const [period, setPeriod] = useState('30');
 
   const handlePeriodChange = (value: string) => {
@@ -146,17 +147,20 @@ export function ChannelAnalytics() {
             Métricas de desempenho de cada canal de comunicação
           </p>
         </div>
-        <Select value={period} onValueChange={handlePeriodChange}>
-          <SelectTrigger className="w-40">
-            <SelectValue placeholder="Período" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="7">Últimos 7 dias</SelectItem>
-            <SelectItem value="30">Últimos 30 dias</SelectItem>
-            <SelectItem value="90">Últimos 90 dias</SelectItem>
-            <SelectItem value="365">Último ano</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="flex items-center gap-2">
+          <AnalyticsExport dateRange={dateRange} />
+          <Select value={period} onValueChange={handlePeriodChange}>
+            <SelectTrigger className="w-40">
+              <SelectValue placeholder="Período" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="7">Últimos 7 dias</SelectItem>
+              <SelectItem value="30">Últimos 30 dias</SelectItem>
+              <SelectItem value="90">Últimos 90 dias</SelectItem>
+              <SelectItem value="365">Último ano</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* Overall Summary */}
