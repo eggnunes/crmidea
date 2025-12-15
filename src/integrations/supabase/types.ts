@@ -188,6 +188,45 @@ export type Database = {
         }
         Relationships: []
       }
+      channel_configs: {
+        Row: {
+          access_token: string | null
+          channel: Database["public"]["Enums"]["channel_type"]
+          config: Json
+          created_at: string
+          id: string
+          is_active: boolean
+          page_id: string | null
+          updated_at: string
+          user_id: string
+          webhook_verify_token: string | null
+        }
+        Insert: {
+          access_token?: string | null
+          channel: Database["public"]["Enums"]["channel_type"]
+          config?: Json
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          page_id?: string | null
+          updated_at?: string
+          user_id: string
+          webhook_verify_token?: string | null
+        }
+        Update: {
+          access_token?: string | null
+          channel?: Database["public"]["Enums"]["channel_type"]
+          config?: Json
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          page_id?: string | null
+          updated_at?: string
+          user_id?: string
+          webhook_verify_token?: string | null
+        }
+        Relationships: []
+      }
       contact_tags: {
         Row: {
           color: string | null
@@ -621,34 +660,46 @@ export type Database = {
       }
       whatsapp_conversations: {
         Row: {
+          channel: Database["public"]["Enums"]["channel_type"]
+          channel_page_id: string | null
+          channel_user_id: string | null
           contact_name: string | null
           contact_phone: string
           created_at: string
           id: string
           last_message_at: string | null
           lead_id: string | null
+          profile_picture_url: string | null
           unread_count: number
           updated_at: string
           user_id: string
         }
         Insert: {
+          channel?: Database["public"]["Enums"]["channel_type"]
+          channel_page_id?: string | null
+          channel_user_id?: string | null
           contact_name?: string | null
           contact_phone: string
           created_at?: string
           id?: string
           last_message_at?: string | null
           lead_id?: string | null
+          profile_picture_url?: string | null
           unread_count?: number
           updated_at?: string
           user_id: string
         }
         Update: {
+          channel?: Database["public"]["Enums"]["channel_type"]
+          channel_page_id?: string | null
+          channel_user_id?: string | null
           contact_name?: string | null
           contact_phone?: string
           created_at?: string
           id?: string
           last_message_at?: string | null
           lead_id?: string | null
+          profile_picture_url?: string | null
           unread_count?: number
           updated_at?: string
           user_id?: string
@@ -665,6 +716,8 @@ export type Database = {
       }
       whatsapp_messages: {
         Row: {
+          channel: Database["public"]["Enums"]["channel_type"]
+          channel_message_id: string | null
           content: string
           conversation_id: string
           created_at: string
@@ -677,6 +730,8 @@ export type Database = {
           zapi_message_id: string | null
         }
         Insert: {
+          channel?: Database["public"]["Enums"]["channel_type"]
+          channel_message_id?: string | null
           content: string
           conversation_id: string
           created_at?: string
@@ -689,6 +744,8 @@ export type Database = {
           zapi_message_id?: string | null
         }
         Update: {
+          channel?: Database["public"]["Enums"]["channel_type"]
+          channel_message_id?: string | null
           content?: string
           conversation_id?: string
           created_at?: string
@@ -726,6 +783,13 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
+      channel_type:
+        | "whatsapp"
+        | "instagram"
+        | "facebook"
+        | "tiktok"
+        | "email"
+        | "telegram"
       lead_status:
         | "novo"
         | "em_contato"
@@ -870,6 +934,14 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "moderator", "user"],
+      channel_type: [
+        "whatsapp",
+        "instagram",
+        "facebook",
+        "tiktok",
+        "email",
+        "telegram",
+      ],
       lead_status: [
         "novo",
         "em_contato",
