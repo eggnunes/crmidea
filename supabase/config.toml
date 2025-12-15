@@ -56,3 +56,6 @@ verify_jwt = true
 
 [functions.meta-ai-respond]
 verify_jwt = true
+
+[functions.weekly-report]
+verify_jwt = false

@@ -20,8 +20,14 @@ export function NotificationBell() {
     if (!notification.is_read) {
       markAsRead(notification.id);
     }
+    // For weekly reports, don't navigate - just mark as read
+    if (notification.type === 'weekly_report') {
+      return;
+    }
     // Navigate to leads page with the lead selected
-    navigate(`/leads?leadId=${notification.lead_id}`);
+    if (notification.lead_id) {
+      navigate(`/leads?leadId=${notification.lead_id}`);
+    }
   };
 
   return (
@@ -82,7 +88,7 @@ export function NotificationBell() {
                           <span className="h-2 w-2 rounded-full bg-primary" />
                         )}
                       </div>
-                      <p className="text-sm text-muted-foreground mt-1">
+                      <p className="text-sm text-muted-foreground mt-1 whitespace-pre-wrap">
                         {notification.message}
                       </p>
                       <p className="text-xs text-muted-foreground mt-2">
