@@ -10,6 +10,7 @@ import { LeadsPage } from "./pages/LeadsPage";
 import { PipelinePage } from "./pages/PipelinePage";
 import { ProductsPage } from "./pages/ProductsPage";
 import { SettingsPage } from "./pages/SettingsPage";
+import { IntegrationsDashboardPage } from "./pages/IntegrationsDashboardPage";
 import AdminUsersPage from "./pages/AdminUsersPage";
 import { AuthPage } from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
@@ -49,6 +50,7 @@ function AppRoutes() {
                 <Route path="/leads" element={<LeadsPage />} />
                 <Route path="/pipeline" element={<PipelinePage />} />
                 <Route path="/produtos" element={<ProductsPage />} />
+                <Route path="/integracoes" element={<IntegrationsDashboardPage />} />
                 <Route path="/configuracoes" element={<SettingsPage />} />
                 <Route path="/admin/usuarios" element={<AdminUsersPage />} />
                 <Route path="*" element={<NotFound />} />
