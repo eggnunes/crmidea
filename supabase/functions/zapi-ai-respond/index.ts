@@ -12,13 +12,14 @@ serve(async (req) => {
   }
 
   try {
-    const { conversationId, messageContent, contactPhone, userId } = await req.json();
+    const { conversationId, messageContent, contactPhone, userId, isAudioMessage } = await req.json();
 
-    console.log(`Processing AI response for conversation ${conversationId}`);
+    console.log(`Processing AI response for conversation ${conversationId}, isAudio: ${isAudioMessage}`);
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
+    const elevenlabsApiKey = Deno.env.get('ELEVENLABS_API_KEY');
 
     if (!lovableApiKey) {
       throw new Error('LOVABLE_API_KEY not configured');
@@ -36,6 +37,21 @@ serve(async (req) => {
     if (!aiConfig || !aiConfig.is_active) {
       console.log('AI not active, skipping response');
       return new Response(JSON.stringify({ status: 'skipped' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Check if bot is disabled for this contact
+    const { data: contact } = await supabase
+      .from('whatsapp_contacts')
+      .select('bot_disabled')
+      .eq('user_id', userId)
+      .eq('phone', contactPhone)
+      .maybeSingle();
+
+    if (contact?.bot_disabled) {
+      console.log('Bot disabled for this contact, skipping response');
+      return new Response(JSON.stringify({ status: 'skipped', reason: 'bot_disabled' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
@@ -133,6 +149,38 @@ ${aiConfig.sign_agent_name ? `- Assine suas mensagens como "${aiConfig.agent_nam
 - Seja conciso mas completo.
 - Se não souber a resposta, diga que não tem essa informação e ofereça ajuda com outras questões.`;
 
+    // Wait for response delay if configured
+    const responseDelay = aiConfig.response_delay_seconds || 0;
+    if (responseDelay > 0) {
+      console.log(`Waiting ${responseDelay}s before responding...`);
+      await new Promise(resolve => setTimeout(resolve, responseDelay * 1000));
+    }
+
+    const zapiInstanceId = Deno.env.get('ZAPI_INSTANCE_ID');
+    const zapiToken = Deno.env.get('ZAPI_TOKEN');
+
+    if (!zapiInstanceId || !zapiToken) {
+      throw new Error('Z-API credentials not configured');
+    }
+
+    let formattedPhone = contactPhone.replace(/\D/g, '');
+    if (!formattedPhone.startsWith('55')) {
+      formattedPhone = '55' + formattedPhone;
+    }
+
+    // Show typing indicator if enabled
+    if (aiConfig.show_typing_indicator) {
+      try {
+        await fetch(`https://api.z-api.io/instances/${zapiInstanceId}/token/${zapiToken}/send-typing`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone: formattedPhone }),
+        });
+      } catch (e) {
+        console.log('Failed to send typing indicator:', e);
+      }
+    }
+
     console.log('Calling Lovable AI...');
 
     // Call Lovable AI
@@ -175,6 +223,108 @@ ${aiConfig.sign_agent_name ? `- Assine suas mensagens como "${aiConfig.agent_nam
 
     console.log(`AI response: ${aiMessage.substring(0, 100)}...`);
 
+    // Check if we should respond with audio (using ElevenLabs)
+    const shouldRespondWithAudio = isAudioMessage && 
+      aiConfig.voice_response_enabled && 
+      aiConfig.elevenlabs_enabled && 
+      elevenlabsApiKey && 
+      aiConfig.elevenlabs_voice_id;
+
+    if (shouldRespondWithAudio) {
+      console.log('Generating audio response with ElevenLabs...');
+
+      // Show recording indicator if enabled
+      if (aiConfig.show_recording_indicator) {
+        try {
+          await fetch(`https://api.z-api.io/instances/${zapiInstanceId}/token/${zapiToken}/send-recording`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone: formattedPhone }),
+          });
+        } catch (e) {
+          console.log('Failed to send recording indicator:', e);
+        }
+      }
+
+      try {
+        // Generate audio with ElevenLabs
+        const elevenLabsResponse = await fetch(
+          `https://api.elevenlabs.io/v1/text-to-speech/${aiConfig.elevenlabs_voice_id}`,
+          {
+            method: 'POST',
+            headers: {
+              'xi-api-key': elevenlabsApiKey,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              text: aiMessage,
+              model_id: 'eleven_multilingual_v2',
+              voice_settings: {
+                stability: 0.5,
+                similarity_boost: 0.75,
+              },
+            }),
+          }
+        );
+
+        if (!elevenLabsResponse.ok) {
+          const error = await elevenLabsResponse.text();
+          console.error('ElevenLabs error:', error);
+          throw new Error('Failed to generate audio');
+        }
+
+        const audioBuffer = await elevenLabsResponse.arrayBuffer();
+        const audioBase64 = btoa(String.fromCharCode(...new Uint8Array(audioBuffer)));
+
+        // Send audio via Z-API
+        const audioUrl = `https://api.z-api.io/instances/${zapiInstanceId}/token/${zapiToken}/send-audio`;
+        
+        const sendResponse = await fetch(audioUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            phone: formattedPhone,
+            audio: `data:audio/mpeg;base64,${audioBase64}`,
+          }),
+        });
+
+        const sendData = await sendResponse.json();
+        console.log('Z-API audio send response:', sendData);
+
+        // Save AI message to database
+        await supabase
+          .from('whatsapp_messages')
+          .insert({
+            conversation_id: conversationId,
+            user_id: userId,
+            message_type: 'audio',
+            content: aiMessage,
+            is_from_contact: false,
+            is_ai_response: true,
+            zapi_message_id: sendData.messageId || sendData.zapiMessageId,
+            status: 'sent',
+          });
+
+        // Update conversation
+        await supabase
+          .from('whatsapp_conversations')
+          .update({ last_message_at: new Date().toISOString() })
+          .eq('id', conversationId);
+
+        return new Response(JSON.stringify({ 
+          success: true,
+          messagesSent: 1,
+          type: 'audio',
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+
+      } catch (audioError) {
+        console.error('Error sending audio, falling back to text:', audioError);
+        // Fall through to text response
+      }
+    }
+
     // Split message if needed
     let messagesToSend = [aiMessage];
     if (aiConfig.split_long_messages && aiMessage.length > 1000) {
@@ -200,18 +350,6 @@ ${aiConfig.sign_agent_name ? `- Assine suas mensagens como "${aiConfig.agent_nam
     }
 
     // Send messages via Z-API
-    const zapiInstanceId = Deno.env.get('ZAPI_INSTANCE_ID');
-    const zapiToken = Deno.env.get('ZAPI_TOKEN');
-
-    if (!zapiInstanceId || !zapiToken) {
-      throw new Error('Z-API credentials not configured');
-    }
-
-    let formattedPhone = contactPhone.replace(/\D/g, '');
-    if (!formattedPhone.startsWith('55')) {
-      formattedPhone = '55' + formattedPhone;
-    }
-
     for (let i = 0; i < messagesToSend.length; i++) {
       const msgContent = messagesToSend[i];
       
@@ -255,9 +393,30 @@ ${aiConfig.sign_agent_name ? `- Assine suas mensagens como "${aiConfig.agent_nam
       .update({ last_message_at: new Date().toISOString() })
       .eq('id', conversationId);
 
+    // Auto-create contact if enabled
+    if (aiConfig.auto_create_contacts) {
+      const { data: existingContact } = await supabase
+        .from('whatsapp_contacts')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('phone', contactPhone)
+        .maybeSingle();
+
+      if (!existingContact) {
+        await supabase
+          .from('whatsapp_contacts')
+          .insert({
+            user_id: userId,
+            phone: contactPhone,
+          });
+        console.log(`Auto-created contact for ${contactPhone}`);
+      }
+    }
+
     return new Response(JSON.stringify({ 
       success: true,
       messagesSent: messagesToSend.length,
+      type: 'text',
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

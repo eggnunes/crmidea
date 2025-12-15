@@ -30,6 +30,8 @@ serve(async (req) => {
       const messageType = payload.type || 'text';
       const senderName = payload.senderName || payload.pushName || null;
       const zapiMessageId = payload.messageId || payload.id?.id;
+      const isGroup = payload.isGroup || payload.chatId?.includes('@g.us') || false;
+      const isAudioMessage = messageType === 'audio' || messageType === 'ptt';
 
       if (!phone || !messageContent) {
         console.log('Missing phone or content, skipping');
@@ -38,7 +40,7 @@ serve(async (req) => {
         });
       }
 
-      console.log(`Processing message from ${phone}: ${messageContent}`);
+      console.log(`Processing ${messageType} message from ${phone}: ${messageContent.substring(0, 50)}...`);
 
       // Find or create conversation
       // First, we need to find the user who owns this Z-API instance
@@ -122,7 +124,10 @@ serve(async (req) => {
         .eq('user_id', userId)
         .maybeSingle();
 
-      if (aiConfig?.is_active) {
+      // Check if should skip groups
+      const shouldSkipGroup = isGroup && aiConfig?.disable_group_messages;
+
+      if (aiConfig?.is_active && !shouldSkipGroup) {
         console.log('AI is active, triggering response...');
         
         // Call AI processing function
@@ -133,11 +138,14 @@ serve(async (req) => {
               messageContent,
               contactPhone: phone,
               userId,
+              isAudioMessage,
             },
           });
         } catch (aiError) {
           console.error('Error calling AI respond function:', aiError);
         }
+      } else if (shouldSkipGroup) {
+        console.log('Skipping group message (disabled in settings)');
       }
 
       return new Response(JSON.stringify({ 

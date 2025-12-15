@@ -121,8 +121,15 @@ export function useAITrainingDocuments() {
     if (!user) return;
 
     try {
+      // Sanitize filename - remove special chars and spaces
+      const sanitizedFileName = file.name
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "") // Remove accents
+        .replace(/[^a-zA-Z0-9._-]/g, "_") // Replace special chars with underscore
+        .replace(/_+/g, "_"); // Collapse multiple underscores
+      
       // Upload file to storage
-      const filePath = `${user.id}/${Date.now()}-${file.name}`;
+      const filePath = `${user.id}/${Date.now()}_${sanitizedFileName}`;
       const { error: uploadError } = await supabase.storage
         .from("training-documents")
         .upload(filePath, file);
