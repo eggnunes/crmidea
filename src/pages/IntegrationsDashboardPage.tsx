@@ -8,12 +8,14 @@ import {
   ArrowUpRight, 
   ArrowDownRight,
   RefreshCw,
-  Calendar
+  Calendar,
+  Filter
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useRealtimeLeads } from "@/hooks/useRealtimeLeads";
@@ -32,8 +34,10 @@ import {
   Line,
   Legend
 } from "recharts";
-import { format, subDays, startOfDay, endOfDay } from "date-fns";
+import { format, subDays, subMonths, startOfDay, endOfDay, eachDayOfInterval, eachWeekOfInterval, startOfWeek, endOfWeek } from "date-fns";
 import { ptBR } from "date-fns/locale";
+
+type PeriodFilter = '7d' | '30d' | '3m';
 
 interface IntegrationMetrics {
   totalKiwifyLeads: number;
@@ -73,6 +77,7 @@ const productLabels: Record<string, string> = {
 export function IntegrationsDashboardPage() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
+  const [periodFilter, setPeriodFilter] = useState<PeriodFilter>('7d');
   const [metrics, setMetrics] = useState<IntegrationMetrics>({
     totalKiwifyLeads: 0,
     totalInstagramLeads: 0,
@@ -89,19 +94,35 @@ export function IntegrationsDashboardPage() {
   // Enable realtime notifications
   useRealtimeLeads(() => {
     // Refresh metrics when new lead arrives
-    fetchMetrics();
+    fetchMetrics(periodFilter);
   });
 
-  const fetchMetrics = async () => {
+  const getDateRange = (period: PeriodFilter) => {
+    const now = new Date();
+    switch (period) {
+      case '7d':
+        return { start: subDays(now, 6), end: now, days: 7 };
+      case '30d':
+        return { start: subDays(now, 29), end: now, days: 30 };
+      case '3m':
+        return { start: subMonths(now, 3), end: now, days: 90 };
+    }
+  };
+
+  const fetchMetrics = async (period: PeriodFilter) => {
     if (!user) return;
     
     setLoading(true);
     try {
-      // Fetch all leads
+      const { start, end, days } = getDateRange(period);
+
+      // Fetch leads within period
       const { data: leads, error } = await supabase
         .from('leads')
         .select('*')
-        .eq('user_id', user.id);
+        .eq('user_id', user.id)
+        .gte('created_at', start.toISOString())
+        .lte('created_at', end.toISOString());
 
       if (error) throw error;
 
@@ -109,11 +130,13 @@ export function IntegrationsDashboardPage() {
       const kiwifyLeads = leads?.filter(l => l.source === 'Kiwify') || [];
       const instagramLeads = leads?.filter(l => l.source?.includes('Instagram') || l.source === 'ManyChat') || [];
 
-      // Fetch interactions for event-based metrics
+      // Fetch interactions for event-based metrics within period
       const { data: interactions } = await supabase
         .from('interactions')
         .select('*')
-        .in('lead_id', leads?.map(l => l.id) || []);
+        .in('lead_id', leads?.map(l => l.id) || [])
+        .gte('date', start.toISOString())
+        .lte('date', end.toISOString());
 
       // Count events from interactions
       const pixEvents = interactions?.filter(i => i.description?.includes('pix_gerado')) || [];
@@ -123,28 +146,65 @@ export function IntegrationsDashboardPage() {
         i.description?.includes('compra_reembolsada') || i.description?.includes('chargeback')
       ) || [];
 
-      // Calculate daily leads for last 7 days
-      const last7Days = Array.from({ length: 7 }, (_, i) => {
-        const date = subDays(new Date(), 6 - i);
-        return {
+      // Generate time intervals based on period
+      let timeIntervals: Array<{ date: string; fullDate: Date; kiwify: number; instagram: number }>;
+      
+      if (days <= 7) {
+        // Daily intervals for 7 days
+        timeIntervals = eachDayOfInterval({ start, end }).map(date => ({
           date: format(date, 'dd/MM', { locale: ptBR }),
           fullDate: date,
           kiwify: 0,
           instagram: 0,
-        };
-      });
+        }));
+      } else if (days <= 30) {
+        // Daily intervals for 30 days
+        timeIntervals = eachDayOfInterval({ start, end }).map(date => ({
+          date: format(date, 'dd/MM', { locale: ptBR }),
+          fullDate: date,
+          kiwify: 0,
+          instagram: 0,
+        }));
+      } else {
+        // Weekly intervals for 3 months
+        timeIntervals = eachWeekOfInterval({ start, end }, { weekStartsOn: 0 }).map(weekStart => ({
+          date: format(weekStart, "dd/MM", { locale: ptBR }),
+          fullDate: weekStart,
+          kiwify: 0,
+          instagram: 0,
+        }));
+      }
 
       leads?.forEach(lead => {
         const leadDate = new Date(lead.created_at);
-        const dayIndex = last7Days.findIndex(d => 
-          leadDate >= startOfDay(d.fullDate) && leadDate <= endOfDay(d.fullDate)
-        );
         
-        if (dayIndex !== -1) {
-          if (lead.source === 'Kiwify') {
-            last7Days[dayIndex].kiwify++;
-          } else if (lead.source?.includes('Instagram') || lead.source === 'ManyChat') {
-            last7Days[dayIndex].instagram++;
+        if (days > 30) {
+          // Find the week this lead belongs to
+          const weekIndex = timeIntervals.findIndex((interval, idx) => {
+            const weekEnd = idx < timeIntervals.length - 1 
+              ? startOfDay(timeIntervals[idx + 1].fullDate)
+              : endOfDay(end);
+            return leadDate >= startOfDay(interval.fullDate) && leadDate < weekEnd;
+          });
+          
+          if (weekIndex !== -1) {
+            if (lead.source === 'Kiwify') {
+              timeIntervals[weekIndex].kiwify++;
+            } else if (lead.source?.includes('Instagram') || lead.source === 'ManyChat') {
+              timeIntervals[weekIndex].instagram++;
+            }
+          }
+        } else {
+          const dayIndex = timeIntervals.findIndex(d => 
+            leadDate >= startOfDay(d.fullDate) && leadDate <= endOfDay(d.fullDate)
+          );
+          
+          if (dayIndex !== -1) {
+            if (lead.source === 'Kiwify') {
+              timeIntervals[dayIndex].kiwify++;
+            } else if (lead.source?.includes('Instagram') || lead.source === 'ManyChat') {
+              timeIntervals[dayIndex].instagram++;
+            }
           }
         }
       });
@@ -184,7 +244,7 @@ export function IntegrationsDashboardPage() {
         abandonedCarts: abandonedEvents.length,
         refunds: refundEvents.length,
         conversionRate,
-        dailyLeads: last7Days.map(d => ({ date: d.date, kiwify: d.kiwify, instagram: d.instagram })),
+        dailyLeads: timeIntervals.map(d => ({ date: d.date, kiwify: d.kiwify, instagram: d.instagram })),
         leadsByProduct,
         leadsByStatus,
       });
@@ -197,13 +257,21 @@ export function IntegrationsDashboardPage() {
   };
 
   useEffect(() => {
-    fetchMetrics();
-  }, [user]);
+    fetchMetrics(periodFilter);
+  }, [user, periodFilter]);
+
+  const getPeriodLabel = () => {
+    switch (periodFilter) {
+      case '7d': return 'Últimos 7 Dias';
+      case '30d': return 'Últimos 30 Dias';
+      case '3m': return 'Últimos 3 Meses';
+    }
+  };
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg gradient-primary flex items-center justify-center">
             <BarChart3 className="w-5 h-5 text-primary-foreground" />
@@ -213,10 +281,23 @@ export function IntegrationsDashboardPage() {
             <p className="text-muted-foreground">Métricas em tempo real das suas integrações</p>
           </div>
         </div>
-        <Button variant="outline" onClick={fetchMetrics} disabled={loading}>
-          <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-          Atualizar
-        </Button>
+        <div className="flex items-center gap-3">
+          <Select value={periodFilter} onValueChange={(v) => setPeriodFilter(v as PeriodFilter)}>
+            <SelectTrigger className="w-[160px]">
+              <Filter className="w-4 h-4 mr-2" />
+              <SelectValue placeholder="Período" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="7d">7 dias</SelectItem>
+              <SelectItem value="30d">30 dias</SelectItem>
+              <SelectItem value="3m">3 meses</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button variant="outline" onClick={() => fetchMetrics(periodFilter)} disabled={loading}>
+            <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            Atualizar
+          </Button>
+        </div>
       </div>
 
       {/* Summary Cards */}
@@ -347,9 +428,9 @@ export function IntegrationsDashboardPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Calendar className="w-5 h-5" />
-                Leads nos Últimos 7 Dias
+                Leads - {getPeriodLabel()}
               </CardTitle>
-              <CardDescription>Comparativo entre Kiwify e Instagram</CardDescription>
+              <CardDescription>Comparativo entre Kiwify e Instagram {periodFilter === '3m' ? '(por semana)' : '(por dia)'}</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="h-[300px]">

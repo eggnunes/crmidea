@@ -233,6 +233,33 @@ Deno.serve(async (req) => {
       if (notifError) {
         console.error('Error creating notification:', notifError);
       }
+
+      // For abandoned carts, schedule WhatsApp recovery message (within 30 minutes)
+      if (payload.webhook_event_type === 'carrinho_abandonado' && payload.Customer.mobile) {
+        console.log('Triggering abandoned cart WhatsApp alert for:', payload.Customer.full_name);
+        
+        // Call abandoned cart alert function immediately (will be sent via ManyChat Flow)
+        try {
+          const alertResponse = await fetch(`${supabaseUrl}/functions/v1/abandoned-cart-alert`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${supabaseServiceKey}`,
+            },
+            body: JSON.stringify({
+              leadId: leadId,
+              leadName: payload.Customer.full_name,
+              productName: payload.product_name,
+              phone: payload.Customer.mobile,
+            }),
+          });
+          
+          const alertResult = await alertResponse.json();
+          console.log('Abandoned cart alert result:', alertResult);
+        } catch (alertError) {
+          console.error('Error sending abandoned cart alert:', alertError);
+        }
+      }
     }
 
     // Trigger ManyChat sync if applicable
