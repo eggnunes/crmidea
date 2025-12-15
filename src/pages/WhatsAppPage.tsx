@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { MessageSquare, User, Briefcase, BookOpen, Target, Settings2 } from "lucide-react";
+import { MessageSquare, User, Briefcase, BookOpen, Target, Settings2, Webhook } from "lucide-react";
 import { WhatsAppConversations } from "@/components/whatsapp/WhatsAppConversations";
 import { AIProfileSettings } from "@/components/whatsapp/AIProfileSettings";
 import { AIWorkSettings } from "@/components/whatsapp/AIWorkSettings";
 import { AITrainingDocuments } from "@/components/whatsapp/AITrainingDocuments";
 import { AIIntents } from "@/components/whatsapp/AIIntents";
 import { AIConfigSettings } from "@/components/whatsapp/AIConfigSettings";
+import { ZAPIWebhookSetup } from "@/components/whatsapp/ZAPIWebhookSetup";
 
 export function WhatsAppPage() {
   const [activeTab, setActiveTab] = useState("conversas");
@@ -22,7 +22,7 @@ export function WhatsAppPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-6 h-auto p-1">
+        <TabsList className="grid w-full grid-cols-7 h-auto p-1">
           <TabsTrigger value="conversas" className="flex items-center gap-2 py-2">
             <MessageSquare className="w-4 h-4" />
             <span className="hidden sm:inline">Conversas</span>
@@ -46,6 +46,10 @@ export function WhatsAppPage() {
           <TabsTrigger value="config" className="flex items-center gap-2 py-2">
             <Settings2 className="w-4 h-4" />
             <span className="hidden sm:inline">Configurações</span>
+          </TabsTrigger>
+          <TabsTrigger value="webhook" className="flex items-center gap-2 py-2">
+            <Webhook className="w-4 h-4" />
+            <span className="hidden sm:inline">Webhook</span>
           </TabsTrigger>
         </TabsList>
 
@@ -71,6 +75,10 @@ export function WhatsAppPage() {
 
         <TabsContent value="config" className="space-y-4">
           <AIConfigSettings />
+        </TabsContent>
+
+        <TabsContent value="webhook" className="space-y-4">
+          <ZAPIWebhookSetup />
         </TabsContent>
       </Tabs>
     </div>
