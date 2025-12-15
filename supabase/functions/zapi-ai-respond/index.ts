@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { encode as base64Encode } from "https://deno.land/std@0.168.0/encoding/base64.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -18,7 +19,7 @@ async function transcribeAudio(audioUrl: string, lovableApiKey: string): Promise
     }
     
     const audioBuffer = await audioResponse.arrayBuffer();
-    const audioBase64 = btoa(String.fromCharCode(...new Uint8Array(audioBuffer)));
+    const audioBase64 = base64Encode(audioBuffer);
     
     // Use Lovable AI for transcription with a prompt
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
@@ -356,7 +357,7 @@ ${aiConfig.sign_agent_name ? `- Assine suas mensagens como "${aiConfig.agent_nam
         }
 
         const audioBuffer = await elevenLabsResponse.arrayBuffer();
-        const audioBase64 = btoa(String.fromCharCode(...new Uint8Array(audioBuffer)));
+        const audioBase64 = base64Encode(audioBuffer);
 
         // Send audio via Z-API
         const audioUrl = `https://api.z-api.io/instances/${zapiInstanceId}/token/${zapiToken}/send-audio`;
