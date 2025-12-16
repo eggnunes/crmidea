@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Loader2, Search, Send, MessageSquare, User, Bot, Mic, Square, Play, Trash2, MessageCircle, Instagram, Facebook, PanelRightClose, PanelRightOpen, Paperclip, SearchIcon, Users, ChevronDown, ChevronUp, Circle, Star, StarOff, Tag, Plus, X, FileText, Image, File } from "lucide-react";
+import { Loader2, Search, Send, MessageSquare, User, Bot, Mic, Square, Play, Trash2, MessageCircle, Instagram, Facebook, PanelRightClose, PanelRightOpen, Paperclip, SearchIcon, Users, ChevronDown, ChevronUp, Circle, Star, StarOff, Tag, Plus, X, FileText, Image, File, ArrowLeft } from "lucide-react";
 import { useWhatsAppConversations, ChannelType } from "@/hooks/useWhatsAppConversations";
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
 import { useGlobalMessageSearch } from "@/hooks/useGlobalMessageSearch";
@@ -308,8 +308,10 @@ export function WhatsAppConversations() {
     );
   }
 
+  const [showConversationList, setShowConversationList] = useState(true);
+
   return (
-    <div className="flex h-[calc(100vh-280px)] gap-4">
+    <div className="flex h-[calc(100vh-200px)] min-h-[500px] gap-0 border rounded-lg overflow-hidden bg-background">
       {/* Global Search Dialog */}
       <Dialog open={showGlobalSearch} onOpenChange={setShowGlobalSearch}>
         <DialogContent className="max-w-2xl max-h-[80vh]">
@@ -357,14 +359,17 @@ export function WhatsAppConversations() {
         </DialogContent>
       </Dialog>
 
-      {/* Conversations List */}
-      <Card className="w-80 flex-shrink-0 flex flex-col">
-        <CardHeader className="pb-3 space-y-2">
+      {/* Conversations List - Hidden on mobile when conversation is selected */}
+      <div className={cn(
+        "w-full md:w-80 flex-shrink-0 flex flex-col border-r bg-card",
+        selectedConversation && !showConversationList ? "hidden md:flex" : "flex"
+      )}>
+        <div className="p-3 space-y-2 border-b">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-lg flex items-center gap-2">
+            <h2 className="text-lg font-semibold flex items-center gap-2">
               <MessageSquare className="w-5 h-5" />
               Conversas
-            </CardTitle>
+            </h2>
             <Button variant="ghost" size="icon" onClick={() => setShowGlobalSearch(true)} title="Busca global">
               <SearchIcon className="w-4 h-4" />
             </Button>
@@ -414,8 +419,8 @@ export function WhatsAppConversations() {
               className="pl-9 h-8 text-sm"
             />
           </div>
-        </CardHeader>
-        <CardContent className="flex-1 p-0">
+        </div>
+        <div className="flex-1 overflow-hidden">
           <ScrollArea className="h-full">
             {filteredConversations.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
@@ -428,7 +433,10 @@ export function WhatsAppConversations() {
                 {filteredConversations.map((conv) => (
                   <button
                     key={conv.id}
-                    onClick={() => setSelectedConversation(conv)}
+                    onClick={() => {
+                      setSelectedConversation(conv);
+                      setShowConversationList(false);
+                    }}
                     className={cn(
                       "w-full p-3 text-left hover:bg-muted/50 transition-colors",
                       selectedConversation?.id === conv.id && "bg-muted"
@@ -495,93 +503,85 @@ export function WhatsAppConversations() {
               </div>
             )}
           </ScrollArea>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      {/* Messages */}
-      <Card className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      {/* Messages - Hidden on mobile when showing conversation list */}
+      <div className={cn(
+        "flex-1 flex flex-col min-w-0 bg-card",
+        !selectedConversation ? "hidden md:flex" : "flex",
+        selectedConversation && showConversationList ? "hidden md:flex" : ""
+      )}>
         {selectedConversation ? (
           <>
-            <CardHeader className="pb-3 border-b">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="relative">
-                    <Avatar>
-                      {selectedConversation.profile_picture_url ? (
-                        <AvatarImage src={selectedConversation.profile_picture_url} />
-                      ) : null}
-                      <AvatarFallback>
-                        {selectedConversation.contact_name?.[0]?.toUpperCase() || "?"}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className={cn(
-                      "absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center",
-                      getChannelColor(selectedConversation.channel)
-                    )}>
-                      {getChannelIcon(selectedConversation.channel)}
-                    </div>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <CardTitle className="text-lg">
-                        {selectedConversation.contact_name || formatPhone(selectedConversation.contact_phone)}
-                      </CardTitle>
-                      <Badge variant="outline" className="text-xs">
-                        {selectedConversation.channel?.toUpperCase() || 'WHATSAPP'}
-                      </Badge>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleFavorite(selectedConversation.id);
-                        }}
-                        title={favorites.has(selectedConversation.id) ? "Remover dos favoritos" : "Adicionar aos favoritos"}
-                      >
-                        {favorites.has(selectedConversation.id) ? (
-                          <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
-                        ) : (
-                          <StarOff className="w-4 h-4 text-muted-foreground" />
-                        )}
-                      </Button>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      {selectedConversation.channel === 'whatsapp' 
-                        ? formatPhone(selectedConversation.contact_phone)
-                        : `ID: ${selectedConversation.channel_user_id || selectedConversation.contact_phone}`
-                      }
-                    </p>
-                    {/* Quick info: Assignees and Tags */}
-                    <div className="flex flex-wrap items-center gap-2 mt-1">
-                      {assigneesMap[selectedConversation.id]?.length > 0 && (
-                        <div className="flex items-center gap-1">
-                          <Users className="w-3 h-3 text-muted-foreground" />
-                          {assigneesMap[selectedConversation.id].map((a) => (
-                            <Badge key={a.id} variant="secondary" className="text-xs py-0 h-5">
-                              {a.user_name}
-                            </Badge>
-                          ))}
-                        </div>
-                      )}
-                      {getContactTags(selectedConversation.contact_phone).map((tag) => (
-                        <Badge 
-                          key={tag.id} 
-                          style={{ backgroundColor: tag.color || "#3b82f6" }} 
-                          className="text-white text-xs py-0 h-5"
-                        >
-                          {tag.name}
-                        </Badge>
-                      ))}
-                    </div>
+            {/* Chat Header */}
+            <div className="p-3 border-b flex items-center justify-between flex-shrink-0">
+              <div className="flex items-center gap-3">
+                {/* Back button for mobile */}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="md:hidden"
+                  onClick={() => setShowConversationList(true)}
+                >
+                  <ArrowLeft className="w-5 h-5" />
+                </Button>
+                <div className="relative">
+                  <Avatar>
+                    {selectedConversation.profile_picture_url ? (
+                      <AvatarImage src={selectedConversation.profile_picture_url} />
+                    ) : null}
+                    <AvatarFallback>
+                      {selectedConversation.contact_name?.[0]?.toUpperCase() || "?"}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className={cn(
+                    "absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center",
+                    getChannelColor(selectedConversation.channel)
+                  )}>
+                    {getChannelIcon(selectedConversation.channel)}
                   </div>
                 </div>
-                <Button variant="ghost" size="icon" onClick={() => setShowSidebar(!showSidebar)} title={showSidebar ? "Ocultar painel" : "Mostrar painel"}>
-                  {showSidebar ? <PanelRightClose className="w-5 h-5" /> : <PanelRightOpen className="w-5 h-5" />}
-                </Button>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h2 className="text-base font-semibold truncate">
+                      {selectedConversation.contact_name || formatPhone(selectedConversation.contact_phone)}
+                    </h2>
+                    <Badge variant="outline" className="text-xs">
+                      {selectedConversation.channel?.toUpperCase() || 'WHATSAPP'}
+                    </Badge>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleFavorite(selectedConversation.id);
+                      }}
+                      title={favorites.has(selectedConversation.id) ? "Remover dos favoritos" : "Adicionar aos favoritos"}
+                    >
+                      {favorites.has(selectedConversation.id) ? (
+                        <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+                      ) : (
+                        <StarOff className="w-4 h-4 text-muted-foreground" />
+                      )}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {selectedConversation.channel === 'whatsapp' 
+                      ? formatPhone(selectedConversation.contact_phone)
+                      : `ID: ${selectedConversation.channel_user_id || selectedConversation.contact_phone}`
+                    }
+                  </p>
+                </div>
               </div>
-            </CardHeader>
-            <CardContent className="flex-1 p-0 flex flex-col">
+              <Button variant="ghost" size="icon" onClick={() => setShowSidebar(!showSidebar)} title={showSidebar ? "Ocultar painel" : "Mostrar painel"}>
+                {showSidebar ? <PanelRightClose className="w-5 h-5" /> : <PanelRightOpen className="w-5 h-5" />}
+              </Button>
+            </div>
+            
+            {/* Messages Area */}
+            <div className="flex-1 flex flex-col overflow-hidden">
               <ScrollArea className="flex-1 p-4" ref={scrollRef}>
                 {loadingMessages ? (
                   <div className="flex items-center justify-center py-12">
@@ -793,26 +793,26 @@ export function WhatsAppConversations() {
                   </Button>
                 </div>
               </div>
-            </CardContent>
+            </div>
           </>
         ) : (
-          <CardContent className="flex-1 flex flex-col items-center justify-center text-muted-foreground">
+          <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground">
             <MessageSquare className="w-16 h-16 mb-4 opacity-50" />
             <p className="text-lg font-medium">Selecione uma conversa</p>
             <p className="text-sm">Escolha uma conversa para visualizar as mensagens</p>
-          </CardContent>
+          </div>
         )}
-      </Card>
+      </div>
 
-      {/* Details Sidebar */}
+      {/* Details Sidebar - Hidden on mobile */}
       {selectedConversation && showSidebar && (
-        <Card className="w-72 flex-shrink-0 overflow-hidden">
+        <div className="hidden lg:flex w-72 flex-shrink-0 border-l bg-card overflow-hidden">
           <ChatDetailsSidebar
             conversation={selectedConversation}
             onContactNameUpdated={refetch}
             onQuickResponseSelect={(content) => setNewMessage(content)}
           />
-        </Card>
+        </div>
       )}
     </div>
   );
