@@ -6,12 +6,13 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Loader2, Search, Send, MessageSquare, User, Bot, Mic, Square, Play, Trash2, MessageCircle, Instagram, Facebook, PanelRightClose, PanelRightOpen, Paperclip, SearchIcon, Users, ChevronDown, ChevronUp, Circle } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Loader2, Search, Send, MessageSquare, User, Bot, Mic, Square, Play, Trash2, MessageCircle, Instagram, Facebook, PanelRightClose, PanelRightOpen, Paperclip, SearchIcon, Users, ChevronDown, ChevronUp, Circle, Star, StarOff, Tag, Plus, X } from "lucide-react";
 import { useWhatsAppConversations, ChannelType } from "@/hooks/useWhatsAppConversations";
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
 import { useGlobalMessageSearch } from "@/hooks/useGlobalMessageSearch";
-import { useAllConversationAssignees } from "@/hooks/useConversationAssignees";
+import { useAllConversationAssignees, useConversationAssignees } from "@/hooks/useConversationAssignees";
+import { useWhatsAppContacts } from "@/hooks/useWhatsAppContacts";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -68,6 +69,7 @@ export function WhatsAppConversations() {
   const { toast } = useToast();
   const { results: searchResults, searching, search: globalSearch, clearSearch } = useGlobalMessageSearch();
   const { assigneesMap } = useAllConversationAssignees();
+  const { contacts, tags } = useWhatsAppContacts();
   
   const [searchTerm, setSearchTerm] = useState("");
   const [newMessage, setNewMessage] = useState("");
@@ -79,6 +81,7 @@ export function WhatsAppConversations() {
   const [showGlobalSearch, setShowGlobalSearch] = useState(false);
   const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
   const [expandedMessages, setExpandedMessages] = useState<Set<string>>(new Set());
+  const [favorites, setFavorites] = useState<Set<string>>(new Set());
   
   const { isRecording, audioBlob, startRecording, stopRecording, clearRecording, getBase64Audio } = useAudioRecorder();
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -89,17 +92,44 @@ export function WhatsAppConversations() {
   const allAssignees = Object.values(assigneesMap).flat();
   const uniqueAssignees = Array.from(new Map(allAssignees.map(a => [a.user_id, a])).values());
 
-  // Filter conversations
-  const filteredConversations = conversations.filter((conv) => {
-    const matchesSearch = conv.contact_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      conv.contact_phone.includes(searchTerm);
-    
-    if (assigneeFilter === "all") return matchesSearch;
-    if (assigneeFilter === "unassigned") {
-      return matchesSearch && (!assigneesMap[conv.id] || assigneesMap[conv.id].length === 0);
-    }
-    return matchesSearch && assigneesMap[conv.id]?.some(a => a.user_id === assigneeFilter);
-  });
+  // Get contact tags for current conversation
+  const getContactTags = (phone: string) => {
+    const contact = contacts.find(c => c.phone === phone);
+    return contact?.tags || [];
+  };
+
+  const toggleFavorite = (convId: string) => {
+    setFavorites(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(convId)) {
+        newSet.delete(convId);
+      } else {
+        newSet.add(convId);
+      }
+      return newSet;
+    });
+  };
+
+  // Filter conversations - favorites first
+  const filteredConversations = conversations
+    .filter((conv) => {
+      const matchesSearch = conv.contact_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        conv.contact_phone.includes(searchTerm);
+      
+      if (assigneeFilter === "all") return matchesSearch;
+      if (assigneeFilter === "unassigned") {
+        return matchesSearch && (!assigneesMap[conv.id] || assigneesMap[conv.id].length === 0);
+      }
+      if (assigneeFilter === "favorites") {
+        return matchesSearch && favorites.has(conv.id);
+      }
+      return matchesSearch && assigneesMap[conv.id]?.some(a => a.user_id === assigneeFilter);
+    })
+    .sort((a, b) => {
+      const aFav = favorites.has(a.id) ? 1 : 0;
+      const bFav = favorites.has(b.id) ? 1 : 0;
+      return bFav - aFav;
+    });
 
   const toggleMessageExpand = (msgId: string) => {
     setExpandedMessages(prev => {
@@ -322,6 +352,12 @@ export function WhatsAppConversations() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos</SelectItem>
+              <SelectItem value="favorites">
+                <span className="flex items-center gap-1">
+                  <Star className="w-3 h-3 text-yellow-500" />
+                  Favoritos
+                </span>
+              </SelectItem>
               <SelectItem value="unassigned">Sem responsável</SelectItem>
               {uniqueAssignees.map((assignee) => (
                 <SelectItem key={assignee.user_id} value={assignee.user_id}>
@@ -383,9 +419,14 @@ export function WhatsAppConversations() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between">
-                          <span className="font-medium truncate text-sm">
-                            {conv.contact_name || formatPhone(conv.contact_phone)}
-                          </span>
+                          <div className="flex items-center gap-1">
+                            {favorites.has(conv.id) && (
+                              <Star className="w-3 h-3 text-yellow-500 fill-yellow-500 flex-shrink-0" />
+                            )}
+                            <span className="font-medium truncate text-sm">
+                              {conv.contact_name || formatPhone(conv.contact_phone)}
+                            </span>
+                          </div>
                           {conv.unread_count > 0 && (
                             <Badge variant="default" className="ml-2 text-xs h-5">
                               {conv.unread_count}
@@ -441,19 +482,59 @@ export function WhatsAppConversations() {
                       {getChannelIcon(selectedConversation.channel)}
                     </div>
                   </div>
-                  <div>
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      {selectedConversation.contact_name || formatPhone(selectedConversation.contact_phone)}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <CardTitle className="text-lg">
+                        {selectedConversation.contact_name || formatPhone(selectedConversation.contact_phone)}
+                      </CardTitle>
                       <Badge variant="outline" className="text-xs">
                         {selectedConversation.channel?.toUpperCase() || 'WHATSAPP'}
                       </Badge>
-                    </CardTitle>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleFavorite(selectedConversation.id);
+                        }}
+                        title={favorites.has(selectedConversation.id) ? "Remover dos favoritos" : "Adicionar aos favoritos"}
+                      >
+                        {favorites.has(selectedConversation.id) ? (
+                          <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+                        ) : (
+                          <StarOff className="w-4 h-4 text-muted-foreground" />
+                        )}
+                      </Button>
+                    </div>
                     <p className="text-sm text-muted-foreground">
                       {selectedConversation.channel === 'whatsapp' 
                         ? formatPhone(selectedConversation.contact_phone)
                         : `ID: ${selectedConversation.channel_user_id || selectedConversation.contact_phone}`
                       }
                     </p>
+                    {/* Quick info: Assignees and Tags */}
+                    <div className="flex flex-wrap items-center gap-2 mt-1">
+                      {assigneesMap[selectedConversation.id]?.length > 0 && (
+                        <div className="flex items-center gap-1">
+                          <Users className="w-3 h-3 text-muted-foreground" />
+                          {assigneesMap[selectedConversation.id].map((a) => (
+                            <Badge key={a.id} variant="secondary" className="text-xs py-0 h-5">
+                              {a.user_name}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                      {getContactTags(selectedConversation.contact_phone).map((tag) => (
+                        <Badge 
+                          key={tag.id} 
+                          style={{ backgroundColor: tag.color || "#3b82f6" }} 
+                          className="text-white text-xs py-0 h-5"
+                        >
+                          {tag.name}
+                        </Badge>
+                      ))}
+                    </div>
                   </div>
                 </div>
                 <Button variant="ghost" size="icon" onClick={() => setShowSidebar(!showSidebar)} title={showSidebar ? "Ocultar painel" : "Mostrar painel"}>

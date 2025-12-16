@@ -35,7 +35,7 @@ function LeadCard({ lead, isDragging = false }: { lead: Lead; isDragging?: boole
   return (
     <div 
       className={cn(
-        "p-3 bg-card border border-border/50 rounded-lg border-l-4 transition-all",
+        "p-3 bg-secondary border border-border rounded-lg border-l-4 transition-all shadow-sm",
         productColors[product?.color || 'primary'],
         isDragging && "opacity-50 scale-105 shadow-xl"
       )}
@@ -120,7 +120,7 @@ function PipelineColumn({
           R$ {totalValue.toLocaleString('pt-BR')}
         </p>
       </div>
-      <div className="bg-secondary/20 rounded-b-lg border border-t-0 border-border/50 p-2 min-h-[400px] space-y-2">
+      <div className="bg-background/50 rounded-b-lg border border-t-0 border-border p-2 min-h-[400px] space-y-2">
         <SortableContext items={leads.map(l => l.id)} strategy={verticalListSortingStrategy}>
           {leads.map(lead => (
             <SortableLeadCard key={lead.id} lead={lead} />
