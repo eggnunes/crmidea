@@ -254,6 +254,38 @@ export type Database = {
         }
         Relationships: []
       }
+      conversation_assignees: {
+        Row: {
+          assigned_at: string
+          assigned_by: string
+          conversation_id: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          assigned_at?: string
+          assigned_by: string
+          conversation_id: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          assigned_at?: string
+          assigned_by?: string
+          conversation_id?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_assignees_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       follow_up_logs: {
         Row: {
           error_message: string | null
@@ -728,6 +760,8 @@ export type Database = {
           is_ai_response: boolean
           is_from_contact: boolean
           message_type: string
+          sent_by_user_id: string | null
+          sent_by_user_name: string | null
           status: string
           user_id: string
           zapi_message_id: string | null
@@ -742,6 +776,8 @@ export type Database = {
           is_ai_response?: boolean
           is_from_contact?: boolean
           message_type?: string
+          sent_by_user_id?: string | null
+          sent_by_user_name?: string | null
           status?: string
           user_id: string
           zapi_message_id?: string | null
@@ -756,6 +792,8 @@ export type Database = {
           is_ai_response?: boolean
           is_from_contact?: boolean
           message_type?: string
+          sent_by_user_id?: string | null
+          sent_by_user_name?: string | null
           status?: string
           user_id?: string
           zapi_message_id?: string | null

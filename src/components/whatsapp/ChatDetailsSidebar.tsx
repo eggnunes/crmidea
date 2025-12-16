@@ -7,6 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   StickyNote, 
   Tag,
@@ -20,12 +21,14 @@ import {
   Loader2,
   User,
   Edit3,
-  UserPlus
+  UserPlus,
+  Users
 } from "lucide-react";
 import { WhatsAppConversation } from "@/hooks/useWhatsAppConversations";
 import { useWhatsAppContacts, ContactTag } from "@/hooks/useWhatsAppContacts";
 import { useQuickResponses } from "@/hooks/useQuickResponses";
 import { useScheduledMessages } from "@/hooks/useScheduledMessages";
+import { useConversationAssignees } from "@/hooks/useConversationAssignees";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -43,6 +46,7 @@ export function ChatDetailsSidebar({ conversation, onContactNameUpdated, onQuick
   const { contacts, tags, createContact, createTag, refetch: refetchContacts } = useWhatsAppContacts();
   const { responses } = useQuickResponses();
   const { scheduleMessage } = useScheduledMessages();
+  const { assignees, availableUsers, assignUser, removeAssignee, refetch: refetchAssignees } = useConversationAssignees(conversation.id);
   
   const [activeTab, setActiveTab] = useState("info");
   
@@ -71,6 +75,9 @@ export function ChatDetailsSidebar({ conversation, onContactNameUpdated, onQuick
   const [generatingSummary, setGeneratingSummary] = useState(false);
   const [transcription, setTranscription] = useState("");
   const [generatingTranscription, setGeneratingTranscription] = useState(false);
+  
+  // Assignee
+  const [selectedAssigneeId, setSelectedAssigneeId] = useState("");
 
   const existingContact = contacts.find(c => c.phone === conversation.contact_phone);
 
@@ -300,23 +307,26 @@ export function ChatDetailsSidebar({ conversation, onContactNameUpdated, onQuick
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-        <TabsList className="w-full justify-start rounded-none border-b bg-transparent p-0">
-          <TabsTrigger value="info" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary px-3 py-2">
+        <TabsList className="w-full justify-start rounded-none border-b bg-transparent p-0 flex-wrap h-auto">
+          <TabsTrigger value="info" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary px-2 py-2">
             <User className="w-4 h-4" />
           </TabsTrigger>
-          <TabsTrigger value="notes" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary px-3 py-2">
+          <TabsTrigger value="assignees" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary px-2 py-2">
+            <Users className="w-4 h-4" />
+          </TabsTrigger>
+          <TabsTrigger value="notes" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary px-2 py-2">
             <StickyNote className="w-4 h-4" />
           </TabsTrigger>
-          <TabsTrigger value="tags" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary px-3 py-2">
+          <TabsTrigger value="tags" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary px-2 py-2">
             <Tag className="w-4 h-4" />
           </TabsTrigger>
-          <TabsTrigger value="schedule" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary px-3 py-2">
+          <TabsTrigger value="schedule" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary px-2 py-2">
             <Clock className="w-4 h-4" />
           </TabsTrigger>
-          <TabsTrigger value="quick" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary px-3 py-2">
+          <TabsTrigger value="quick" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary px-2 py-2">
             <Zap className="w-4 h-4" />
           </TabsTrigger>
-          <TabsTrigger value="ai" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary px-3 py-2">
+          <TabsTrigger value="ai" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary px-2 py-2">
             <Sparkles className="w-4 h-4" />
           </TabsTrigger>
         </TabsList>
@@ -328,6 +338,18 @@ export function ChatDetailsSidebar({ conversation, onContactNameUpdated, onQuick
               <p className="text-xs text-muted-foreground uppercase mb-1">Canal</p>
               <Badge variant="outline">{conversation.channel?.toUpperCase() || 'WHATSAPP'}</Badge>
             </div>
+            {assignees.length > 0 && (
+              <div>
+                <p className="text-xs text-muted-foreground uppercase mb-1">Responsáveis</p>
+                <div className="flex flex-wrap gap-1">
+                  {assignees.map((a) => (
+                    <Badge key={a.id} variant="secondary" className="text-xs">
+                      {a.user_name}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
             {existingContact?.notes && (
               <div>
                 <p className="text-xs text-muted-foreground uppercase mb-1">Anotações</p>
@@ -348,6 +370,60 @@ export function ChatDetailsSidebar({ conversation, onContactNameUpdated, onQuick
                 </div>
               </div>
             )}
+          </TabsContent>
+
+          {/* Assignees Tab */}
+          <TabsContent value="assignees" className="m-0 p-4 space-y-4">
+            <p className="text-sm font-medium">Responsáveis</p>
+            
+            {assignees.length > 0 && (
+              <div className="space-y-2">
+                {assignees.map((a) => (
+                  <div key={a.id} className="flex items-center justify-between p-2 bg-muted rounded">
+                    <div className="flex items-center gap-2">
+                      <User className="w-4 h-4 text-muted-foreground" />
+                      <span className="text-sm">{a.user_name}</span>
+                    </div>
+                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeAssignee(a.id)}>
+                      <X className="w-3 h-3" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            <div className="space-y-2 pt-2 border-t">
+              <p className="text-xs text-muted-foreground">Adicionar responsável:</p>
+              <div className="flex gap-2">
+                <Select value={selectedAssigneeId} onValueChange={setSelectedAssigneeId}>
+                  <SelectTrigger className="flex-1 h-8 text-sm">
+                    <SelectValue placeholder="Selecionar usuário" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableUsers
+                      .filter(u => !assignees.some(a => a.user_id === u.id))
+                      .map((user) => (
+                        <SelectItem key={user.id} value={user.id}>
+                          {user.name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+                <Button 
+                  size="icon" 
+                  className="h-8 w-8" 
+                  onClick={() => {
+                    if (selectedAssigneeId) {
+                      assignUser(selectedAssigneeId);
+                      setSelectedAssigneeId("");
+                    }
+                  }}
+                  disabled={!selectedAssigneeId}
+                >
+                  <Plus className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
           </TabsContent>
 
           {/* Notes Tab */}
