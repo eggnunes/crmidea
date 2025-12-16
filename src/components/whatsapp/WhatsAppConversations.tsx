@@ -14,6 +14,7 @@ import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { ChatActionsPanel } from "./ChatActionsPanel";
 
 const CHANNEL_OPTIONS = [
   { value: 'all', label: 'Todos os canais', icon: MessageSquare },
@@ -57,6 +58,7 @@ export function WhatsAppConversations() {
     sendMessage,
     channelFilter,
     setChannelFilter,
+    refetch,
   } = useWhatsAppConversations();
   
   const { toast } = useToast();
@@ -254,37 +256,44 @@ export function WhatsAppConversations() {
         {selectedConversation ? (
           <>
             <CardHeader className="pb-3 border-b">
-              <div className="flex items-center gap-3">
-                <div className="relative">
-                  <Avatar>
-                    {selectedConversation.profile_picture_url ? (
-                      <AvatarImage src={selectedConversation.profile_picture_url} />
-                    ) : null}
-                    <AvatarFallback>
-                      {selectedConversation.contact_name?.[0]?.toUpperCase() || "?"}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className={cn(
-                    "absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center",
-                    getChannelColor(selectedConversation.channel)
-                  )}>
-                    {getChannelIcon(selectedConversation.channel)}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <Avatar>
+                      {selectedConversation.profile_picture_url ? (
+                        <AvatarImage src={selectedConversation.profile_picture_url} />
+                      ) : null}
+                      <AvatarFallback>
+                        {selectedConversation.contact_name?.[0]?.toUpperCase() || "?"}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className={cn(
+                      "absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center",
+                      getChannelColor(selectedConversation.channel)
+                    )}>
+                      {getChannelIcon(selectedConversation.channel)}
+                    </div>
+                  </div>
+                  <div>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      {selectedConversation.contact_name || formatPhone(selectedConversation.contact_phone)}
+                      <Badge variant="outline" className="text-xs">
+                        {selectedConversation.channel?.toUpperCase() || 'WHATSAPP'}
+                      </Badge>
+                    </CardTitle>
+                    <p className="text-sm text-muted-foreground">
+                      {selectedConversation.channel === 'whatsapp' 
+                        ? formatPhone(selectedConversation.contact_phone)
+                        : `ID: ${selectedConversation.channel_user_id || selectedConversation.contact_phone}`
+                      }
+                    </p>
                   </div>
                 </div>
-                <div>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    {selectedConversation.contact_name || formatPhone(selectedConversation.contact_phone)}
-                    <Badge variant="outline" className="text-xs">
-                      {selectedConversation.channel?.toUpperCase() || 'WHATSAPP'}
-                    </Badge>
-                  </CardTitle>
-                  <p className="text-sm text-muted-foreground">
-                    {selectedConversation.channel === 'whatsapp' 
-                      ? formatPhone(selectedConversation.contact_phone)
-                      : `ID: ${selectedConversation.channel_user_id || selectedConversation.contact_phone}`
-                    }
-                  </p>
-                </div>
+                <ChatActionsPanel 
+                  conversation={selectedConversation} 
+                  onContactNameUpdated={refetch}
+                  onQuickResponseSelect={(content) => setNewMessage(content)}
+                />
               </div>
             </CardHeader>
             <CardContent className="flex-1 p-0 flex flex-col">
