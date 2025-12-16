@@ -39,7 +39,85 @@ serve(async (req) => {
     let extractedContent = doc.content;
 
     // Process based on content type
-    if (doc.content_type === 'website' && doc.content.startsWith('http')) {
+    if (doc.content_type === 'video' && doc.file_url) {
+      // Process video using Gemini (supports video analysis)
+      try {
+        console.log(`Processing video: ${doc.file_url}`);
+        
+        if (!lovableApiKey) {
+          throw new Error('LOVABLE_API_KEY is required for video processing');
+        }
+
+        // Use Gemini to analyze/transcribe the video
+        const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${lovableApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'google/gemini-2.5-flash',
+            messages: [
+              {
+                role: 'system',
+                content: `Você é um especialista em transcrição e análise de vídeos. Sua tarefa é extrair TODO o conteúdo falado e informações visuais relevantes do vídeo para criar uma base de conhecimento completa.
+                
+Instruções:
+1. Transcreva TUDO que é falado no vídeo, palavra por palavra
+2. Descreva informações visuais importantes (slides, gráficos, demonstrações)
+3. Organize o conteúdo de forma estruturada
+4. Preserve todos os detalhes técnicos e conceitos explicados
+5. NÃO resuma - queremos o conteúdo COMPLETO para treinamento de IA`
+              },
+              {
+                role: 'user',
+                content: [
+                  {
+                    type: 'text',
+                    text: `Transcreva e extraia TODO o conteúdo deste vídeo "${doc.title}". Este conteúdo será usado como base de conhecimento para um assistente de IA, então preciso de TODOS os detalhes, falas e informações visuais relevantes.`
+                  },
+                  {
+                    type: 'image_url',
+                    image_url: {
+                      url: doc.file_url
+                    }
+                  }
+                ]
+              }
+            ],
+          }),
+        });
+
+        if (aiResponse.ok) {
+          const aiData = await aiResponse.json();
+          extractedContent = aiData.choices?.[0]?.message?.content || 
+            `Não foi possível transcrever o vídeo "${doc.title}". Tente novamente ou adicione o conteúdo manualmente como texto.`;
+          
+          console.log(`Video transcription completed: ${extractedContent.length} chars`);
+        } else {
+          const errorText = await aiResponse.text();
+          console.error('AI API error:', errorText);
+          throw new Error(`Erro na API de IA: ${aiResponse.status}`);
+        }
+      } catch (videoError) {
+        console.error('Error processing video:', videoError);
+        extractedContent = `Vídeo "${doc.title}" foi enviado, mas não foi possível transcrever automaticamente. Erro: ${videoError instanceof Error ? videoError.message : 'Erro desconhecido'}. Considere adicionar o conteúdo como texto.`;
+        
+        // Update status to error
+        await supabase
+          .from('ai_training_documents')
+          .update({ status: 'error', content: extractedContent })
+          .eq('id', documentId);
+        
+        return new Response(JSON.stringify({ 
+          success: false,
+          error: extractedContent,
+        }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    } else if (doc.content_type === 'website' && doc.content.startsWith('http')) {
       // Fetch website content
       try {
         console.log(`Fetching website: ${doc.content}`);
@@ -106,7 +184,6 @@ serve(async (req) => {
                       content: `Crie uma breve descrição para um documento de treinamento chamado "${doc.file_name || doc.title}". Este documento será usado como base de conhecimento para um assistente de IA. Apenas diga que o documento "${doc.title}" foi adicionado à base de conhecimento e está disponível para consulta.`
                     }
                   ],
-                  max_tokens: 200,
                 }),
               });
 
