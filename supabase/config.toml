@@ -62,3 +62,12 @@ verify_jwt = false
 
 [functions.manychat-send-message]
 verify_jwt = true
+
+[functions.manychat-find-subscriber]
+verify_jwt = true
+
+[functions.generate-chat-summary]
+verify_jwt = true
+
+[functions.generate-chat-transcription]
+verify_jwt = true

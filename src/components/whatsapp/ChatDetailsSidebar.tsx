@@ -22,7 +22,8 @@ import {
   User,
   Edit3,
   UserPlus,
-  Users
+  Users,
+  Search
 } from "lucide-react";
 import { WhatsAppConversation } from "@/hooks/useWhatsAppConversations";
 import { useWhatsAppContacts, ContactTag } from "@/hooks/useWhatsAppContacts";
@@ -83,6 +84,7 @@ export function ChatDetailsSidebar({ conversation, onContactNameUpdated, onQuick
   const [editingSubscriberId, setEditingSubscriberId] = useState(false);
   const [subscriberId, setSubscriberId] = useState(conversation.manychat_subscriber_id || "");
   const [savingSubscriberId, setSavingSubscriberId] = useState(false);
+  const [searchingSubscriber, setSearchingSubscriber] = useState(false);
 
   const existingContact = contacts.find(c => c.phone === conversation.contact_phone);
 
@@ -399,9 +401,58 @@ export function ChatDetailsSidebar({ conversation, onContactNameUpdated, onQuick
                   </p>
                 )}
                 {!conversation.manychat_subscriber_id && (
-                  <p className="text-xs text-amber-500 mt-1">
-                    Vincule o subscriber ID do ManyChat para enviar mensagens
-                  </p>
+                  <div className="space-y-2 mt-2">
+                    <p className="text-xs text-amber-500">
+                      Vincule o subscriber ID do ManyChat para enviar mensagens
+                    </p>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="w-full"
+                      onClick={async () => {
+                        setSearchingSubscriber(true);
+                        try {
+                          const { data, error } = await supabase.functions.invoke("manychat-find-subscriber", {
+                            body: { conversationId: conversation.id },
+                          });
+                          
+                          if (error) throw error;
+                          
+                          if (data?.error) {
+                            toast({ 
+                              title: "Não encontrado", 
+                              description: data.message || "Subscriber não encontrado no ManyChat",
+                              variant: "destructive" 
+                            });
+                          } else if (data?.subscriberId) {
+                            setSubscriberId(data.subscriberId);
+                            toast({ 
+                              title: "Sucesso", 
+                              description: `Subscriber encontrado: ${data.subscriberData?.name || data.subscriberId}` 
+                            });
+                            onContactNameUpdated();
+                          }
+                        } catch (error) {
+                          console.error("Error searching subscriber:", error);
+                          toast({ 
+                            title: "Erro", 
+                            description: "Não foi possível buscar o subscriber",
+                            variant: "destructive" 
+                          });
+                        } finally {
+                          setSearchingSubscriber(false);
+                        }
+                      }}
+                      disabled={searchingSubscriber}
+                    >
+                      {searchingSubscriber ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <Search className="w-4 h-4 mr-2" />
+                      )}
+                      Buscar automaticamente
+                    </Button>
+                  </div>
                 )}
               </div>
             )}
