@@ -499,7 +499,7 @@ export function WhatsAppConversations() {
       </Card>
 
       {/* Messages */}
-      <Card className="flex-1 flex flex-col min-w-0">
+      <Card className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {selectedConversation ? (
           <>
             <CardHeader className="pb-3 border-b">

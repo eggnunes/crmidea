@@ -67,54 +67,38 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (!conversation) {
-      // Try to find existing Instagram conversation without manychat_subscriber_id
-      // This handles cases where conversation was created via Meta API
-      const { data: existingInstagramConvs } = await supabase
-        .from('whatsapp_conversations')
-        .select('*')
-        .eq('user_id', userId)
-        .eq('channel', 'instagram')
-        .is('manychat_subscriber_id', null)
-        .order('last_message_at', { ascending: false });
-
-      // Try to match by ig_username in contact_name or by recent activity
-      let matchedConv = null;
-      if (existingInstagramConvs && existingInstagramConvs.length > 0) {
-        // First try to match by username
-        if (ig_username) {
-          matchedConv = existingInstagramConvs.find(c => 
-            c.contact_name?.toLowerCase().includes(ig_username.toLowerCase()) ||
-            c.contact_phone?.includes(ig_username)
-          );
-        }
-        // If no match by username, try by name
-        if (!matchedConv && name) {
-          matchedConv = existingInstagramConvs.find(c => 
-            c.contact_name?.toLowerCase().includes(name.toLowerCase())
-          );
-        }
-        // If still no match, use the most recent one (best effort)
-        if (!matchedConv && existingInstagramConvs.length === 1) {
-          matchedConv = existingInstagramConvs[0];
+      // Check if this is a valid subscriber_id (not a test/admin ID)
+      // Don't update existing conversations if ig_username shows as template variable
+      const isTestRequest = ig_username?.includes('{{') || !ig_username;
+      
+      if (!isTestRequest) {
+        // Try to find existing Instagram conversation by ig_username
+        const { data: existingByUsername } = await supabase
+          .from('whatsapp_conversations')
+          .select('*')
+          .eq('user_id', userId)
+          .eq('channel', 'instagram')
+          .ilike('contact_name', `%${ig_username}%`)
+          .maybeSingle();
+        
+        if (existingByUsername) {
+          console.log('Found existing Instagram conversation by username, updating:', existingByUsername.id);
+          const { data: updatedConv } = await supabase
+            .from('whatsapp_conversations')
+            .update({ 
+              manychat_subscriber_id: subscriber_id,
+              contact_name: contactName || existingByUsername.contact_name,
+              profile_picture_url: profile_pic || existingByUsername.profile_picture_url 
+            })
+            .eq('id', existingByUsername.id)
+            .select()
+            .single();
+          conversation = updatedConv;
         }
       }
-
-      if (matchedConv) {
-        // Update with manychat_subscriber_id
-        console.log('Found existing Instagram conversation, updating with subscriber_id:', matchedConv.id);
-        const { data: updatedConv } = await supabase
-          .from('whatsapp_conversations')
-          .update({ 
-            manychat_subscriber_id: subscriber_id,
-            contact_name: contactName || matchedConv.contact_name,
-            profile_picture_url: profile_pic || matchedConv.profile_picture_url 
-          })
-          .eq('id', matchedConv.id)
-          .select()
-          .single();
-        conversation = updatedConv;
-      } else {
-        // Try to find by contact_phone (ig_ prefix format)
+      
+      // If still no conversation, try by contact_phone (ig_ prefix format)
+      if (!conversation) {
         const { data: existingConv } = await supabase
           .from('whatsapp_conversations')
           .select('*')
@@ -123,14 +107,18 @@ Deno.serve(async (req) => {
           .maybeSingle();
 
         if (existingConv) {
-          // Update with manychat_subscriber_id
+          // Only update subscriber_id if not a test request
+          const updateData: Record<string, unknown> = {
+            contact_name: contactName || existingConv.contact_name,
+            profile_picture_url: profile_pic || existingConv.profile_picture_url 
+          };
+          if (!isTestRequest) {
+            updateData.manychat_subscriber_id = subscriber_id;
+          }
+          
           const { data: updatedConv } = await supabase
             .from('whatsapp_conversations')
-            .update({ 
-              manychat_subscriber_id: subscriber_id,
-              contact_name: contactName,
-              profile_picture_url: profile_pic || existingConv.profile_picture_url 
-            })
+            .update(updateData)
             .eq('id', existingConv.id)
             .select()
             .single();
@@ -144,7 +132,7 @@ Deno.serve(async (req) => {
               contact_phone: contactPhone,
               contact_name: contactName,
               channel: 'instagram',
-              manychat_subscriber_id: subscriber_id,
+              manychat_subscriber_id: isTestRequest ? null : subscriber_id,
               profile_picture_url: profile_pic || null,
               last_message_at: new Date().toISOString(),
               unread_count: 1,
