@@ -340,7 +340,7 @@ ${knowledgeBase}
       console.log('Generating audio response with ElevenLabs...');
 
       try {
-        // Generate audio with ElevenLabs - usando formato mp3_44100_128 para melhor qualidade
+        // Generate audio with ElevenLabs - configurações otimizadas para clareza
         const elevenLabsResponse = await fetch(
           `https://api.elevenlabs.io/v1/text-to-speech/${aiConfig.elevenlabs_voice_id}?output_format=mp3_44100_128`,
           {
@@ -353,10 +353,11 @@ ${knowledgeBase}
               text: aiMessage,
               model_id: 'eleven_multilingual_v2',
               voice_settings: {
-                stability: 0.6,
-                similarity_boost: 0.8,
-                style: 0.4,
+                stability: 0.8,           // Aumentado para pronúncia mais consistente
+                similarity_boost: 0.75,   // Mantém semelhança com voz clonada
+                style: 0.15,              // Reduzido para menos variação e mais clareza
                 use_speaker_boost: true,
+                speed: 0.95,              // Ligeiramente mais lento para melhor clareza
               },
             }),
           }
