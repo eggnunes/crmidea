@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { conversationId, content, phone, type, audio, image, document, fileName, action } = await req.json();
+    const { conversationId, content, phone, type, audio, image, document, fileName, fileUrl, caption, action } = await req.json();
     
     const zapiInstanceId = Deno.env.get('ZAPI_INSTANCE_ID');
     const zapiToken = Deno.env.get('ZAPI_TOKEN');
@@ -109,22 +109,24 @@ serve(async (req) => {
         audio: `data:audio/ogg;base64,${audio}`,
       };
       console.log(`Sending audio to ${formattedPhone}`);
-    } else if (type === 'image' && image) {
-      // Send image message
+    } else if (type === 'image' && (image || fileUrl)) {
+      // Send image message (base64 or URL)
       zapiUrl = `https://api.z-api.io/instances/${zapiInstanceId}/token/${zapiToken}/send-image`;
       body = {
         phone: formattedPhone,
-        image: `data:image/jpeg;base64,${image}`,
+        image: fileUrl || `data:image/jpeg;base64,${image}`,
       };
+      if (caption) body.caption = caption;
       console.log(`Sending image to ${formattedPhone}`);
-    } else if (type === 'document' && document) {
-      // Send document message
+    } else if (type === 'document' && (document || fileUrl)) {
+      // Send document message (base64 or URL)
       zapiUrl = `https://api.z-api.io/instances/${zapiInstanceId}/token/${zapiToken}/send-document/pdf`;
       body = {
         phone: formattedPhone,
-        document: `data:application/pdf;base64,${document}`,
+        document: fileUrl || `data:application/pdf;base64,${document}`,
         fileName: fileName || 'document.pdf',
       };
+      if (caption) body.caption = caption;
       console.log(`Sending document to ${formattedPhone}: ${fileName}`);
     } else {
       // Send text message

@@ -7,12 +7,14 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Loader2, Search, Send, MessageSquare, User, Bot, Mic, Square, Play, Trash2, MessageCircle, Instagram, Facebook, PanelRightClose, PanelRightOpen, Paperclip, SearchIcon, Users, ChevronDown, ChevronUp, Circle, Star, StarOff, Tag, Plus, X } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Loader2, Search, Send, MessageSquare, User, Bot, Mic, Square, Play, Trash2, MessageCircle, Instagram, Facebook, PanelRightClose, PanelRightOpen, Paperclip, SearchIcon, Users, ChevronDown, ChevronUp, Circle, Star, StarOff, Tag, Plus, X, FileText, Image, File } from "lucide-react";
 import { useWhatsAppConversations, ChannelType } from "@/hooks/useWhatsAppConversations";
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
 import { useGlobalMessageSearch } from "@/hooks/useGlobalMessageSearch";
 import { useAllConversationAssignees, useConversationAssignees } from "@/hooks/useConversationAssignees";
 import { useWhatsAppContacts } from "@/hooks/useWhatsAppContacts";
+import { useMessageTemplates, MessageTemplate } from "@/hooks/useMessageTemplates";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -69,6 +71,7 @@ export function WhatsAppConversations() {
   const { toast } = useToast();
   const { results: searchResults, searching, search: globalSearch, clearSearch } = useGlobalMessageSearch();
   const { assigneesMap } = useAllConversationAssignees();
+  const { templates } = useMessageTemplates();
   const { contacts, tags } = useWhatsAppContacts();
   
   const [searchTerm, setSearchTerm] = useState("");
@@ -156,6 +159,42 @@ export function WhatsAppConversations() {
       setShowGlobalSearch(false);
       setGlobalSearchQuery("");
       clearSearch();
+    }
+  };
+
+  const handleTemplateSelect = async (template: MessageTemplate) => {
+    if (!selectedConversation) return;
+
+    // For text templates, just fill the input
+    if (template.file_type === "text" && template.content) {
+      setNewMessage(template.content);
+      return;
+    }
+
+    // For file templates, send the file directly
+    if (template.file_url) {
+      setSendingFile(true);
+      try {
+        const { error } = await supabase.functions.invoke("zapi-send-message", {
+          body: {
+            conversationId: selectedConversation.id,
+            phone: selectedConversation.contact_phone,
+            type: template.file_type === "image" ? "image" : "document",
+            fileUrl: template.file_url,
+            fileName: template.file_name || "arquivo",
+            caption: template.content || undefined,
+          },
+        });
+
+        if (error) throw error;
+        toast({ title: "Sucesso", description: "Template enviado" });
+        refetch();
+      } catch (error) {
+        console.error("Error sending template:", error);
+        toast({ title: "Erro", description: "Não foi possível enviar o template", variant: "destructive" });
+      } finally {
+        setSendingFile(false);
+      }
     }
   };
 
@@ -690,6 +729,44 @@ export function WhatsAppConversations() {
                   >
                     {sendingFile ? <Loader2 className="w-4 h-4 animate-spin" /> : <Paperclip className="w-4 h-4" />}
                   </Button>
+                  
+                  {/* Template Selector */}
+                  {templates.length > 0 && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          disabled={sendingFile || isRecording || sending}
+                          title="Usar template"
+                        >
+                          <FileText className="w-4 h-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start" className="w-64 max-h-64 overflow-y-auto">
+                        {templates.map((template) => (
+                          <DropdownMenuItem
+                            key={template.id}
+                            onClick={() => handleTemplateSelect(template)}
+                            className="flex items-center gap-2"
+                          >
+                            {template.file_type === "image" ? (
+                              <Image className="w-4 h-4 text-blue-500" />
+                            ) : template.file_type === "document" ? (
+                              <File className="w-4 h-4 text-orange-500" />
+                            ) : (
+                              <FileText className="w-4 h-4 text-green-500" />
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="truncate font-medium text-sm">{template.name}</p>
+                              <p className="truncate text-xs text-muted-foreground">{template.category}</p>
+                            </div>
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
+                  
                   <Input
                     placeholder="Digite sua mensagem..."
                     value={newMessage}
