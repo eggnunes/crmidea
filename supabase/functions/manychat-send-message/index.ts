@@ -97,6 +97,19 @@ Deno.serve(async (req) => {
 
     if (!manychatResponse.ok || manychatResult.status === 'error') {
       console.error('ManyChat API error:', manychatResult);
+      
+      // Check for 24-hour window policy error (code 3011)
+      if (manychatResult.code === 3011) {
+        return new Response(
+          JSON.stringify({ 
+            error: 'Janela de 24 horas expirada',
+            message: 'Não é possível enviar mensagens para este contato. A última interação foi há mais de 24 horas. Aguarde o contato enviar uma nova mensagem para poder responder.',
+            is24HourPolicy: true
+          }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
       return new Response(
         JSON.stringify({ 
           error: 'Failed to send message via ManyChat', 
