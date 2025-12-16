@@ -12,14 +12,58 @@ serve(async (req) => {
   }
 
   try {
-    const { conversationId, content, phone, type, audio, image, document, fileName } = await req.json();
+    const { conversationId, content, phone, type, audio, image, document, fileName, action } = await req.json();
     
     const zapiInstanceId = Deno.env.get('ZAPI_INSTANCE_ID');
     const zapiToken = Deno.env.get('ZAPI_TOKEN');
     const zapiClientToken = Deno.env.get('ZAPI_CLIENT_TOKEN');
     
     if (!zapiInstanceId || !zapiToken) {
+      // If checking status and no credentials, return disconnected
+      if (action === 'check-status') {
+        return new Response(JSON.stringify({ connected: false, reason: 'credentials_missing' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
       throw new Error('Z-API credentials not configured');
+    }
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (zapiClientToken) {
+      headers['Client-Token'] = zapiClientToken;
+    }
+
+    // Check connection status
+    if (action === 'check-status') {
+      try {
+        const statusUrl = `https://api.z-api.io/instances/${zapiInstanceId}/token/${zapiToken}/status`;
+        const statusResponse = await fetch(statusUrl, { headers });
+        const statusData = await statusResponse.json();
+        
+        console.log('Z-API status:', JSON.stringify(statusData));
+        
+        // Z-API returns connected: true when WhatsApp is connected
+        const isConnected = statusData.connected === true || statusData.status === 'connected';
+        
+        return new Response(JSON.stringify({ 
+          connected: isConnected,
+          status: statusData.status || statusData,
+          message: isConnected ? 'WhatsApp conectado' : 'WhatsApp desconectado. Acesse o painel Z-API para escanear o QR Code.'
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      } catch (statusError) {
+        console.error('Error checking Z-API status:', statusError);
+        return new Response(JSON.stringify({ 
+          connected: false, 
+          reason: 'status_check_failed',
+          message: 'Não foi possível verificar o status. Verifique suas credenciais Z-API.'
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -52,12 +96,6 @@ serve(async (req) => {
       formattedPhone = '55' + formattedPhone;
     }
 
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
-    if (zapiClientToken) {
-      headers['Client-Token'] = zapiClientToken;
-    }
 
     let zapiUrl: string;
     let body: Record<string, any>;
