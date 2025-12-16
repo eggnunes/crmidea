@@ -191,13 +191,14 @@ serve(async (req) => {
     const styleKey = aiConfig.communication_style || 'descontraida';
     const communicationStyle = communicationStyles[styleKey] || communicationStyles.descontraida;
 
-    let systemPrompt = `Você é ${aiConfig.agent_name}, um assistente de IA.
+    let systemPrompt = `Você é ${aiConfig.agent_name}, um assistente de IA especializado.
 
 ## Personalidade e Comportamento
 ${aiConfig.behavior_prompt || 'Seja útil e responda às perguntas dos usuários.'}
 
 ## Estilo de Comunicação
 ${communicationStyle}
+
 ## Empresa/Produto que Representa
 ${aiConfig.company_name ? `Nome: ${aiConfig.company_name}` : ''}
 ${aiConfig.company_description ? `Descrição: ${aiConfig.company_description}` : ''}
@@ -206,29 +207,30 @@ ${aiConfig.website_url ? `Site: ${aiConfig.website_url}` : ''}
 ## Configurações
 ${aiConfig.use_emojis ? '- Use emojis quando apropriado para tornar a conversa mais amigável.' : '- Não use emojis.'}
 ${aiConfig.restrict_topics ? '- Foque apenas em tópicos relacionados ao negócio. Se perguntarem sobre outros assuntos, redirecione educadamente para os tópicos relevantes.' : ''}
-${aiConfig.split_long_messages ? '- Se a resposta for muito longa, divida em partes menores e mais fáceis de ler.' : ''}
 ${aiConfig.sign_agent_name ? `- Assine suas mensagens como "${aiConfig.agent_name}".` : ''}
 `;
 
     if (knowledgeBase) {
-      systemPrompt += `\n## Base de Conhecimento\nUse as seguintes informações para responder às perguntas:\n\n${knowledgeBase}\n`;
+      systemPrompt += `
+## BASE DE CONHECIMENTO (OBRIGATÓRIO)
+ATENÇÃO: Você DEVE usar EXCLUSIVAMENTE as informações abaixo para responder. NÃO invente informações!
+Se a resposta não estiver na base de conhecimento, diga: "Não tenho essa informação específica na minha base de conhecimento."
+
+${knowledgeBase}
+`;
     }
 
     if (intentsContext) {
       systemPrompt += `\n## Intenções Especiais\nQuando o usuário mencionar certas frases, siga estas instruções:\n${intentsContext}\n`;
     }
 
-    systemPrompt += `\n## Instruções Finais
-- Responda sempre em português brasileiro.
-- Seja conciso mas completo.
-- Se não souber a resposta, diga que não tem essa informação e ofereça ajuda com outras questões.`;
-
-    // Wait for response delay if configured
-    const responseDelay = aiConfig.response_delay_seconds || 0;
-    if (responseDelay > 0) {
-      console.log(`Waiting ${responseDelay}s before responding...`);
-      await new Promise(resolve => setTimeout(resolve, responseDelay * 1000));
-    }
+    systemPrompt += `
+## REGRAS OBRIGATÓRIAS
+1. RESPOSTAS CURTAS: Máximo 2-3 frases. Seja direto e objetivo.
+2. Responda SEMPRE em português brasileiro.
+3. Use APENAS informações da base de conhecimento. NUNCA invente!
+4. Se não souber, diga que não tem a informação.
+5. Vá direto ao ponto, sem introduções longas.`;
 
     const zapiInstanceId = Deno.env.get('ZAPI_INSTANCE_ID');
     const zapiToken = Deno.env.get('ZAPI_TOKEN');
@@ -251,17 +253,45 @@ ${aiConfig.sign_agent_name ? `- Assine suas mensagens como "${aiConfig.agent_nam
       formattedPhone = '55' + formattedPhone;
     }
 
-    // Show typing indicator if enabled
-    if (aiConfig.show_typing_indicator) {
+    // Check if we should respond with audio (using ElevenLabs)
+    const shouldRespondWithAudio = isAudioMessage && 
+      aiConfig.voice_response_enabled && 
+      aiConfig.elevenlabs_enabled && 
+      elevenlabsApiKey && 
+      aiConfig.elevenlabs_voice_id;
+
+    // Show typing or recording indicator BEFORE processing (so user sees it immediately)
+    if (shouldRespondWithAudio && aiConfig.show_recording_indicator) {
       try {
-        await fetch(`https://api.z-api.io/instances/${zapiInstanceId}/token/${zapiToken}/send-typing`, {
+        console.log('Sending recording indicator...');
+        const recordingResponse = await fetch(`https://api.z-api.io/instances/${zapiInstanceId}/token/${zapiToken}/send-recording`, {
           method: 'POST',
           headers: zapiHeaders,
           body: JSON.stringify({ phone: formattedPhone }),
         });
+        console.log('Recording indicator response:', await recordingResponse.text());
+      } catch (e) {
+        console.log('Failed to send recording indicator:', e);
+      }
+    } else if (aiConfig.show_typing_indicator) {
+      try {
+        console.log('Sending typing indicator...');
+        const typingResponse = await fetch(`https://api.z-api.io/instances/${zapiInstanceId}/token/${zapiToken}/send-typing`, {
+          method: 'POST',
+          headers: zapiHeaders,
+          body: JSON.stringify({ phone: formattedPhone }),
+        });
+        console.log('Typing indicator response:', await typingResponse.text());
       } catch (e) {
         console.log('Failed to send typing indicator:', e);
       }
+    }
+
+    // Wait for response delay if configured
+    const responseDelay = aiConfig.response_delay_seconds || 0;
+    if (responseDelay > 0) {
+      console.log(`Waiting ${responseDelay}s before responding...`);
+      await new Promise(resolve => setTimeout(resolve, responseDelay * 1000));
     }
 
     console.log('Calling Lovable AI...');
@@ -280,7 +310,7 @@ ${aiConfig.sign_agent_name ? `- Assine suas mensagens como "${aiConfig.agent_nam
           ...conversationHistory,
           { role: 'user', content: processedContent },
         ],
-        max_tokens: 1000,
+        max_tokens: 300, // Limitar para respostas mais curtas
       }),
     });
 
@@ -306,33 +336,13 @@ ${aiConfig.sign_agent_name ? `- Assine suas mensagens como "${aiConfig.agent_nam
 
     console.log(`AI response: ${aiMessage.substring(0, 100)}...`);
 
-    // Check if we should respond with audio (using ElevenLabs)
-    const shouldRespondWithAudio = isAudioMessage && 
-      aiConfig.voice_response_enabled && 
-      aiConfig.elevenlabs_enabled && 
-      elevenlabsApiKey && 
-      aiConfig.elevenlabs_voice_id;
-
     if (shouldRespondWithAudio) {
       console.log('Generating audio response with ElevenLabs...');
 
-      // Show recording indicator if enabled
-      if (aiConfig.show_recording_indicator) {
-        try {
-          await fetch(`https://api.z-api.io/instances/${zapiInstanceId}/token/${zapiToken}/send-recording`, {
-            method: 'POST',
-            headers: zapiHeaders,
-            body: JSON.stringify({ phone: formattedPhone }),
-          });
-        } catch (e) {
-          console.log('Failed to send recording indicator:', e);
-        }
-      }
-
       try {
-        // Generate audio with ElevenLabs
+        // Generate audio with ElevenLabs - usando formato mp3_44100_128 para melhor qualidade
         const elevenLabsResponse = await fetch(
-          `https://api.elevenlabs.io/v1/text-to-speech/${aiConfig.elevenlabs_voice_id}`,
+          `https://api.elevenlabs.io/v1/text-to-speech/${aiConfig.elevenlabs_voice_id}?output_format=mp3_44100_128`,
           {
             method: 'POST',
             headers: {
@@ -343,8 +353,10 @@ ${aiConfig.sign_agent_name ? `- Assine suas mensagens como "${aiConfig.agent_nam
               text: aiMessage,
               model_id: 'eleven_multilingual_v2',
               voice_settings: {
-                stability: 0.5,
-                similarity_boost: 0.75,
+                stability: 0.6,
+                similarity_boost: 0.8,
+                style: 0.4,
+                use_speaker_boost: true,
               },
             }),
           }
