@@ -58,6 +58,7 @@ Deno.serve(async (req) => {
     const contactPhone = `ig_${subscriber_id}`;
 
     // Find or create conversation
+    // First, try to find by manychat_subscriber_id
     let { data: conversation } = await supabase
       .from('whatsapp_conversations')
       .select('*')
@@ -66,46 +67,94 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (!conversation) {
-      // Try to find by contact_phone
-      const { data: existingConv } = await supabase
+      // Try to find existing Instagram conversation without manychat_subscriber_id
+      // This handles cases where conversation was created via Meta API
+      const { data: existingInstagramConvs } = await supabase
         .from('whatsapp_conversations')
         .select('*')
         .eq('user_id', userId)
-        .eq('contact_phone', contactPhone)
-        .maybeSingle();
+        .eq('channel', 'instagram')
+        .is('manychat_subscriber_id', null)
+        .order('last_message_at', { ascending: false });
 
-      if (existingConv) {
+      // Try to match by ig_username in contact_name or by recent activity
+      let matchedConv = null;
+      if (existingInstagramConvs && existingInstagramConvs.length > 0) {
+        // First try to match by username
+        if (ig_username) {
+          matchedConv = existingInstagramConvs.find(c => 
+            c.contact_name?.toLowerCase().includes(ig_username.toLowerCase()) ||
+            c.contact_phone?.includes(ig_username)
+          );
+        }
+        // If no match by username, try by name
+        if (!matchedConv && name) {
+          matchedConv = existingInstagramConvs.find(c => 
+            c.contact_name?.toLowerCase().includes(name.toLowerCase())
+          );
+        }
+        // If still no match, use the most recent one (best effort)
+        if (!matchedConv && existingInstagramConvs.length === 1) {
+          matchedConv = existingInstagramConvs[0];
+        }
+      }
+
+      if (matchedConv) {
         // Update with manychat_subscriber_id
+        console.log('Found existing Instagram conversation, updating with subscriber_id:', matchedConv.id);
         const { data: updatedConv } = await supabase
           .from('whatsapp_conversations')
           .update({ 
             manychat_subscriber_id: subscriber_id,
-            contact_name: contactName,
-            profile_picture_url: profile_pic || existingConv.profile_picture_url 
+            contact_name: contactName || matchedConv.contact_name,
+            profile_picture_url: profile_pic || matchedConv.profile_picture_url 
           })
-          .eq('id', existingConv.id)
+          .eq('id', matchedConv.id)
           .select()
           .single();
         conversation = updatedConv;
       } else {
-        // Create new conversation
-        const { data: newConv, error: convError } = await supabase
+        // Try to find by contact_phone (ig_ prefix format)
+        const { data: existingConv } = await supabase
           .from('whatsapp_conversations')
-          .insert({
-            user_id: userId,
-            contact_phone: contactPhone,
-            contact_name: contactName,
-            channel: 'instagram',
-            manychat_subscriber_id: subscriber_id,
-            profile_picture_url: profile_pic || null,
-            last_message_at: new Date().toISOString(),
-            unread_count: 1,
-          })
-          .select()
-          .single();
+          .select('*')
+          .eq('user_id', userId)
+          .eq('contact_phone', contactPhone)
+          .maybeSingle();
 
-        if (convError) throw convError;
-        conversation = newConv;
+        if (existingConv) {
+          // Update with manychat_subscriber_id
+          const { data: updatedConv } = await supabase
+            .from('whatsapp_conversations')
+            .update({ 
+              manychat_subscriber_id: subscriber_id,
+              contact_name: contactName,
+              profile_picture_url: profile_pic || existingConv.profile_picture_url 
+            })
+            .eq('id', existingConv.id)
+            .select()
+            .single();
+          conversation = updatedConv;
+        } else {
+          // Create new conversation
+          const { data: newConv, error: convError } = await supabase
+            .from('whatsapp_conversations')
+            .insert({
+              user_id: userId,
+              contact_phone: contactPhone,
+              contact_name: contactName,
+              channel: 'instagram',
+              manychat_subscriber_id: subscriber_id,
+              profile_picture_url: profile_pic || null,
+              last_message_at: new Date().toISOString(),
+              unread_count: 1,
+            })
+            .select()
+            .single();
+
+          if (convError) throw convError;
+          conversation = newConv;
+        }
       }
     }
 
