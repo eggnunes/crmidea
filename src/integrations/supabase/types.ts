@@ -743,6 +743,7 @@ export type Database = {
           id: string
           last_message_at: string | null
           lead_id: string | null
+          manychat_subscriber_id: string | null
           profile_picture_url: string | null
           unread_count: number
           updated_at: string
@@ -758,6 +759,7 @@ export type Database = {
           id?: string
           last_message_at?: string | null
           lead_id?: string | null
+          manychat_subscriber_id?: string | null
           profile_picture_url?: string | null
           unread_count?: number
           updated_at?: string
@@ -773,6 +775,7 @@ export type Database = {
           id?: string
           last_message_at?: string | null
           lead_id?: string | null
+          manychat_subscriber_id?: string | null
           profile_picture_url?: string | null
           unread_count?: number
           updated_at?: string

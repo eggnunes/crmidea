@@ -235,6 +235,40 @@ Deno.serve(async (req) => {
         type: 'instagram_lead',
       });
 
+    // Try to find and update matching Instagram conversation with ManyChat subscriber_id
+    const manychatSubscriberId = subscriberId || payload.id;
+    if (manychatSubscriberId && (igUsername || name)) {
+      console.log('Trying to link ManyChat subscriber to conversation:', { manychatSubscriberId, igUsername, name });
+      
+      // Try to find conversation by contact name (Instagram username or name)
+      const { data: conversations } = await supabase
+        .from('whatsapp_conversations')
+        .select('id, contact_name, contact_phone')
+        .eq('user_id', userId)
+        .eq('channel', 'instagram')
+        .is('manychat_subscriber_id', null);
+      
+      if (conversations && conversations.length > 0) {
+        // Try to match by name or username
+        const matchingConv = conversations.find(conv => {
+          const convName = (conv.contact_name || '').toLowerCase();
+          const searchName = name.toLowerCase();
+          const searchUsername = igUsername?.toLowerCase() || '';
+          return convName.includes(searchName) || 
+                 convName.includes(searchUsername) || 
+                 searchName.includes(convName.split(' ')[0]);
+        });
+        
+        if (matchingConv) {
+          console.log('Found matching conversation:', matchingConv.id);
+          await supabase
+            .from('whatsapp_conversations')
+            .update({ manychat_subscriber_id: manychatSubscriberId })
+            .eq('id', matchingConv.id);
+        }
+      }
+    }
+
     console.log(`Lead ${leadAction}:`, leadId);
 
     return new Response(

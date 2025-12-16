@@ -35,6 +35,7 @@ export interface WhatsAppConversation {
   channel_user_id?: string | null;
   channel_page_id?: string | null;
   profile_picture_url?: string | null;
+  manychat_subscriber_id?: string | null;
 }
 
 export function useWhatsAppConversations() {
@@ -164,26 +165,31 @@ export function useWhatsAppConversations() {
         });
         if (sendError) throw sendError;
       } else if (channel === 'instagram' || channel === 'facebook') {
-        // Send via Meta API for Instagram/Facebook
-        const { error: sendError } = await supabase.functions.invoke("meta-send-message", {
+        // Send via ManyChat API for Instagram/Facebook
+        const { data, error: sendError } = await supabase.functions.invoke("manychat-send-message", {
           body: {
             conversationId,
             content,
-            channel,
-            recipientId: conv?.channel_user_id,
           },
         });
+        
         if (sendError) throw sendError;
+        
+        // Check if there was an error in the response
+        if (data?.error) {
+          throw new Error(data.message || data.error);
+        }
       }
 
       // Refresh messages
       await fetchMessages(conversationId);
       await fetchConversations();
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error sending message:", error);
+      const errorMessage = error instanceof Error ? error.message : "Não foi possível enviar a mensagem";
       toast({
         title: "Erro",
-        description: "Não foi possível enviar a mensagem",
+        description: errorMessage,
         variant: "destructive",
       });
     }
