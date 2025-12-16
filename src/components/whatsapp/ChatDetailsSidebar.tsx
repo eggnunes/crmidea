@@ -78,6 +78,11 @@ export function ChatDetailsSidebar({ conversation, onContactNameUpdated, onQuick
   
   // Assignee
   const [selectedAssigneeId, setSelectedAssigneeId] = useState("");
+  
+  // ManyChat subscriber ID
+  const [editingSubscriberId, setEditingSubscriberId] = useState(false);
+  const [subscriberId, setSubscriberId] = useState(conversation.manychat_subscriber_id || "");
+  const [savingSubscriberId, setSavingSubscriberId] = useState(false);
 
   const existingContact = contacts.find(c => c.phone === conversation.contact_phone);
 
@@ -338,6 +343,69 @@ export function ChatDetailsSidebar({ conversation, onContactNameUpdated, onQuick
               <p className="text-xs text-muted-foreground uppercase mb-1">Canal</p>
               <Badge variant="outline">{conversation.channel?.toUpperCase() || 'WHATSAPP'}</Badge>
             </div>
+            
+            {/* ManyChat Subscriber ID for Instagram/Facebook */}
+            {(conversation.channel === 'instagram' || conversation.channel === 'facebook') && (
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-xs text-muted-foreground uppercase">ManyChat Subscriber ID</p>
+                  {!editingSubscriberId && (
+                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setEditingSubscriberId(true)}>
+                      <Edit3 className="w-3 h-3" />
+                    </Button>
+                  )}
+                </div>
+                {editingSubscriberId ? (
+                  <div className="flex gap-2">
+                    <Input
+                      value={subscriberId}
+                      onChange={(e) => setSubscriberId(e.target.value)}
+                      placeholder="ID do subscriber"
+                      className="h-8 text-sm"
+                    />
+                    <Button 
+                      size="sm" 
+                      onClick={async () => {
+                        setSavingSubscriberId(true);
+                        try {
+                          const { error } = await supabase
+                            .from("whatsapp_conversations")
+                            .update({ manychat_subscriber_id: subscriberId.trim() || null })
+                            .eq("id", conversation.id);
+                          if (error) throw error;
+                          toast({ title: "Sucesso", description: "Subscriber ID salvo" });
+                          setEditingSubscriberId(false);
+                          onContactNameUpdated();
+                        } catch (error) {
+                          console.error("Error saving subscriber ID:", error);
+                          toast({ title: "Erro", description: "Não foi possível salvar", variant: "destructive" });
+                        } finally {
+                          setSavingSubscriberId(false);
+                        }
+                      }} 
+                      disabled={savingSubscriberId}
+                    >
+                      {savingSubscriberId ? <Loader2 className="w-3 h-3 animate-spin" /> : "OK"}
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => setEditingSubscriberId(false)}>
+                      <X className="w-3 h-3" />
+                    </Button>
+                  </div>
+                ) : (
+                  <p className="text-sm font-mono">
+                    {conversation.manychat_subscriber_id || (
+                      <span className="text-muted-foreground italic">Não vinculado</span>
+                    )}
+                  </p>
+                )}
+                {!conversation.manychat_subscriber_id && (
+                  <p className="text-xs text-amber-500 mt-1">
+                    Vincule o subscriber ID do ManyChat para enviar mensagens
+                  </p>
+                )}
+              </div>
+            )}
+            
             {assignees.length > 0 && (
               <div>
                 <p className="text-xs text-muted-foreground uppercase mb-1">Responsáveis</p>
