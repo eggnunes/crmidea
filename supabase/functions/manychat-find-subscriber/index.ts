@@ -73,21 +73,18 @@ Deno.serve(async (req) => {
     console.log('Searching ManyChat for Instagram user:', igUserId);
 
     // Try to find subscriber by Instagram user ID using ManyChat API
-    // ManyChat uses the findBySystemField endpoint for this
-    const searchResponse = await fetch(
-      `https://api.manychat.com/fb/subscriber/findBySystemField`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${manychatApiKey}`,
-        },
-        body: JSON.stringify({
-          field_name: 'ig_id',
-          field_value: igUserId,
-        }),
-      }
-    );
+    // The findBySystemField endpoint uses GET with query parameters
+    const searchUrl = new URL('https://api.manychat.com/fb/subscriber/findBySystemField');
+    searchUrl.searchParams.append('field_name', 'ig_id');
+    searchUrl.searchParams.append('field_value', igUserId);
+    
+    const searchResponse = await fetch(searchUrl.toString(), {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${manychatApiKey}`,
+      },
+    });
 
     const searchResult = await searchResponse.json();
     console.log('ManyChat search response:', JSON.stringify(searchResult));
