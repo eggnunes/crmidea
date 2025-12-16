@@ -173,9 +173,15 @@ export function useWhatsAppConversations() {
           },
         });
         
-        if (sendError) throw sendError;
+        // Handle error response - check both error object and data for error info
+        if (sendError) {
+          // Try to get the actual error message from the response
+          const errorBody = data || {};
+          const errorMsg = errorBody.message || errorBody.error || sendError.message;
+          throw new Error(errorMsg);
+        }
         
-        // Check if there was an error in the response
+        // Check if there was an error in the response data
         if (data?.error) {
           throw new Error(data.message || data.error);
         }
