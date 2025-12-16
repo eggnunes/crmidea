@@ -165,48 +165,27 @@ export function useWhatsAppConversations() {
         });
         if (sendError) throw sendError;
       } else if (channel === 'instagram' || channel === 'facebook') {
-        // Check if we have ManyChat subscriber ID
-        const hasManychatSubscriber = conv?.manychat_subscriber_id;
+        // Send via ManyChat API for Instagram/Facebook
+        if (!conv?.manychat_subscriber_id) {
+          throw new Error('Este contato não possui ID do ManyChat. Configure o ManyChat para encaminhar mensagens do Instagram para o CRM via webhook.');
+        }
         
-        if (hasManychatSubscriber) {
-          // Send via ManyChat API
-          const { data, error: sendError } = await supabase.functions.invoke("manychat-send-message", {
-            body: {
-              conversationId,
-              content,
-              subscriberId: conv.manychat_subscriber_id,
-            },
-          });
-          
-          if (sendError) {
-            const errorBody = data || {};
-            const errorMsg = errorBody.message || errorBody.error || sendError.message;
-            throw new Error(errorMsg);
-          }
-          
-          if (data?.error) {
-            throw new Error(data.message || data.error);
-          }
-        } else {
-          // Fallback to Meta API when no ManyChat subscriber ID
-          const { data, error: sendError } = await supabase.functions.invoke("meta-send-message", {
-            body: {
-              conversationId,
-              content,
-              channel,
-              recipientId: conv?.channel_user_id,
-            },
-          });
-          
-          if (sendError) {
-            const errorBody = data || {};
-            const errorMsg = errorBody.message || errorBody.error || sendError.message;
-            throw new Error(errorMsg);
-          }
-          
-          if (data?.error) {
-            throw new Error(data.message || data.error);
-          }
+        const { data, error: sendError } = await supabase.functions.invoke("manychat-send-message", {
+          body: {
+            conversationId,
+            content,
+            subscriberId: conv.manychat_subscriber_id,
+          },
+        });
+        
+        if (sendError) {
+          const errorBody = data || {};
+          const errorMsg = errorBody.message || errorBody.error || sendError.message;
+          throw new Error(errorMsg);
+        }
+        
+        if (data?.error) {
+          throw new Error(data.message || data.error);
         }
       }
 
