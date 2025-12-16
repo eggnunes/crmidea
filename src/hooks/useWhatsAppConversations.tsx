@@ -165,59 +165,36 @@ export function useWhatsAppConversations() {
         });
         if (sendError) throw sendError;
       } else if (channel === 'instagram' || channel === 'facebook') {
-        let subscriberId = conv?.manychat_subscriber_id;
+        const subscriberId = conv?.manychat_subscriber_id;
         
-        // If no subscriber ID, try to find it via ManyChat API
+        // ManyChat subscriber ID is required for Instagram/Facebook
         if (!subscriberId) {
-          console.log('No subscriber ID found, trying to find via ManyChat API...');
-          const { data: findResult } = await supabase.functions.invoke("manychat-find-subscriber", {
-            body: { conversationId },
-          });
-          
-          if (findResult?.subscriberId) {
-            subscriberId = findResult.subscriberId;
-            console.log('Found subscriber ID:', subscriberId);
-          }
+          throw new Error(
+            'Este contato ainda não tem um ManyChat Subscriber ID vinculado. ' +
+            'Peça para o contato enviar uma mensagem pelo Instagram/Facebook para ' +
+            'capturar automaticamente o ID, ou adicione manualmente o Subscriber ID ' +
+            'nas configurações da conversa (ícone de lápis na barra lateral).'
+          );
         }
         
-        // If we have a subscriber ID, use ManyChat
-        if (subscriberId) {
-          const { data, error: sendError } = await supabase.functions.invoke("manychat-send-message", {
-            body: {
-              conversationId,
-              content,
-              subscriberId,
-            },
-          });
-          
-          if (sendError) {
-            const errorBody = data || {};
-            const errorMsg = errorBody.message || errorBody.error || sendError.message;
-            throw new Error(errorMsg);
-          }
-          
-          if (data?.error) {
-            throw new Error(data.message || data.error);
-          }
-        } else {
-          // Fallback to Meta API if no subscriber ID
-          console.log('No subscriber ID available, trying Meta API fallback...');
-          const { data, error: sendError } = await supabase.functions.invoke("meta-send-message", {
-            body: {
-              conversationId,
-              content,
-              channel,
-              recipientId: conv?.channel_user_id,
-            },
-          });
-          
-          if (sendError) {
-            throw new Error(sendError.message || 'Erro ao enviar via Meta API');
-          }
-          
-          if (data?.error) {
-            throw new Error(data.message || data.error || 'Para responder a este contato, peça para ele enviar uma mensagem com uma das palavras-chave configuradas no ManyChat (ex: "informações").');
-          }
+        console.log('Sending via ManyChat, subscriberId:', subscriberId);
+        
+        const { data, error: sendError } = await supabase.functions.invoke("manychat-send-message", {
+          body: {
+            conversationId,
+            content,
+            subscriberId,
+          },
+        });
+        
+        if (sendError) {
+          const errorBody = data || {};
+          const errorMsg = errorBody.message || errorBody.error || sendError.message;
+          throw new Error(errorMsg);
+        }
+        
+        if (data?.error) {
+          throw new Error(data.message || data.error);
         }
       }
 

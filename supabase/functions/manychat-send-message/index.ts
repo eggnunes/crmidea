@@ -63,10 +63,31 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log('Sending message via ManyChat to subscriber:', finalSubscriberId);
+    console.log('Sending message via ManyChat to subscriber:', finalSubscriberId, 'channel:', conversation.channel);
 
+    // Determine content type based on channel
+    const contentType = conversation.channel === 'facebook' ? 'facebook' : 'instagram';
+    
     // Send message via ManyChat API
-    // ManyChat uses the sendContent endpoint for Instagram
+    // ManyChat uses the sendContent endpoint with type specified for the channel
+    const requestBody = {
+      subscriber_id: parseInt(finalSubscriberId),
+      data: {
+        version: 'v2',
+        content: {
+          type: contentType,
+          messages: [
+            {
+              type: 'text',
+              text: content,
+            },
+          ],
+        },
+      },
+    };
+    
+    console.log('ManyChat request body:', JSON.stringify(requestBody, null, 2));
+    
     const manychatResponse = await fetch(
       `https://api.manychat.com/fb/sending/sendContent`,
       {
@@ -75,20 +96,7 @@ Deno.serve(async (req) => {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${manychatApiKey}`,
         },
-        body: JSON.stringify({
-          subscriber_id: parseInt(finalSubscriberId),
-          data: {
-            version: 'v2',
-            content: {
-              messages: [
-                {
-                  type: 'text',
-                  text: content,
-                },
-              ],
-            },
-          },
-        }),
+        body: JSON.stringify(requestBody),
       }
     );
 
