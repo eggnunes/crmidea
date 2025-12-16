@@ -261,29 +261,25 @@ ${knowledgeBase}
       aiConfig.elevenlabs_voice_id;
 
     // Show typing or recording indicator BEFORE processing (so user sees it immediately)
-    if (shouldRespondWithAudio && aiConfig.show_recording_indicator) {
+    // Using Z-API's update-chat-status endpoint for presence indicators
+    const presenceState = shouldRespondWithAudio && aiConfig.show_recording_indicator ? 'recording' : 
+                          aiConfig.show_typing_indicator ? 'composing' : null;
+    
+    if (presenceState) {
       try {
-        console.log('Sending recording indicator...');
-        const recordingResponse = await fetch(`https://api.z-api.io/instances/${zapiInstanceId}/token/${zapiToken}/send-recording`, {
+        console.log(`Sending ${presenceState} indicator...`);
+        const presenceResponse = await fetch(`https://api.z-api.io/instances/${zapiInstanceId}/token/${zapiToken}/update-chat-status`, {
           method: 'POST',
           headers: zapiHeaders,
-          body: JSON.stringify({ phone: formattedPhone }),
+          body: JSON.stringify({ 
+            phone: formattedPhone,
+            presence: presenceState
+          }),
         });
-        console.log('Recording indicator response:', await recordingResponse.text());
+        const presenceResult = await presenceResponse.text();
+        console.log('Presence indicator response:', presenceResult);
       } catch (e) {
-        console.log('Failed to send recording indicator:', e);
-      }
-    } else if (aiConfig.show_typing_indicator) {
-      try {
-        console.log('Sending typing indicator...');
-        const typingResponse = await fetch(`https://api.z-api.io/instances/${zapiInstanceId}/token/${zapiToken}/send-typing`, {
-          method: 'POST',
-          headers: zapiHeaders,
-          body: JSON.stringify({ phone: formattedPhone }),
-        });
-        console.log('Typing indicator response:', await typingResponse.text());
-      } catch (e) {
-        console.log('Failed to send typing indicator:', e);
+        console.log('Failed to send presence indicator:', e);
       }
     }
 
@@ -340,9 +336,9 @@ ${knowledgeBase}
       console.log('Generating audio response with ElevenLabs...');
 
       try {
-        // Generate audio with ElevenLabs - configurações otimizadas para clareza
+        // Generate audio with ElevenLabs - configurações otimizadas para máxima clareza
         const elevenLabsResponse = await fetch(
-          `https://api.elevenlabs.io/v1/text-to-speech/${aiConfig.elevenlabs_voice_id}?output_format=mp3_44100_128`,
+          `https://api.elevenlabs.io/v1/text-to-speech/${aiConfig.elevenlabs_voice_id}?output_format=mp3_44100_192`,
           {
             method: 'POST',
             headers: {
@@ -353,11 +349,11 @@ ${knowledgeBase}
               text: aiMessage,
               model_id: 'eleven_multilingual_v2',
               voice_settings: {
-                stability: 0.8,           // Aumentado para pronúncia mais consistente
-                similarity_boost: 0.75,   // Mantém semelhança com voz clonada
-                style: 0.15,              // Reduzido para menos variação e mais clareza
+                stability: 0.85,          // Alto para pronúncia mais consistente e clara
+                similarity_boost: 0.70,   // Ligeiramente menor para priorizar clareza
+                style: 0.10,              // Mínimo para evitar distorções
                 use_speaker_boost: true,
-                speed: 0.95,              // Ligeiramente mais lento para melhor clareza
+                speed: 0.90,              // Mais lento para melhor articulação
               },
             }),
           }
