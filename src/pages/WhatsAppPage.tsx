@@ -15,6 +15,7 @@ import { ScheduledMessagesManager } from "@/components/whatsapp/ScheduledMessage
 import { AdvancedSettings } from "@/components/whatsapp/AdvancedSettings";
 import { ChannelSettings } from "@/components/whatsapp/ChannelSettings";
 import { ChannelAnalytics } from "@/components/whatsapp/ChannelAnalytics";
+import { MessageTemplatesManager } from "@/components/whatsapp/MessageTemplatesManager";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -151,12 +152,14 @@ export function WhatsAppPage() {
               <TabsTrigger value="geral">Geral</TabsTrigger>
               <TabsTrigger value="avancado">Avançado</TabsTrigger>
               <TabsTrigger value="respostas">Respostas Rápidas</TabsTrigger>
+              <TabsTrigger value="templates">Templates</TabsTrigger>
               <TabsTrigger value="agendamentos">Agendamentos</TabsTrigger>
               <TabsTrigger value="webhook">Webhook</TabsTrigger>
             </TabsList>
             <TabsContent value="geral"><AIConfigSettings /></TabsContent>
             <TabsContent value="avancado"><AdvancedSettings /></TabsContent>
             <TabsContent value="respostas"><QuickResponsesManager /></TabsContent>
+            <TabsContent value="templates"><MessageTemplatesManager /></TabsContent>
             <TabsContent value="agendamentos"><ScheduledMessagesManager /></TabsContent>
             <TabsContent value="webhook"><ZAPIWebhookSetup /></TabsContent>
           </Tabs>
