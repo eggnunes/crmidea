@@ -6,7 +6,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Search, Send, MessageSquare, User, Bot, Mic, Square, Play, Trash2, MessageCircle, Instagram, Facebook } from "lucide-react";
+import { Loader2, Search, Send, MessageSquare, User, Bot, Mic, Square, Play, Trash2, MessageCircle, Instagram, Facebook, PanelRightClose, PanelRightOpen } from "lucide-react";
 import { useWhatsAppConversations, ChannelType } from "@/hooks/useWhatsAppConversations";
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
 import { formatDistanceToNow } from "date-fns";
@@ -14,7 +14,7 @@ import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { ChatActionsPanel } from "./ChatActionsPanel";
+import { ChatDetailsSidebar } from "./ChatDetailsSidebar";
 
 const CHANNEL_OPTIONS = [
   { value: 'all', label: 'Todos os canais', icon: MessageSquare },
@@ -66,6 +66,7 @@ export function WhatsAppConversations() {
   const [newMessage, setNewMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [sendingAudio, setSendingAudio] = useState(false);
+  const [showSidebar, setShowSidebar] = useState(true);
   const { isRecording, audioBlob, startRecording, stopRecording, clearRecording, getBase64Audio } = useAudioRecorder();
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -145,9 +146,9 @@ export function WhatsAppConversations() {
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 h-[calc(100vh-280px)]">
+    <div className="flex h-[calc(100vh-280px)] gap-4">
       {/* Conversations List */}
-      <Card className="lg:col-span-1 flex flex-col">
+      <Card className="w-80 flex-shrink-0 flex flex-col">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg flex items-center gap-2">
@@ -252,7 +253,7 @@ export function WhatsAppConversations() {
       </Card>
 
       {/* Messages */}
-      <Card className="lg:col-span-2 flex flex-col">
+      <Card className="flex-1 flex flex-col min-w-0">
         {selectedConversation ? (
           <>
             <CardHeader className="pb-3 border-b">
@@ -289,11 +290,9 @@ export function WhatsAppConversations() {
                     </p>
                   </div>
                 </div>
-                <ChatActionsPanel 
-                  conversation={selectedConversation} 
-                  onContactNameUpdated={refetch}
-                  onQuickResponseSelect={(content) => setNewMessage(content)}
-                />
+                <Button variant="ghost" size="icon" onClick={() => setShowSidebar(!showSidebar)} title={showSidebar ? "Ocultar painel" : "Mostrar painel"}>
+                  {showSidebar ? <PanelRightClose className="w-5 h-5" /> : <PanelRightOpen className="w-5 h-5" />}
+                </Button>
               </div>
             </CardHeader>
             <CardContent className="flex-1 p-0 flex flex-col">
@@ -433,6 +432,17 @@ export function WhatsAppConversations() {
           </CardContent>
         )}
       </Card>
+
+      {/* Details Sidebar */}
+      {selectedConversation && showSidebar && (
+        <Card className="w-72 flex-shrink-0 overflow-hidden">
+          <ChatDetailsSidebar
+            conversation={selectedConversation}
+            onContactNameUpdated={refetch}
+            onQuickResponseSelect={(content) => setNewMessage(content)}
+          />
+        </Card>
+      )}
     </div>
   );
 }
