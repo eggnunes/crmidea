@@ -6,9 +6,12 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Search, Send, MessageSquare, User, Bot, Mic, Square, Play, Trash2, MessageCircle, Instagram, Facebook, PanelRightClose, PanelRightOpen } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Loader2, Search, Send, MessageSquare, User, Bot, Mic, Square, Play, Trash2, MessageCircle, Instagram, Facebook, PanelRightClose, PanelRightOpen, Paperclip, SearchIcon, Users, ChevronDown, ChevronUp, Circle } from "lucide-react";
 import { useWhatsAppConversations, ChannelType } from "@/hooks/useWhatsAppConversations";
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
+import { useGlobalMessageSearch } from "@/hooks/useGlobalMessageSearch";
+import { useAllConversationAssignees } from "@/hooks/useConversationAssignees";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -50,6 +53,7 @@ const getChannelColor = (channel?: ChannelType) => {
 export function WhatsAppConversations() {
   const {
     conversations,
+    allConversations,
     loading,
     selectedConversation,
     setSelectedConversation,
@@ -62,20 +66,110 @@ export function WhatsAppConversations() {
   } = useWhatsAppConversations();
   
   const { toast } = useToast();
+  const { results: searchResults, searching, search: globalSearch, clearSearch } = useGlobalMessageSearch();
+  const { assigneesMap } = useAllConversationAssignees();
+  
   const [searchTerm, setSearchTerm] = useState("");
   const [newMessage, setNewMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [sendingAudio, setSendingAudio] = useState(false);
+  const [sendingFile, setSendingFile] = useState(false);
   const [showSidebar, setShowSidebar] = useState(true);
+  const [globalSearchQuery, setGlobalSearchQuery] = useState("");
+  const [showGlobalSearch, setShowGlobalSearch] = useState(false);
+  const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
+  const [expandedMessages, setExpandedMessages] = useState<Set<string>>(new Set());
+  
   const { isRecording, audioBlob, startRecording, stopRecording, clearRecording, getBase64Audio } = useAudioRecorder();
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const filteredConversations = conversations.filter(
-    (conv) =>
-      conv.contact_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      conv.contact_phone.includes(searchTerm)
-  );
+  // Get unique assignees for filter
+  const allAssignees = Object.values(assigneesMap).flat();
+  const uniqueAssignees = Array.from(new Map(allAssignees.map(a => [a.user_id, a])).values());
+
+  // Filter conversations
+  const filteredConversations = conversations.filter((conv) => {
+    const matchesSearch = conv.contact_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      conv.contact_phone.includes(searchTerm);
+    
+    if (assigneeFilter === "all") return matchesSearch;
+    if (assigneeFilter === "unassigned") {
+      return matchesSearch && (!assigneesMap[conv.id] || assigneesMap[conv.id].length === 0);
+    }
+    return matchesSearch && assigneesMap[conv.id]?.some(a => a.user_id === assigneeFilter);
+  });
+
+  const toggleMessageExpand = (msgId: string) => {
+    setExpandedMessages(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(msgId)) {
+        newSet.delete(msgId);
+      } else {
+        newSet.add(msgId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleGlobalSearch = () => {
+    if (globalSearchQuery.trim()) {
+      globalSearch(globalSearchQuery);
+    }
+  };
+
+  const handleSearchResultClick = (conversationId: string) => {
+    const conv = allConversations.find(c => c.id === conversationId);
+    if (conv) {
+      setSelectedConversation(conv);
+      setShowGlobalSearch(false);
+      setGlobalSearchQuery("");
+      clearSearch();
+    }
+  };
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedConversation) return;
+
+    setSendingFile(true);
+    try {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const base64 = (reader.result as string).split(",")[1];
+        const isImage = file.type.startsWith("image/");
+        const isDocument = !isImage;
+
+        const { error } = await supabase.functions.invoke("zapi-send-message", {
+          body: {
+            conversationId: selectedConversation.id,
+            phone: selectedConversation.contact_phone,
+            type: isImage ? "image" : "document",
+            ...(isImage ? { image: base64 } : { document: base64, fileName: file.name }),
+          },
+        });
+
+        if (error) throw error;
+        toast({ title: "Sucesso", description: "Arquivo enviado" });
+        refetch();
+      };
+      reader.readAsDataURL(file);
+    } catch (error) {
+      console.error("Error sending file:", error);
+      toast({ title: "Erro", description: "Não foi possível enviar o arquivo", variant: "destructive" });
+    } finally {
+      setSendingFile(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  // Check if conversation was active in last 5 minutes
+  const isOnline = (lastMessageAt: string | null) => {
+    if (!lastMessageAt) return false;
+    const diff = Date.now() - new Date(lastMessageAt).getTime();
+    return diff < 5 * 60 * 1000; // 5 minutes
+  };
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -147,18 +241,68 @@ export function WhatsAppConversations() {
 
   return (
     <div className="flex h-[calc(100vh-280px)] gap-4">
+      {/* Global Search Dialog */}
+      <Dialog open={showGlobalSearch} onOpenChange={setShowGlobalSearch}>
+        <DialogContent className="max-w-2xl max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle>Busca Global em Mensagens</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="flex gap-2">
+              <Input
+                placeholder="Buscar palavras nas conversas..."
+                value={globalSearchQuery}
+                onChange={(e) => setGlobalSearchQuery(e.target.value)}
+                onKeyPress={(e) => e.key === "Enter" && handleGlobalSearch()}
+              />
+              <Button onClick={handleGlobalSearch} disabled={searching}>
+                {searching ? <Loader2 className="w-4 h-4 animate-spin" /> : <SearchIcon className="w-4 h-4" />}
+              </Button>
+            </div>
+            <ScrollArea className="h-[400px]">
+              {searchResults.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">
+                  {globalSearchQuery ? "Nenhum resultado encontrado" : "Digite para buscar"}
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {searchResults.map((result) => (
+                    <button
+                      key={result.message_id}
+                      onClick={() => handleSearchResultClick(result.conversation_id)}
+                      className="w-full p-3 text-left rounded-lg border hover:bg-muted transition-colors"
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-medium text-sm">{result.contact_name || result.contact_phone}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(result.created_at).toLocaleDateString("pt-BR")}
+                        </span>
+                      </div>
+                      <p className="text-sm text-muted-foreground line-clamp-2">{result.content}</p>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </ScrollArea>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Conversations List */}
       <Card className="w-80 flex-shrink-0 flex flex-col">
-        <CardHeader className="pb-3">
+        <CardHeader className="pb-3 space-y-2">
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg flex items-center gap-2">
               <MessageSquare className="w-5 h-5" />
               Conversas
             </CardTitle>
+            <Button variant="ghost" size="icon" onClick={() => setShowGlobalSearch(true)} title="Busca global">
+              <SearchIcon className="w-4 h-4" />
+            </Button>
           </div>
           <Select value={channelFilter} onValueChange={(value) => setChannelFilter(value as ChannelType | 'all')}>
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Filtrar por canal" />
+            <SelectTrigger className="w-full h-8 text-xs">
+              <SelectValue placeholder="Canal" />
             </SelectTrigger>
             <SelectContent>
               {CHANNEL_OPTIONS.map((option) => (
@@ -171,13 +315,28 @@ export function WhatsAppConversations() {
               ))}
             </SelectContent>
           </Select>
+          <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
+            <SelectTrigger className="w-full h-8 text-xs">
+              <Users className="w-3 h-3 mr-1" />
+              <SelectValue placeholder="Responsável" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              <SelectItem value="unassigned">Sem responsável</SelectItem>
+              {uniqueAssignees.map((assignee) => (
+                <SelectItem key={assignee.user_id} value={assignee.user_id}>
+                  {assignee.user_name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
               placeholder="Buscar conversa..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9"
+              className="pl-9 h-8 text-sm"
             />
           </div>
         </CardHeader>
@@ -196,22 +355,27 @@ export function WhatsAppConversations() {
                     key={conv.id}
                     onClick={() => setSelectedConversation(conv)}
                     className={cn(
-                      "w-full p-4 text-left hover:bg-muted/50 transition-colors",
+                      "w-full p-3 text-left hover:bg-muted/50 transition-colors",
                       selectedConversation?.id === conv.id && "bg-muted"
                     )}
                   >
                     <div className="flex items-center gap-3">
                       <div className="relative">
-                        <Avatar>
+                        <Avatar className="w-10 h-10">
                           {conv.profile_picture_url ? (
                             <AvatarImage src={conv.profile_picture_url} />
                           ) : null}
-                          <AvatarFallback>
+                          <AvatarFallback className="text-sm">
                             {conv.contact_name?.[0]?.toUpperCase() || "?"}
                           </AvatarFallback>
                         </Avatar>
+                        {/* Online indicator */}
+                        <Circle className={cn(
+                          "absolute -top-0.5 -right-0.5 w-3 h-3",
+                          isOnline(conv.last_message_at) ? "text-green-500 fill-green-500" : "text-muted-foreground fill-muted"
+                        )} />
                         <div className={cn(
-                          "absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center",
+                          "absolute -bottom-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center",
                           getChannelColor(conv.channel)
                         )}>
                           {getChannelIcon(conv.channel)}
@@ -219,21 +383,23 @@ export function WhatsAppConversations() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between">
-                          <span className="font-medium truncate">
+                          <span className="font-medium truncate text-sm">
                             {conv.contact_name || formatPhone(conv.contact_phone)}
                           </span>
                           {conv.unread_count > 0 && (
-                            <Badge variant="default" className="ml-2">
+                            <Badge variant="default" className="ml-2 text-xs h-5">
                               {conv.unread_count}
                             </Badge>
                           )}
                         </div>
-                        <p className="text-sm text-muted-foreground truncate">
-                          {conv.channel === 'whatsapp' 
-                            ? formatPhone(conv.contact_phone) 
-                            : `${conv.channel?.charAt(0).toUpperCase()}${conv.channel?.slice(1)} ID: ${conv.channel_user_id?.slice(-8) || ''}`
-                          }
-                        </p>
+                        {assigneesMap[conv.id] && assigneesMap[conv.id].length > 0 && (
+                          <div className="flex items-center gap-1 mt-0.5">
+                            <Users className="w-3 h-3 text-muted-foreground" />
+                            <span className="text-xs text-muted-foreground truncate">
+                              {assigneesMap[conv.id].map(a => a.user_name).join(", ")}
+                            </span>
+                          </div>
+                        )}
                         {conv.last_message_at && (
                           <p className="text-xs text-muted-foreground">
                             {formatDistanceToNow(new Date(conv.last_message_at), {
@@ -307,59 +473,89 @@ export function WhatsAppConversations() {
                     <p>Nenhuma mensagem</p>
                   </div>
                 ) : (
-                  <div className="space-y-4">
+                  <div className="space-y-3">
                     {messages.map((msg) => (
-                      <div
-                        key={msg.id}
-                        className={cn(
-                          "flex gap-2",
-                          msg.is_from_contact ? "justify-start" : "justify-end"
-                        )}
-                      >
-                        {msg.is_from_contact && (
-                          <Avatar className="w-8 h-8">
-                            <AvatarFallback>
-                              <User className="w-4 h-4" />
-                            </AvatarFallback>
-                          </Avatar>
-                        )}
+                      <div key={msg.id} className="space-y-1">
                         <div
                           className={cn(
-                            "max-w-[70%] rounded-lg px-4 py-2",
-                            msg.is_from_contact
-                              ? "bg-muted"
-                              : msg.is_ai_response
-                              ? "bg-primary/80 text-primary-foreground"
-                              : "bg-primary text-primary-foreground"
+                            "flex gap-2",
+                            msg.is_from_contact ? "justify-start" : "justify-end"
                           )}
                         >
-                          {msg.is_ai_response && (
-                            <div className="flex items-center gap-1 text-xs opacity-70 mb-1">
-                              <Bot className="w-3 h-3" />
-                              <span>IA</span>
-                            </div>
+                          {msg.is_from_contact && (
+                            <Avatar className="w-7 h-7">
+                              <AvatarFallback className="text-xs">
+                                <User className="w-3 h-3" />
+                              </AvatarFallback>
+                            </Avatar>
                           )}
-                          {msg.message_type === "audio" && (
-                            <div className="flex items-center gap-1 text-xs opacity-70 mb-1">
-                              <Mic className="w-3 h-3" />
-                              <span>Áudio</span>
+                          <div className="max-w-[70%]">
+                            <div
+                              className={cn(
+                                "rounded-lg px-3 py-2",
+                                msg.is_from_contact
+                                  ? "bg-muted"
+                                  : msg.is_ai_response
+                                  ? "bg-primary/80 text-primary-foreground"
+                                  : "bg-primary text-primary-foreground"
+                              )}
+                            >
+                              {msg.is_ai_response && (
+                                <div className="flex items-center gap-1 text-xs opacity-70 mb-1">
+                                  <Bot className="w-3 h-3" />
+                                  <span>IA</span>
+                                </div>
+                              )}
+                              {msg.message_type === "audio" && (
+                                <div className="flex items-center gap-1 text-xs opacity-70 mb-1">
+                                  <Mic className="w-3 h-3" />
+                                  <span>Áudio</span>
+                                </div>
+                              )}
+                              <p className="whitespace-pre-wrap text-sm">{msg.content}</p>
+                              <div className="flex items-center justify-between gap-2 mt-1">
+                                <p className="text-xs opacity-70">
+                                  {new Date(msg.created_at).toLocaleTimeString("pt-BR", {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  })}
+                                </p>
+                                {!msg.is_from_contact && (
+                                  <button
+                                    onClick={() => toggleMessageExpand(msg.id)}
+                                    className="opacity-50 hover:opacity-100 transition-opacity"
+                                  >
+                                    {expandedMessages.has(msg.id) ? (
+                                      <ChevronUp className="w-3 h-3" />
+                                    ) : (
+                                      <ChevronDown className="w-3 h-3" />
+                                    )}
+                                  </button>
+                                )}
+                              </div>
                             </div>
+                            {/* Expandable sender info */}
+                            {expandedMessages.has(msg.id) && !msg.is_from_contact && (
+                              <div className="mt-1 px-2 py-1 rounded bg-muted text-xs text-muted-foreground">
+                                <div className="flex items-center gap-1">
+                                  <User className="w-3 h-3" />
+                                  <span>
+                                    {msg.is_ai_response 
+                                      ? "Assistente IA" 
+                                      : (msg as any).sent_by_user_name || "Usuário manual"}
+                                  </span>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                          {!msg.is_from_contact && !msg.is_ai_response && (
+                            <Avatar className="w-7 h-7">
+                              <AvatarFallback className="text-xs">
+                                <User className="w-3 h-3" />
+                              </AvatarFallback>
+                            </Avatar>
                           )}
-                          <p className="whitespace-pre-wrap">{msg.content}</p>
-                          <p className="text-xs opacity-70 mt-1">
-                            {new Date(msg.created_at).toLocaleTimeString("pt-BR", {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
-                          </p>
                         </div>
-                        {!msg.is_from_contact && !msg.is_ai_response && (
-                          <Avatar className="w-8 h-8">
-                            <AvatarFallback>
-                              <User className="w-4 h-4" />
-                            </AvatarFallback>
-                          </Avatar>
-                        )}
                       </div>
                     ))}
                   </div>
@@ -397,12 +593,29 @@ export function WhatsAppConversations() {
                 
                 {/* Text Message Input */}
                 <div className="flex gap-2">
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileSelect}
+                    className="hidden"
+                    accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
+                  />
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={sendingFile || isRecording || sending}
+                    title="Anexar arquivo"
+                  >
+                    {sendingFile ? <Loader2 className="w-4 h-4 animate-spin" /> : <Paperclip className="w-4 h-4" />}
+                  </Button>
                   <Input
                     placeholder="Digite sua mensagem..."
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
                     onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
                     disabled={sending || isRecording}
+                    className="flex-1"
                   />
                   <Button
                     variant="outline"

@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { conversationId, content, phone } = await req.json();
+    const { conversationId, content, phone, type, audio, image, document, fileName } = await req.json();
     
     const zapiInstanceId = Deno.env.get('ZAPI_INSTANCE_ID');
     const zapiToken = Deno.env.get('ZAPI_TOKEN');
@@ -52,11 +52,6 @@ serve(async (req) => {
       formattedPhone = '55' + formattedPhone;
     }
 
-    console.log(`Sending message to ${formattedPhone}: ${content.substring(0, 50)}...`);
-
-    // Send via Z-API
-    const zapiUrl = `https://api.z-api.io/instances/${zapiInstanceId}/token/${zapiToken}/send-text`;
-    
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     };
@@ -64,13 +59,49 @@ serve(async (req) => {
       headers['Client-Token'] = zapiClientToken;
     }
 
+    let zapiUrl: string;
+    let body: Record<string, any>;
+    let messageType = type || 'text';
+
+    if (type === 'audio' && audio) {
+      // Send audio message
+      zapiUrl = `https://api.z-api.io/instances/${zapiInstanceId}/token/${zapiToken}/send-audio`;
+      body = {
+        phone: formattedPhone,
+        audio: `data:audio/ogg;base64,${audio}`,
+      };
+      console.log(`Sending audio to ${formattedPhone}`);
+    } else if (type === 'image' && image) {
+      // Send image message
+      zapiUrl = `https://api.z-api.io/instances/${zapiInstanceId}/token/${zapiToken}/send-image`;
+      body = {
+        phone: formattedPhone,
+        image: `data:image/jpeg;base64,${image}`,
+      };
+      console.log(`Sending image to ${formattedPhone}`);
+    } else if (type === 'document' && document) {
+      // Send document message
+      zapiUrl = `https://api.z-api.io/instances/${zapiInstanceId}/token/${zapiToken}/send-document/pdf`;
+      body = {
+        phone: formattedPhone,
+        document: `data:application/pdf;base64,${document}`,
+        fileName: fileName || 'document.pdf',
+      };
+      console.log(`Sending document to ${formattedPhone}: ${fileName}`);
+    } else {
+      // Send text message
+      zapiUrl = `https://api.z-api.io/instances/${zapiInstanceId}/token/${zapiToken}/send-text`;
+      body = {
+        phone: formattedPhone,
+        message: content,
+      };
+      console.log(`Sending text to ${formattedPhone}: ${content?.substring(0, 50)}...`);
+    }
+
     const response = await fetch(zapiUrl, {
       method: 'POST',
       headers,
-      body: JSON.stringify({
-        phone: formattedPhone,
-        message: content,
-      }),
+      body: JSON.stringify(body),
     });
 
     const responseData = await response.json();
@@ -95,13 +126,18 @@ serve(async (req) => {
 
     // Save the sent message
     if (conversationId && userId) {
+      let msgContent = content;
+      if (type === 'audio') msgContent = '[Áudio enviado]';
+      if (type === 'image') msgContent = '[Imagem enviada]';
+      if (type === 'document') msgContent = `[Documento enviado: ${fileName || 'arquivo'}]`;
+
       const { data: savedMessage, error: msgError } = await supabase
         .from('whatsapp_messages')
         .insert({
           conversation_id: conversationId,
           user_id: userId,
-          message_type: 'text',
-          content: content,
+          message_type: messageType,
+          content: msgContent,
           is_from_contact: false,
           is_ai_response: false,
           zapi_message_id: responseData.messageId || responseData.zapiMessageId,
