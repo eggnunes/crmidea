@@ -165,25 +165,48 @@ export function useWhatsAppConversations() {
         });
         if (sendError) throw sendError;
       } else if (channel === 'instagram' || channel === 'facebook') {
-        // Send via ManyChat API for Instagram/Facebook
-        const { data, error: sendError } = await supabase.functions.invoke("manychat-send-message", {
-          body: {
-            conversationId,
-            content,
-          },
-        });
+        // Check if we have ManyChat subscriber ID
+        const hasManychatSubscriber = conv?.manychat_subscriber_id;
         
-        // Handle error response - check both error object and data for error info
-        if (sendError) {
-          // Try to get the actual error message from the response
-          const errorBody = data || {};
-          const errorMsg = errorBody.message || errorBody.error || sendError.message;
-          throw new Error(errorMsg);
-        }
-        
-        // Check if there was an error in the response data
-        if (data?.error) {
-          throw new Error(data.message || data.error);
+        if (hasManychatSubscriber) {
+          // Send via ManyChat API
+          const { data, error: sendError } = await supabase.functions.invoke("manychat-send-message", {
+            body: {
+              conversationId,
+              content,
+              subscriberId: conv.manychat_subscriber_id,
+            },
+          });
+          
+          if (sendError) {
+            const errorBody = data || {};
+            const errorMsg = errorBody.message || errorBody.error || sendError.message;
+            throw new Error(errorMsg);
+          }
+          
+          if (data?.error) {
+            throw new Error(data.message || data.error);
+          }
+        } else {
+          // Fallback to Meta API when no ManyChat subscriber ID
+          const { data, error: sendError } = await supabase.functions.invoke("meta-send-message", {
+            body: {
+              conversationId,
+              content,
+              channel,
+              recipientId: conv?.channel_user_id,
+            },
+          });
+          
+          if (sendError) {
+            const errorBody = data || {};
+            const errorMsg = errorBody.message || errorBody.error || sendError.message;
+            throw new Error(errorMsg);
+          }
+          
+          if (data?.error) {
+            throw new Error(data.message || data.error);
+          }
         }
       }
 
