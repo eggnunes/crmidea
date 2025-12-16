@@ -7,7 +7,7 @@ export interface AITrainingDocument {
   id: string;
   user_id: string;
   title: string;
-  content_type: "text" | "website" | "document";
+  content_type: "text" | "website" | "document" | "video";
   content: string;
   file_url: string | null;
   file_name: string | null;
@@ -180,6 +180,69 @@ export function useAITrainingDocuments() {
     }
   };
 
+  const uploadVideo = async (file: File) => {
+    if (!user) return;
+
+    try {
+      // Sanitize filename
+      const sanitizedFileName = file.name
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-zA-Z0-9._-]/g, "_")
+        .replace(/_+/g, "_");
+      
+      // Upload video to storage
+      const filePath = `${user.id}/${Date.now()}_${sanitizedFileName}`;
+      const { error: uploadError } = await supabase.storage
+        .from("training-documents")
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from("training-documents")
+        .getPublicUrl(filePath);
+
+      // Create document record
+      const { data, error } = await supabase
+        .from("ai_training_documents")
+        .insert({
+          user_id: user.id,
+          title: file.name.replace(/\.[^/.]+$/, ""),
+          content_type: "video",
+          content: `Vídeo: ${file.name} - Aguardando transcrição...`,
+          file_url: urlData.publicUrl,
+          file_name: file.name,
+          status: "pending",
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setDocuments([data as AITrainingDocument, ...documents]);
+      toast({
+        title: "Sucesso",
+        description: "Vídeo enviado para transcrição. Isso pode levar alguns minutos.",
+      });
+      
+      // Trigger processing
+      await supabase.functions.invoke("process-training-document", {
+        body: { documentId: data.id },
+      });
+
+      return data;
+    } catch (error) {
+      console.error("Error uploading video:", error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível enviar o vídeo",
+        variant: "destructive",
+      });
+    }
+  };
+
   const deleteDocument = async (id: string) => {
     try {
       const doc = documents.find((d) => d.id === id);
@@ -218,6 +281,7 @@ export function useAITrainingDocuments() {
     addTextDocument,
     addWebsiteDocument,
     uploadDocument,
+    uploadVideo,
     deleteDocument,
     refetch: fetchDocuments,
   };

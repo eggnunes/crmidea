@@ -29,6 +29,7 @@ import {
   CheckCircle,
   Clock,
   AlertCircle,
+  Video,
 } from "lucide-react";
 import { useAITrainingDocuments, AITrainingDocument } from "@/hooks/useAITrainingDocuments";
 
@@ -39,9 +40,10 @@ const statusConfig = {
 };
 
 export function AITrainingDocuments() {
-  const { documents, loading, addTextDocument, addWebsiteDocument, uploadDocument, deleteDocument } =
+  const { documents, loading, addTextDocument, addWebsiteDocument, uploadDocument, uploadVideo, deleteDocument } =
     useAITrainingDocuments();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("text");
   const [saving, setSaving] = useState(false);
@@ -89,6 +91,19 @@ export function AITrainingDocuments() {
     }
   };
 
+  const handleVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setSaving(true);
+    await uploadVideo(file);
+    setSaving(false);
+    
+    if (videoInputRef.current) {
+      videoInputRef.current.value = "";
+    }
+  };
+
   if (loading) {
     return (
       <Card>
@@ -109,7 +124,7 @@ export function AITrainingDocuments() {
             Treinamentos
           </CardTitle>
           <CardDescription>
-            Adicione textos, websites ou documentos para treinar seu assistente de IA
+            Adicione textos, websites, documentos ou vídeos para treinar seu assistente de IA
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -127,7 +142,8 @@ export function AITrainingDocuments() {
                 <Upload className="w-4 h-4" />
                 Documento
               </TabsTrigger>
-              <TabsTrigger value="video" disabled className="flex items-center gap-2 opacity-50">
+              <TabsTrigger value="video" className="flex items-center gap-2">
+                <Video className="w-4 h-4" />
                 Vídeo
               </TabsTrigger>
             </TabsList>
@@ -199,6 +215,30 @@ export function AITrainingDocuments() {
                 Os documentos serão processados e o conteúdo será extraído automaticamente para treinar a IA
               </p>
             </TabsContent>
+
+            <TabsContent value="video" className="space-y-4 mt-4">
+              <div className="border-2 border-dashed rounded-lg p-8 text-center">
+                <Video className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                <p className="text-lg font-medium mb-2">Envie seus vídeos</p>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Suporta MP4, MOV, AVI, WebM até 100MB
+                </p>
+                <input
+                  ref={videoInputRef}
+                  type="file"
+                  accept="video/mp4,video/quicktime,video/x-msvideo,video/webm,.mp4,.mov,.avi,.webm"
+                  onChange={handleVideoUpload}
+                  className="hidden"
+                />
+                <Button onClick={() => videoInputRef.current?.click()} disabled={saving}>
+                  {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Video className="w-4 h-4 mr-2" />}
+                  Selecionar Vídeo
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground text-center">
+                Os vídeos serão transcritos automaticamente usando IA para extrair o conteúdo e treinar o assistente
+              </p>
+            </TabsContent>
           </Tabs>
         </CardContent>
       </Card>
@@ -260,6 +300,8 @@ function DocumentItem({
         return <Globe className="w-4 h-4" />;
       case "document":
         return <Upload className="w-4 h-4" />;
+      case "video":
+        return <Video className="w-4 h-4" />;
       default:
         return <FileText className="w-4 h-4" />;
     }
