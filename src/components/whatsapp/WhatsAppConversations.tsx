@@ -85,6 +85,7 @@ export function WhatsAppConversations() {
   const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
   const [expandedMessages, setExpandedMessages] = useState<Set<string>>(new Set());
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
+  const [showConversationList, setShowConversationList] = useState(true);
   
   const { isRecording, audioBlob, startRecording, stopRecording, clearRecording, getBase64Audio } = useAudioRecorder();
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -308,7 +309,6 @@ export function WhatsAppConversations() {
     );
   }
 
-  const [showConversationList, setShowConversationList] = useState(true);
 
   return (
     <div className="flex h-[calc(100vh-200px)] min-h-[500px] gap-0 border rounded-lg overflow-hidden bg-background">
