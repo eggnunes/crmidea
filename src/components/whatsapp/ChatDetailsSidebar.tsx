@@ -420,9 +420,10 @@ export function ChatDetailsSidebar({ conversation, onContactNameUpdated, onQuick
                           
                           if (data?.error) {
                             toast({ 
-                              title: "Não encontrado", 
+                              title: data.limitation ? "Limitação da API" : "Não encontrado", 
                               description: data.message || "Subscriber não encontrado no ManyChat",
-                              variant: "destructive" 
+                              variant: data.limitation ? "default" : "destructive",
+                              duration: data.limitation ? 8000 : 5000,
                             });
                           } else if (data?.subscriberId) {
                             setSubscriberId(data.subscriberId);

@@ -72,13 +72,16 @@ Deno.serve(async (req) => {
 
     console.log('Searching ManyChat for Instagram user:', igUserId);
 
-    // Try to find subscriber by Instagram user ID using ManyChat API
-    // The findBySystemField endpoint uses GET with query parameters
-    const searchUrl = new URL('https://api.manychat.com/fb/subscriber/findBySystemField');
-    searchUrl.searchParams.append('field_name', 'ig_id');
-    searchUrl.searchParams.append('field_value', igUserId);
+    // Note: ManyChat's findBySystemField only supports 'phone' or 'email'
+    // It doesn't support searching by ig_id directly
+    // We'll try to use findByCustomField if the user has configured an instagram_id custom field
     
-    const searchResponse = await fetch(searchUrl.toString(), {
+    // First try with a custom field (if configured)
+    const customFieldUrl = new URL('https://api.manychat.com/fb/subscriber/findByCustomField');
+    customFieldUrl.searchParams.append('field_name', 'instagram_id');
+    customFieldUrl.searchParams.append('field_value', igUserId);
+    
+    let searchResponse = await fetch(customFieldUrl.toString(), {
       method: 'GET',
       headers: {
         'Accept': 'application/json',
@@ -86,36 +89,25 @@ Deno.serve(async (req) => {
       },
     });
 
-    const searchResult = await searchResponse.json();
-    console.log('ManyChat search response:', JSON.stringify(searchResult));
+    let searchResult = await searchResponse.json();
+    console.log('ManyChat custom field search response:', JSON.stringify(searchResult));
 
-    if (!searchResponse.ok || searchResult.status === 'error') {
-      // Try alternative: search by name (if we have contact name)
-      console.log('findBySystemField failed, trying getInfo with subscriber list...');
+    // If custom field search fails or returns no data, explain the limitation
+    if (!searchResponse.ok || searchResult.status === 'error' || !searchResult.data?.id) {
+      console.log('Custom field search failed, ManyChat API limitation');
       
       return new Response(
         JSON.stringify({ 
-          error: 'Subscriber not found', 
-          message: 'Este contato não foi encontrado no ManyChat. O contato precisa interagir via ManyChat primeiro.',
-          details: searchResult
+          error: 'Busca automática não disponível', 
+          message: 'A API do ManyChat não permite buscar por Instagram ID. Para vincular o contato:\n\n1. Abra o ManyChat\n2. Vá em Contacts e encontre o contato pelo nome\n3. Copie o ID numérico do subscriber\n4. Cole no campo acima',
+          limitation: true
         }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Extract subscriber ID from response
+    // Extract subscriber data from successful response
     const subscriberData = searchResult.data;
-    
-    if (!subscriberData || !subscriberData.id) {
-      return new Response(
-        JSON.stringify({ 
-          error: 'Subscriber not found', 
-          message: 'Este contato não foi encontrado no ManyChat.' 
-        }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
     const subscriberId = subscriberData.id.toString();
     console.log('Found ManyChat subscriber ID:', subscriberId);
 
