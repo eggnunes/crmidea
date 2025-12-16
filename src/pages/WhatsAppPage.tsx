@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { MessageSquare, User, Briefcase, BookOpen, Target, Settings2, Webhook, Users, Zap, Clock, Sliders, Tag, Radio, BarChart3 } from "lucide-react";
+import { MessageSquare, User, Briefcase, BookOpen, Target, Settings2, Users, Zap, Clock, Tag, Radio, BarChart3 } from "lucide-react";
 import { WhatsAppConversations } from "@/components/whatsapp/WhatsAppConversations";
 import { AIProfileSettings } from "@/components/whatsapp/AIProfileSettings";
 import { AIWorkSettings } from "@/components/whatsapp/AIWorkSettings";
@@ -68,14 +68,6 @@ export function WhatsAppPage() {
               <Clock className="w-4 h-4" />
               <span className="hidden sm:inline">Agendamentos</span>
             </TabsTrigger>
-            <TabsTrigger value="avancado" className="flex items-center gap-2 py-2 px-3">
-              <Sliders className="w-4 h-4" />
-              <span className="hidden sm:inline">Avançado</span>
-            </TabsTrigger>
-            <TabsTrigger value="config" className="flex items-center gap-2 py-2 px-3">
-              <Settings2 className="w-4 h-4" />
-              <span className="hidden sm:inline">Configurações</span>
-            </TabsTrigger>
             <TabsTrigger value="analytics" className="flex items-center gap-2 py-2 px-3">
               <BarChart3 className="w-4 h-4" />
               <span className="hidden sm:inline">Analytics</span>
@@ -84,9 +76,9 @@ export function WhatsAppPage() {
               <Radio className="w-4 h-4" />
               <span className="hidden sm:inline">Canais</span>
             </TabsTrigger>
-            <TabsTrigger value="webhook" className="flex items-center gap-2 py-2 px-3">
-              <Webhook className="w-4 h-4" />
-              <span className="hidden sm:inline">Webhook</span>
+            <TabsTrigger value="config" className="flex items-center gap-2 py-2 px-3">
+              <Settings2 className="w-4 h-4" />
+              <span className="hidden sm:inline">Configurações</span>
             </TabsTrigger>
           </TabsList>
           <ScrollBar orientation="horizontal" />
@@ -128,14 +120,6 @@ export function WhatsAppPage() {
           <ScheduledMessagesManager />
         </TabsContent>
 
-        <TabsContent value="avancado" className="space-y-4">
-          <AdvancedSettings />
-        </TabsContent>
-
-        <TabsContent value="config" className="space-y-4">
-          <AIConfigSettings />
-        </TabsContent>
-
         <TabsContent value="analytics" className="space-y-4">
           <ChannelAnalytics />
         </TabsContent>
@@ -144,8 +128,12 @@ export function WhatsAppPage() {
           <ChannelSettings />
         </TabsContent>
 
-        <TabsContent value="webhook" className="space-y-4">
-          <ZAPIWebhookSetup />
+        <TabsContent value="config" className="space-y-4">
+          <div className="space-y-6">
+            <AIConfigSettings />
+            <AdvancedSettings />
+            <ZAPIWebhookSetup />
+          </div>
         </TabsContent>
       </Tabs>
     </div>
