@@ -7,19 +7,33 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useWhatsAppContacts } from "@/hooks/useWhatsAppContacts";
-import { Loader2, Plus, Search, UserPlus, Tag, Trash2, Edit, Bot, BotOff, Phone } from "lucide-react";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { useLeads } from "@/hooks/useLeads";
+import { PRODUCTS } from "@/types/crm";
+import { Loader2, Plus, Search, UserPlus, Tag, Trash2, Edit, Bot, BotOff, Phone, UserCheck } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 export function ContactsManager() {
   const { contacts, tags, loading, createContact, updateContact, deleteContact, toggleBotDisabled, createTag, deleteTag } = useWhatsAppContacts();
+  const { addLead } = useLeads();
+  const { toast } = useToast();
   const [search, setSearch] = useState("");
   const [isContactDialogOpen, setIsContactDialogOpen] = useState(false);
   const [isTagDialogOpen, setIsTagDialogOpen] = useState(false);
-  const [editingContact, setEditingContact] = useState<string | null>(null);
+  const [isLeadDialogOpen, setIsLeadDialogOpen] = useState(false);
+  const [editingContactId, setEditingContactId] = useState<string | null>(null);
   const [contactForm, setContactForm] = useState({ phone: "", name: "", notes: "" });
   const [tagForm, setTagForm] = useState({ name: "", color: "#3b82f6" });
+  const [leadForm, setLeadForm] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    product: "consultoria" as string,
+    source: "whatsapp",
+    notes: "",
+    value: 0,
+  });
 
   const filteredContacts = contacts.filter(
     (c) =>
@@ -27,13 +41,83 @@ export function ContactsManager() {
       c.name?.toLowerCase().includes(search.toLowerCase())
   );
 
-  const handleCreateContact = async () => {
+  const handleCreateOrUpdateContact = async () => {
     if (!contactForm.phone) return;
-    const result = await createContact(contactForm);
-    if (result) {
-      setContactForm({ phone: "", name: "", notes: "" });
-      setIsContactDialogOpen(false);
+    
+    if (editingContactId) {
+      await updateContact(editingContactId, {
+        phone: contactForm.phone,
+        name: contactForm.name || null,
+        notes: contactForm.notes || null,
+      });
+    } else {
+      await createContact(contactForm);
     }
+    
+    setContactForm({ phone: "", name: "", notes: "" });
+    setEditingContactId(null);
+    setIsContactDialogOpen(false);
+  };
+
+  const handleEditContact = (contact: typeof contacts[0]) => {
+    setContactForm({
+      phone: contact.phone,
+      name: contact.name || "",
+      notes: contact.notes || "",
+    });
+    setEditingContactId(contact.id);
+    setIsContactDialogOpen(true);
+  };
+
+  const handleOpenLeadDialog = (contact: typeof contacts[0]) => {
+    setLeadForm({
+      name: contact.name || "",
+      email: "",
+      phone: contact.phone,
+      product: "consultoria",
+      source: "whatsapp",
+      notes: contact.notes || "",
+      value: 0,
+    });
+    setIsLeadDialogOpen(true);
+  };
+
+  const handleCreateLead = async () => {
+    if (!leadForm.name || !leadForm.email) {
+      toast({
+        title: "Erro",
+        description: "Nome e email são obrigatórios",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    await addLead({
+      name: leadForm.name,
+      email: leadForm.email,
+      phone: leadForm.phone,
+      product: leadForm.product as any,
+      status: 'novo',
+      source: leadForm.source,
+      notes: leadForm.notes,
+      value: leadForm.value,
+    });
+    
+    toast({
+      title: "Sucesso",
+      description: "Lead criado com sucesso!",
+    });
+    
+    setLeadForm({
+      name: "",
+      email: "",
+      phone: "",
+      product: "consultoria",
+      source: "whatsapp",
+      notes: "",
+      value: 0,
+    });
+    setIsLeadDialogOpen(false);
   };
 
   const handleCreateTag = async () => {
@@ -43,6 +127,13 @@ export function ContactsManager() {
       setTagForm({ name: "", color: "#3b82f6" });
       setIsTagDialogOpen(false);
     }
+  };
+
+  const formatPhone = (phone: string) => {
+    if (phone.length === 13) {
+      return `+${phone.slice(0, 2)} (${phone.slice(2, 4)}) ${phone.slice(4, 9)}-${phone.slice(9)}`;
+    }
+    return phone;
   };
 
   if (loading) {
@@ -155,7 +246,13 @@ export function ContactsManager() {
               </CardTitle>
               <CardDescription>Gerencie seus contatos e controle o bot</CardDescription>
             </div>
-            <Dialog open={isContactDialogOpen} onOpenChange={setIsContactDialogOpen}>
+            <Dialog open={isContactDialogOpen} onOpenChange={(open) => {
+              setIsContactDialogOpen(open);
+              if (!open) {
+                setEditingContactId(null);
+                setContactForm({ phone: "", name: "", notes: "" });
+              }
+            }}>
               <DialogTrigger asChild>
                 <Button>
                   <UserPlus className="w-4 h-4 mr-2" />
@@ -164,7 +261,7 @@ export function ContactsManager() {
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Adicionar Contato</DialogTitle>
+                  <DialogTitle>{editingContactId ? "Editar Contato" : "Adicionar Contato"}</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4 pt-4">
                   <div className="space-y-2">
@@ -191,8 +288,8 @@ export function ContactsManager() {
                       placeholder="Notas sobre o contato..."
                     />
                   </div>
-                  <Button onClick={handleCreateContact} className="w-full">
-                    Adicionar Contato
+                  <Button onClick={handleCreateOrUpdateContact} className="w-full">
+                    {editingContactId ? "Salvar Alterações" : "Adicionar Contato"}
                   </Button>
                 </div>
               </DialogContent>
@@ -223,38 +320,38 @@ export function ContactsManager() {
                   key={contact.id}
                   className="flex items-center justify-between p-4 rounded-lg border bg-card hover:bg-muted/50 transition-colors"
                 >
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                  <div className="flex items-center gap-4 flex-1 min-w-0">
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                       <Phone className="w-5 h-5 text-primary" />
                     </div>
-                    <div>
-                      <div className="font-medium">
-                        {contact.name || contact.phone}
+                    <div className="min-w-0">
+                      <div className="font-medium truncate">
+                        {contact.name || formatPhone(contact.phone)}
                       </div>
                       {contact.name && (
                         <div className="text-sm text-muted-foreground">
-                          {contact.phone}
+                          {formatPhone(contact.phone)}
                         </div>
                       )}
                       {contact.notes && (
-                        <div className="text-xs text-muted-foreground mt-1">
+                        <div className="text-xs text-muted-foreground mt-1 truncate">
                           {contact.notes}
                         </div>
                       )}
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 flex-shrink-0">
                     <div className="flex items-center gap-2">
                       {contact.bot_disabled ? (
                         <Badge variant="destructive" className="flex items-center gap-1">
                           <BotOff className="w-3 h-3" />
-                          Bot Desativado
+                          <span className="hidden sm:inline">Bot Desativado</span>
                         </Badge>
                       ) : (
                         <Badge variant="secondary" className="flex items-center gap-1">
                           <Bot className="w-3 h-3" />
-                          Bot Ativo
+                          <span className="hidden sm:inline">Bot Ativo</span>
                         </Badge>
                       )}
                     </div>
@@ -265,7 +362,24 @@ export function ContactsManager() {
                     <Button
                       variant="ghost"
                       size="icon"
+                      onClick={() => handleEditContact(contact)}
+                      title="Editar contato"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleOpenLeadDialog(contact)}
+                      title="Converter em lead"
+                    >
+                      <UserCheck className="w-4 h-4 text-primary" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
                       onClick={() => deleteContact(contact.id)}
+                      title="Excluir contato"
                     >
                       <Trash2 className="w-4 h-4 text-destructive" />
                     </Button>
@@ -276,6 +390,93 @@ export function ContactsManager() {
           )}
         </CardContent>
       </Card>
+
+      {/* Convert to Lead Dialog */}
+      <Dialog open={isLeadDialogOpen} onOpenChange={setIsLeadDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Converter Contato em Lead</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Nome *</Label>
+                <Input
+                  value={leadForm.name}
+                  onChange={(e) => setLeadForm({ ...leadForm, name: e.target.value })}
+                  placeholder="Nome do lead"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Email *</Label>
+                <Input
+                  type="email"
+                  value={leadForm.email}
+                  onChange={(e) => setLeadForm({ ...leadForm, email: e.target.value })}
+                  placeholder="email@exemplo.com"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Telefone</Label>
+                <Input
+                  value={leadForm.phone}
+                  onChange={(e) => setLeadForm({ ...leadForm, phone: e.target.value })}
+                  placeholder="5511999999999"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Valor (R$)</Label>
+                <Input
+                  type="number"
+                  value={leadForm.value}
+                  onChange={(e) => setLeadForm({ ...leadForm, value: Number(e.target.value) })}
+                  placeholder="0"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Produto</Label>
+                <Select value={leadForm.product} onValueChange={(v) => setLeadForm({ ...leadForm, product: v })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PRODUCTS.map((product) => (
+                      <SelectItem key={product.id} value={product.id}>
+                        {product.shortName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Origem</Label>
+                <Input
+                  value={leadForm.source}
+                  onChange={(e) => setLeadForm({ ...leadForm, source: e.target.value })}
+                  placeholder="WhatsApp"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Observações</Label>
+              <Textarea
+                value={leadForm.notes}
+                onChange={(e) => setLeadForm({ ...leadForm, notes: e.target.value })}
+                placeholder="Notas sobre o lead..."
+                rows={3}
+              />
+            </div>
+            <Button onClick={handleCreateLead} className="w-full">
+              <UserCheck className="w-4 h-4 mr-2" />
+              Criar Lead
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

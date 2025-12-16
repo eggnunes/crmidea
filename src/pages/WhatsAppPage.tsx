@@ -23,26 +23,33 @@ export function WhatsAppPage() {
   const [activeTab, setActiveTab] = useState("conversas");
   const { user } = useAuth();
   const [zapiConnected, setZapiConnected] = useState<boolean | null>(null);
+  const [checkingStatus, setCheckingStatus] = useState(false);
 
-  // Check Z-API connection status
+  // Check Z-API connection status by calling the Z-API status endpoint
   useEffect(() => {
     const checkZapiStatus = async () => {
       if (!user) return;
+      setCheckingStatus(true);
       try {
-        const { data: config } = await supabase
-          .from('channel_configs')
-          .select('is_active, config')
-          .eq('user_id', user.id)
-          .eq('channel', 'whatsapp')
-          .single();
+        // Try to call Z-API to check actual connection status
+        const { data, error } = await supabase.functions.invoke("zapi-send-message", {
+          body: { action: "check-status" },
+        });
         
-        setZapiConnected(config?.is_active ?? false);
+        if (error) {
+          console.log("Z-API status check failed:", error);
+          setZapiConnected(false);
+        } else {
+          setZapiConnected(data?.connected ?? true);
+        }
       } catch {
         setZapiConnected(false);
+      } finally {
+        setCheckingStatus(false);
       }
     };
     checkZapiStatus();
-    const interval = setInterval(checkZapiStatus, 30000); // Check every 30s
+    const interval = setInterval(checkZapiStatus, 60000); // Check every 60s
     return () => clearInterval(interval);
   }, [user]);
 
