@@ -361,6 +361,82 @@ Deno.serve(async (req) => {
       }
     }
 
+    // For successful purchases, send welcome message via WhatsApp
+    if (payload.webhook_event_type.toLowerCase() === 'compra_aprovada' && payload.Customer.mobile) {
+      console.log('Sending welcome message for purchase:', payload.Customer.full_name);
+      
+      try {
+        const zapiInstanceId = Deno.env.get('ZAPI_INSTANCE_ID');
+        const zapiToken = Deno.env.get('ZAPI_TOKEN');
+        const zapiClientToken = Deno.env.get('ZAPI_CLIENT_TOKEN');
+        
+        if (zapiInstanceId && zapiToken && zapiClientToken) {
+          const phone = payload.Customer.mobile.replace(/\D/g, '');
+          const formattedPhone = phone.startsWith('55') ? phone : `55${phone}`;
+          
+          const welcomeMessage = `🎉 *Parabéns pela sua compra, ${payload.Customer.full_name.split(' ')[0]}!*\n\n` +
+            `Seja muito bem-vindo(a) ao *${payload.product_name}*! 🚀\n\n` +
+            `Estamos muito felizes em ter você conosco nessa jornada de transformação com Inteligência Artificial na advocacia.\n\n` +
+            `Em breve você receberá todas as informações de acesso. Se tiver qualquer dúvida, estou aqui para ajudar! 💬\n\n` +
+            `_Equipe IDEA_`;
+          
+          const zapiResponse = await fetch(
+            `https://api.z-api.io/instances/${zapiInstanceId}/token/${zapiToken}/send-text`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Client-Token': zapiClientToken,
+              },
+              body: JSON.stringify({
+                phone: formattedPhone,
+                message: welcomeMessage,
+              }),
+            }
+          );
+          
+          const zapiResult = await zapiResponse.json();
+          console.log('Welcome message sent via Z-API:', zapiResult);
+          
+          // Also create a whatsapp conversation and message record
+          const { data: conversation } = await supabase
+            .from('whatsapp_conversations')
+            .upsert({
+              user_id: userId,
+              contact_phone: formattedPhone,
+              contact_name: payload.Customer.full_name,
+              channel: 'whatsapp',
+              last_message_at: new Date().toISOString(),
+              lead_id: leadId,
+            }, {
+              onConflict: 'user_id,contact_phone,channel',
+            })
+            .select()
+            .single();
+          
+          if (conversation) {
+            await supabase
+              .from('whatsapp_messages')
+              .insert({
+                user_id: userId,
+                conversation_id: conversation.id,
+                content: welcomeMessage,
+                is_from_contact: false,
+                is_ai_response: false,
+                message_type: 'text',
+                status: 'sent',
+                channel: 'whatsapp',
+                zapi_message_id: zapiResult.messageId || null,
+              });
+          }
+        } else {
+          console.log('Z-API credentials not configured, skipping welcome message');
+        }
+      } catch (welcomeError) {
+        console.error('Error sending welcome message:', welcomeError);
+      }
+    }
+
     // Trigger ManyChat sync if applicable
     try {
       const manychatApiKey = Deno.env.get('MANYCHAT_API_KEY');
