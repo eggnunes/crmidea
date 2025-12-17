@@ -811,6 +811,10 @@ export function WhatsAppConversations() {
             conversation={selectedConversation}
             onContactNameUpdated={refetch}
             onQuickResponseSelect={(content) => setNewMessage(content)}
+            onDeleteConversation={() => {
+              setSelectedConversation(null);
+              refetch();
+            }}
           />
         </div>
       )}

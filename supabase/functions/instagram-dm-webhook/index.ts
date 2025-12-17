@@ -55,12 +55,20 @@ Deno.serve(async (req) => {
 
     const userId = adminRole.user_id;
     
-    // Use ig_username as primary identifier for contact name, fallback to provided name
-    // This avoids using the ManyChat owner's name when subscriber name is not properly configured
-    const contactName = ig_username?.trim() || name?.trim() || 'Instagram User';
+    // Check if values are literal template variables (ManyChat not resolving them)
+    const isTemplateVariable = (value?: string) => {
+      if (!value) return true;
+      return value.includes('{{') || value.includes('}}');
+    };
+    
+    // Use ig_username as primary identifier, but only if it's not a template variable
+    // If ManyChat sends literal {{ig_username}}, fall back to name or a default
+    const resolvedUsername = !isTemplateVariable(ig_username) ? ig_username?.trim() : null;
+    const resolvedName = !isTemplateVariable(name) ? name?.trim() : null;
+    const contactName = resolvedUsername || resolvedName || `Instagram ${subscriber_id}`;
     const contactPhone = `ig_${subscriber_id}`;
     
-    console.log('Processing Instagram DM:', { subscriber_id, name, ig_username, contactName });
+    console.log('Processing Instagram DM:', { subscriber_id, name, ig_username, resolvedUsername, resolvedName, contactName });
 
     // Find or create conversation
     // First, try to find by manychat_subscriber_id
