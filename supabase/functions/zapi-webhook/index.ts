@@ -115,6 +115,20 @@ serve(async (req) => {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
+      
+      // Check for human transfer trigger phrases
+      const transferPhrases = [
+        'falar com rafael',
+        'quero falar com rafael',
+        'falar com o rafael',
+        'falar com humano',
+        'falar com atendente',
+        'atendimento humano',
+        'atendente humano'
+      ];
+      const isTransferRequest = transferPhrases.some(phrase => 
+        messageContent.toLowerCase().includes(phrase)
+      );
 
       // Check for duplicate message by zapi_message_id
       if (zapiMessageId) {
@@ -234,6 +248,116 @@ serve(async (req) => {
 
       if (msgError) throw msgError;
       console.log('Saved message:', savedMessage.id);
+
+      // Handle human transfer request
+      if (isTransferRequest) {
+        console.log('Human transfer requested by:', phone, senderName);
+        
+        const zapiInstanceId = Deno.env.get('ZAPI_INSTANCE_ID');
+        const zapiToken = Deno.env.get('ZAPI_TOKEN');
+        const zapiClientToken = Deno.env.get('ZAPI_CLIENT_TOKEN');
+        
+        // 1. Disable bot for this contact
+        const { data: contact } = await supabase
+          .from('whatsapp_contacts')
+          .select('id')
+          .eq('user_id', userId)
+          .eq('phone', phone)
+          .maybeSingle();
+        
+        if (contact) {
+          await supabase
+            .from('whatsapp_contacts')
+            .update({ bot_disabled: true })
+            .eq('id', contact.id);
+        } else {
+          // Create contact with bot disabled
+          await supabase
+            .from('whatsapp_contacts')
+            .insert({
+              user_id: userId,
+              phone: phone,
+              name: senderName,
+              bot_disabled: true,
+            });
+        }
+        
+        console.log('Bot disabled for contact:', phone);
+        
+        // 2. Send confirmation message to contact
+        if (zapiInstanceId && zapiToken && zapiClientToken) {
+          let formattedPhone = phone.replace(/\D/g, '');
+          if (!formattedPhone.startsWith('55')) {
+            formattedPhone = '55' + formattedPhone;
+          }
+          
+          const confirmMessage = `✅ *Perfeito, ${senderName || 'amigo(a)'}!*\n\n` +
+            `O Rafael foi notificado e em breve vai falar diretamente com você.\n\n` +
+            `Aguarde só um instante que já retornamos! 🙏`;
+          
+          await fetch(`https://api.z-api.io/instances/${zapiInstanceId}/token/${zapiToken}/send-text`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Client-Token': zapiClientToken,
+            },
+            body: JSON.stringify({ phone: formattedPhone, message: confirmMessage }),
+          });
+          
+          // Save confirmation message to database
+          await supabase
+            .from('whatsapp_messages')
+            .insert({
+              conversation_id: conversation.id,
+              user_id: userId,
+              message_type: 'text',
+              content: confirmMessage,
+              is_from_contact: false,
+              is_ai_response: false,
+              status: 'sent',
+            });
+        }
+        
+        // 3. Create in-app notification
+        if (conversation.lead_id) {
+          await supabase
+            .from('notifications')
+            .insert({
+              user_id: userId,
+              lead_id: conversation.lead_id,
+              title: '🔔 Transferência Solicitada!',
+              message: `${senderName || phone} quer falar diretamente com você. A IA foi desativada para esta conversa.`,
+              type: 'transfer_request',
+            });
+        }
+        
+        // 4. Send WhatsApp notification to admin's personal phone
+        // Get admin's phone from follow_up_settings or profiles
+        const { data: followUpSettings } = await supabase
+          .from('follow_up_settings')
+          .select('manychat_subscriber_id')
+          .eq('user_id', userId)
+          .maybeSingle();
+        
+        // Try to get admin notification via own WhatsApp (send to admin conversation)
+        const { data: adminProfile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('user_id', userId)
+          .maybeSingle();
+        
+        // For now, log the transfer request
+        console.log(`Transfer request notification created for user ${userId} from ${senderName || phone}`);
+        
+        return new Response(JSON.stringify({ 
+          status: 'success',
+          conversationId: conversation.id,
+          messageId: savedMessage.id,
+          transferRequested: true,
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
 
       // Check if AI is enabled and should respond
       const { data: aiConfig } = await supabase

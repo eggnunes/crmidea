@@ -216,10 +216,18 @@ export function DashboardPage() {
       {/* Charts Section */}
       <DashboardCharts leads={leads} />
 
-      {/* Recovery Alerts and Recent Purchases */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <RecoveryAlertsCard leads={leads} />
-        <RecentPurchasesCard leads={leads} />
+      {/* Prominent Alerts Section */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-bold text-foreground">Central de Alertas</h2>
+            <p className="text-sm text-muted-foreground">Eventos que precisam da sua atenção</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <RecoveryAlertsCard leads={leads} />
+          <RecentPurchasesCard leads={leads} />
+        </div>
       </div>
 
       {/* Content Grid */}
