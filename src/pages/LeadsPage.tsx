@@ -377,7 +377,7 @@ export function LeadsPage() {
           <p className="text-muted-foreground mt-1">Gerencie seus potenciais clientes</p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
-          <ExportImportLeads leads={leads} onImport={handleImport} />
+          <ExportImportLeads leads={filteredLeads} onImport={handleImport} />
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
               <Button className="gradient-primary text-primary-foreground hover:opacity-90">
