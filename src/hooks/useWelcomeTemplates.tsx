@@ -13,7 +13,8 @@ Esta é uma jornada de transformação digital personalizada para seu escritóri
 
 Prepare-se para revolucionar a forma como você trabalha! 💼
 
-_Rafael Nogueira - IDEA_
+Um abraço,
+*Rafael Egg*
 
 💬 Se precisar falar diretamente comigo, digite *"falar com Rafael"* a qualquer momento.`,
   
@@ -25,7 +26,8 @@ Você faz parte agora de um grupo seleto de advogados que estão na vanguarda da
 
 Em breve você receberá todos os detalhes de acesso e nosso cronograma.
 
-_Equipe IDEA_
+Um abraço,
+*Rafael Egg*
 
 💬 Se precisar falar diretamente comigo, digite *"falar com Rafael"* a qualquer momento.`,
   
@@ -37,7 +39,8 @@ Você terá acompanhamento exclusivo e personalizado para dominar a IA na advoca
 
 Em breve você receberá todos os detalhes de acesso e nosso cronograma.
 
-_Equipe IDEA_
+Um abraço,
+*Rafael Egg*
 
 💬 Se precisar falar diretamente comigo, digite *"falar com Rafael"* a qualquer momento.`,
   
@@ -49,7 +52,8 @@ Você está prestes a descobrir como a IA pode transformar sua prática jurídic
 
 Prepare-se para uma jornada incrível de aprendizado! 🚀
 
-_Equipe IDEA_
+Um abraço,
+*Rafael Egg*
 
 💬 Se precisar falar diretamente comigo, digite *"falar com Rafael"* a qualquer momento.`,
   
@@ -61,7 +65,8 @@ Este e-book vai te dar uma visão completa de como aplicar Inteligência Artific
 
 Seu acesso será enviado em instantes. Boa leitura! 📱
 
-_Equipe IDEA_
+Um abraço,
+*Rafael Egg*
 
 💬 Se precisar falar diretamente comigo, digite *"falar com Rafael"* a qualquer momento.`,
   
@@ -73,7 +78,8 @@ Você agora tem acesso a uma biblioteca de prompts prontos e otimizados para adv
 
 Seu acesso será enviado em instantes.
 
-_Equipe IDEA_
+Um abraço,
+*Rafael Egg*
 
 💬 Se precisar falar diretamente comigo, digite *"falar com Rafael"* a qualquer momento.`,
   
@@ -85,7 +91,8 @@ Guia de IA para Advogados + Código de Prompts + bônus exclusivos. Tudo que voc
 
 Seus acessos serão enviados em instantes. Aproveite! 🚀
 
-_Equipe IDEA_
+Um abraço,
+*Rafael Egg*
 
 💬 Se precisar falar diretamente comigo, digite *"falar com Rafael"* a qualquer momento.`,
 };
