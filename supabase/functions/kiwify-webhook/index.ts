@@ -306,7 +306,9 @@ Deno.serve(async (req) => {
 
     const newStatus = mapEventToStatus(payload.webhook_event_type);
     const productType = mapProductName(payload.product_name);
-    const value = payload.Commissions?.charge_amount || payload.Commissions?.product_base_price || null;
+    // Convert from centavos to reais (Kiwify sends values in centavos)
+    const valueInCentavos = payload.Commissions?.charge_amount || payload.Commissions?.product_base_price || null;
+    const value = valueInCentavos ? valueInCentavos / 100 : null;
 
     let leadId: string;
     let leadAction: 'created' | 'updated';
