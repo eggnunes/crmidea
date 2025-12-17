@@ -50,26 +50,131 @@ function mapProductName(productName: string): string {
 
 // Map Kiwify events to lead statuses
 function mapEventToStatus(eventType: string): string {
-  switch (eventType) {
+  const event = eventType.toLowerCase();
+  
+  switch (event) {
+    // Pagamento gerado - demonstrou intenção de compra
     case 'pix_gerado':
     case 'boleto_gerado':
-      return 'qualificado'; // They showed intent to buy
+      return 'qualificado';
+    
+    // Carrinho abandonado
     case 'carrinho_abandonado':
       return 'em_contato';
+    
+    // Compra aprovada - ganhou!
     case 'compra_aprovada':
       return 'fechado_ganho';
+    
+    // Compra recusada - ainda em negociação
     case 'compra_recusada':
       return 'negociacao';
+    
+    // Reembolso e chargeback - perdeu
+    case 'reembolso':
     case 'compra_reembolsada':
     case 'chargeback':
       return 'fechado_perdido';
-    case 'subscription_renewed':
+    
+    // Assinaturas
+    case 'assinatura_renovada':
       return 'fechado_ganho';
-    case 'subscription_canceled':
-    case 'subscription_late':
+    case 'assinatura_cancelada':
+    case 'assinatura_atrasada':
       return 'fechado_perdido';
+    
     default:
       return 'novo';
+  }
+}
+
+// Map event to interaction type
+function mapEventToInteractionType(eventType: string): string {
+  const event = eventType.toLowerCase();
+  
+  switch (event) {
+    case 'compra_aprovada':
+    case 'assinatura_renovada':
+      return 'venda';
+    case 'pix_gerado':
+    case 'boleto_gerado':
+      return 'pagamento';
+    case 'carrinho_abandonado':
+      return 'carrinho';
+    case 'reembolso':
+    case 'compra_reembolsada':
+      return 'reembolso';
+    case 'chargeback':
+      return 'chargeback';
+    case 'compra_recusada':
+      return 'recusado';
+    case 'assinatura_cancelada':
+      return 'cancelamento';
+    case 'assinatura_atrasada':
+      return 'atraso';
+    default:
+      return 'outro';
+  }
+}
+
+// Get notification details based on event type
+function getNotificationDetails(eventType: string, customerName: string, productName: string): { title: string; message: string } | null {
+  const event = eventType.toLowerCase();
+  
+  switch (event) {
+    case 'pix_gerado':
+      return {
+        title: '💰 PIX Gerado!',
+        message: `${customerName} gerou um PIX para ${productName}. Acompanhe se concluir o pagamento!`
+      };
+    case 'boleto_gerado':
+      return {
+        title: '📄 Boleto Gerado!',
+        message: `${customerName} gerou um boleto para ${productName}. Acompanhe se concluir o pagamento!`
+      };
+    case 'carrinho_abandonado':
+      return {
+        title: '🛒 Carrinho Abandonado!',
+        message: `${customerName} abandonou o carrinho para ${productName}. Faça follow-up urgente!`
+      };
+    case 'compra_aprovada':
+      return {
+        title: '🎉 Venda Realizada!',
+        message: `${customerName} comprou ${productName}! Parabéns pela venda!`
+      };
+    case 'compra_recusada':
+      return {
+        title: '❌ Compra Recusada',
+        message: `Pagamento de ${customerName} foi recusado para ${productName}. Entre em contato!`
+      };
+    case 'reembolso':
+    case 'compra_reembolsada':
+      return {
+        title: '💸 Reembolso Solicitado',
+        message: `${customerName} solicitou reembolso de ${productName}. Verifique o motivo!`
+      };
+    case 'chargeback':
+      return {
+        title: '⚠️ Chargeback!',
+        message: `${customerName} abriu disputa (chargeback) para ${productName}. Ação urgente necessária!`
+      };
+    case 'assinatura_cancelada':
+      return {
+        title: '📛 Assinatura Cancelada',
+        message: `${customerName} cancelou a assinatura de ${productName}. Tente recuperar!`
+      };
+    case 'assinatura_atrasada':
+      return {
+        title: '⏰ Assinatura Atrasada',
+        message: `${customerName} está com pagamento atrasado de ${productName}. Entre em contato!`
+      };
+    case 'assinatura_renovada':
+      return {
+        title: '🔄 Assinatura Renovada!',
+        message: `${customerName} renovou a assinatura de ${productName}!`
+      };
+    default:
+      return null;
   }
 }
 
@@ -191,10 +296,7 @@ Deno.serve(async (req) => {
     }
 
     // Add interaction for this event
-    const interactionType = payload.webhook_event_type === 'compra_aprovada' ? 'venda' : 
-                           payload.webhook_event_type.includes('pix') || payload.webhook_event_type.includes('boleto') ? 'pagamento' :
-                           'outro';
-    
+    const interactionType = mapEventToInteractionType(payload.webhook_event_type);
     const interactionDescription = `Evento Kiwify: ${payload.webhook_event_type} - Produto: ${payload.product_name}${value ? ` - Valor: R$ ${(value / 100).toFixed(2)}` : ''}`;
 
     const { error: interactionError } = await supabase
@@ -210,55 +312,52 @@ Deno.serve(async (req) => {
       console.error('Error creating interaction:', interactionError);
     }
 
-    // If it's a pix_gerado or carrinho_abandonado, create a notification for follow-up
-    if (['pix_gerado', 'boleto_gerado', 'carrinho_abandonado'].includes(payload.webhook_event_type)) {
-      const title = payload.webhook_event_type === 'carrinho_abandonado' 
-        ? 'Carrinho abandonado!' 
-        : 'PIX/Boleto gerado!';
-      
-      const message = payload.webhook_event_type === 'carrinho_abandonado'
-        ? `${payload.Customer.full_name} abandonou o carrinho para ${payload.product_name}. Faça follow-up!`
-        : `${payload.Customer.full_name} gerou pagamento para ${payload.product_name}. Acompanhe se concluir!`;
+    // Create notification for ALL events
+    const notificationDetails = getNotificationDetails(
+      payload.webhook_event_type, 
+      payload.Customer.full_name, 
+      payload.product_name
+    );
 
+    if (notificationDetails) {
       const { error: notifError } = await supabase
         .from('notifications')
         .insert({
           user_id: userId,
           lead_id: leadId,
-          title: title,
-          message: message,
+          title: notificationDetails.title,
+          message: notificationDetails.message,
           type: 'kiwify_event',
         });
 
       if (notifError) {
         console.error('Error creating notification:', notifError);
       }
+    }
 
-      // For abandoned carts, schedule WhatsApp recovery message (within 30 minutes)
-      if (payload.webhook_event_type === 'carrinho_abandonado' && payload.Customer.mobile) {
-        console.log('Triggering abandoned cart WhatsApp alert for:', payload.Customer.full_name);
+    // For abandoned carts, schedule WhatsApp recovery message (within 30 minutes)
+    if (payload.webhook_event_type.toLowerCase() === 'carrinho_abandonado' && payload.Customer.mobile) {
+      console.log('Triggering abandoned cart WhatsApp alert for:', payload.Customer.full_name);
+      
+      try {
+        const alertResponse = await fetch(`${supabaseUrl}/functions/v1/abandoned-cart-alert`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${supabaseServiceKey}`,
+          },
+          body: JSON.stringify({
+            leadId: leadId,
+            leadName: payload.Customer.full_name,
+            productName: payload.product_name,
+            phone: payload.Customer.mobile,
+          }),
+        });
         
-        // Call abandoned cart alert function immediately (will be sent via ManyChat Flow)
-        try {
-          const alertResponse = await fetch(`${supabaseUrl}/functions/v1/abandoned-cart-alert`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${supabaseServiceKey}`,
-            },
-            body: JSON.stringify({
-              leadId: leadId,
-              leadName: payload.Customer.full_name,
-              productName: payload.product_name,
-              phone: payload.Customer.mobile,
-            }),
-          });
-          
-          const alertResult = await alertResponse.json();
-          console.log('Abandoned cart alert result:', alertResult);
-        } catch (alertError) {
-          console.error('Error sending abandoned cart alert:', alertError);
-        }
+        const alertResult = await alertResponse.json();
+        console.log('Abandoned cart alert result:', alertResult);
+      } catch (alertError) {
+        console.error('Error sending abandoned cart alert:', alertError);
       }
     }
 
