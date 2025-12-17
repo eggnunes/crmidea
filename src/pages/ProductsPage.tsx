@@ -13,6 +13,8 @@ import {
   BookOpen
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { MonthlySalesReport } from "@/components/MonthlySalesReport";
+import { Separator } from "@/components/ui/separator";
 
 const productIcons: Record<string, React.ElementType> = {
   consultoria: Crown,
@@ -174,6 +176,11 @@ export function ProductsPage() {
         <h1 className="text-3xl font-bold text-foreground">Produtos</h1>
         <p className="text-muted-foreground mt-1">Desempenho e métricas de cada produto</p>
       </div>
+
+      {/* Monthly Sales Report */}
+      <MonthlySalesReport leads={leads} />
+
+      <Separator className="my-6" />
 
       {/* High Ticket */}
       <div>
