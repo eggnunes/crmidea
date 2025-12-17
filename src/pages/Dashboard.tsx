@@ -13,6 +13,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { DashboardCharts } from "@/components/DashboardCharts";
+import { RecoveryAlertsCard } from "@/components/RecoveryAlertsCard";
+import { RecentPurchasesCard } from "@/components/RecentPurchasesCard";
 
 function StatCard({ 
   title, 
@@ -213,6 +215,12 @@ export function DashboardPage() {
 
       {/* Charts Section */}
       <DashboardCharts leads={leads} />
+
+      {/* Recovery Alerts and Recent Purchases */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <RecoveryAlertsCard leads={leads} />
+        <RecentPurchasesCard leads={leads} />
+      </div>
 
       {/* Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
