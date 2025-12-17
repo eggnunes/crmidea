@@ -8,6 +8,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { 
   StickyNote, 
   Tag,
@@ -23,7 +34,8 @@ import {
   Edit3,
   UserPlus,
   Users,
-  Search
+  Search,
+  Trash2
 } from "lucide-react";
 import { WhatsAppConversation } from "@/hooks/useWhatsAppConversations";
 import { useWhatsAppContacts, ContactTag } from "@/hooks/useWhatsAppContacts";
@@ -40,9 +52,10 @@ interface ChatDetailsSidebarProps {
   conversation: WhatsAppConversation;
   onContactNameUpdated: () => void;
   onQuickResponseSelect: (content: string) => void;
+  onDeleteConversation?: () => void;
 }
 
-export function ChatDetailsSidebar({ conversation, onContactNameUpdated, onQuickResponseSelect }: ChatDetailsSidebarProps) {
+export function ChatDetailsSidebar({ conversation, onContactNameUpdated, onQuickResponseSelect, onDeleteConversation }: ChatDetailsSidebarProps) {
   const { toast } = useToast();
   const { contacts, tags, createContact, createTag, refetch: refetchContacts } = useWhatsAppContacts();
   const { responses } = useQuickResponses();
@@ -50,6 +63,7 @@ export function ChatDetailsSidebar({ conversation, onContactNameUpdated, onQuick
   const { assignees, availableUsers, assignUser, removeAssignee, refetch: refetchAssignees } = useConversationAssignees(conversation.id);
   
   const [activeTab, setActiveTab] = useState("info");
+  const [deletingConversation, setDeletingConversation] = useState(false);
   
   // Name editing
   const [editingName, setEditingName] = useState(false);
@@ -87,6 +101,41 @@ export function ChatDetailsSidebar({ conversation, onContactNameUpdated, onQuick
   const [searchingSubscriber, setSearchingSubscriber] = useState(false);
 
   const existingContact = contacts.find(c => c.phone === conversation.contact_phone);
+
+  const handleDeleteConversation = async () => {
+    setDeletingConversation(true);
+    try {
+      // First delete all messages in the conversation
+      const { error: messagesError } = await supabase
+        .from("whatsapp_messages")
+        .delete()
+        .eq("conversation_id", conversation.id);
+      
+      if (messagesError) throw messagesError;
+
+      // Delete conversation assignees
+      await supabase
+        .from("conversation_assignees")
+        .delete()
+        .eq("conversation_id", conversation.id);
+
+      // Then delete the conversation
+      const { error: convError } = await supabase
+        .from("whatsapp_conversations")
+        .delete()
+        .eq("id", conversation.id);
+      
+      if (convError) throw convError;
+      
+      toast({ title: "Sucesso", description: "Conversa excluída" });
+      onDeleteConversation?.();
+    } catch (error) {
+      console.error("Error deleting conversation:", error);
+      toast({ title: "Erro", description: "Não foi possível excluir a conversa", variant: "destructive" });
+    } finally {
+      setDeletingConversation(false);
+    }
+  };
 
   const formatPhone = (phone: string) => {
     if (phone.length === 13) {
@@ -490,6 +539,36 @@ export function ChatDetailsSidebar({ conversation, onContactNameUpdated, onQuick
                 </div>
               </div>
             )}
+            
+            {/* Delete conversation */}
+            <div className="pt-4 border-t">
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" size="sm" className="w-full" disabled={deletingConversation}>
+                    {deletingConversation ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Trash2 className="w-4 h-4 mr-2" />
+                    )}
+                    Excluir conversa
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Excluir conversa</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Tem certeza que deseja excluir esta conversa? Esta ação não pode ser desfeita e todas as mensagens serão perdidas.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDeleteConversation} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                      Excluir
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
           </TabsContent>
 
           {/* Assignees Tab */}
