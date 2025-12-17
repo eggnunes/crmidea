@@ -178,6 +178,73 @@ function getNotificationDetails(eventType: string, customerName: string, product
   }
 }
 
+// Generate product-specific welcome messages
+function getProductWelcomeMessage(firstName: string, productName: string, productType: string, isRenewal: boolean = false): string {
+  const transferNote = `\n\n💬 Se precisar falar diretamente comigo, digite *"falar com Rafael"* a qualquer momento.`;
+  
+  if (isRenewal) {
+    return `🔄 *Olá, ${firstName}!*\n\n` +
+      `Obrigado por renovar sua assinatura do *${productName}*! 🎉\n\n` +
+      `Sua confiança é muito importante para nós. Continue aproveitando todo o conteúdo!\n\n` +
+      `_Equipe IDEA_${transferNote}`;
+  }
+  
+  switch (productType) {
+    case 'consultoria':
+      return `🎯 *Parabéns pela decisão, ${firstName}!*\n\n` +
+        `Seja muito bem-vindo(a) à *Consultoria de IA para Escritórios de Advocacia*! 🚀\n\n` +
+        `Esta é uma jornada de transformação digital personalizada para seu escritório. Em breve, entrarei em contato para agendar nossa primeira reunião estratégica.\n\n` +
+        `Prepare-se para revolucionar a forma como você trabalha! 💼\n\n` +
+        `_Rafael Nogueira - IDEA_${transferNote}`;
+    
+    case 'mentoria_coletiva':
+    case 'mentoria_individual':
+      const mentoringType = productType === 'mentoria_individual' ? 'Individual' : 'Coletiva';
+      return `🌟 *Bem-vindo(a) à Mentoria ${mentoringType}, ${firstName}!*\n\n` +
+        `Parabéns pela sua decisão de investir no seu desenvolvimento profissional! 🎓\n\n` +
+        `${productType === 'mentoria_individual' 
+          ? 'Você terá acompanhamento exclusivo e personalizado para dominar a IA na advocacia.'
+          : 'Você faz parte agora de um grupo seleto de advogados que estão na vanguarda da tecnologia.'}\n\n` +
+        `Em breve você receberá todos os detalhes de acesso e nosso cronograma.\n\n` +
+        `_Equipe IDEA_${transferNote}`;
+    
+    case 'curso_idea':
+      return `🎉 *Parabéns, ${firstName}!*\n\n` +
+        `Seja muito bem-vindo(a) ao *Curso IDEA* - 11 módulos e mais de 70 aulas sobre Inteligência Artificial na Advocacia! 📚\n\n` +
+        `Você está prestes a descobrir como a IA pode transformar sua prática jurídica. Seu acesso será liberado em instantes!\n\n` +
+        `Prepare-se para uma jornada incrível de aprendizado! 🚀\n\n` +
+        `_Equipe IDEA_${transferNote}`;
+    
+    case 'guia_ia':
+      return `📖 *Excelente escolha, ${firstName}!*\n\n` +
+        `Seja bem-vindo(a) ao *Guia de IA para Advogados*! ⚖️\n\n` +
+        `Este e-book vai te dar uma visão completa de como aplicar Inteligência Artificial no seu dia a dia jurídico.\n\n` +
+        `Seu acesso será enviado em instantes. Boa leitura! 📱\n\n` +
+        `_Equipe IDEA_${transferNote}`;
+    
+    case 'codigo_prompts':
+      return `🔑 *Parabéns pela aquisição, ${firstName}!*\n\n` +
+        `Seja bem-vindo(a) ao *Código de Prompts*! 💡\n\n` +
+        `Você agora tem acesso a uma biblioteca de prompts prontos e otimizados para advogados. Prepare-se para acelerar seu trabalho com IA!\n\n` +
+        `Seu acesso será enviado em instantes.\n\n` +
+        `_Equipe IDEA_${transferNote}`;
+    
+    case 'combo_ebooks':
+      return `📚 *Incrível, ${firstName}!*\n\n` +
+        `Você adquiriu o *Combo Completo de E-books*! 🎁\n\n` +
+        `Guia de IA para Advogados + Código de Prompts + bônus exclusivos. Tudo que você precisa para dominar a IA na advocacia!\n\n` +
+        `Seus acessos serão enviados em instantes. Aproveite! 🚀\n\n` +
+        `_Equipe IDEA_${transferNote}`;
+    
+    default:
+      return `🎉 *Parabéns pela sua compra, ${firstName}!*\n\n` +
+        `Seja muito bem-vindo(a) ao *${productName}*! 🚀\n\n` +
+        `Estamos muito felizes em ter você conosco nessa jornada de transformação com Inteligência Artificial na advocacia.\n\n` +
+        `Em breve você receberá todas as informações de acesso. Se tiver qualquer dúvida, estou aqui para ajudar! 💬\n\n` +
+        `_Equipe IDEA_${transferNote}`;
+  }
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -362,7 +429,8 @@ Deno.serve(async (req) => {
     }
 
     // For successful purchases, send welcome message via WhatsApp
-    if (payload.webhook_event_type.toLowerCase() === 'compra_aprovada' && payload.Customer.mobile) {
+    if ((payload.webhook_event_type.toLowerCase() === 'compra_aprovada' || 
+         payload.webhook_event_type.toLowerCase() === 'assinatura_renovada') && payload.Customer.mobile) {
       console.log('Sending welcome message for purchase:', payload.Customer.full_name);
       
       try {
@@ -374,11 +442,13 @@ Deno.serve(async (req) => {
           const phone = payload.Customer.mobile.replace(/\D/g, '');
           const formattedPhone = phone.startsWith('55') ? phone : `55${phone}`;
           
-          const welcomeMessage = `🎉 *Parabéns pela sua compra, ${payload.Customer.full_name.split(' ')[0]}!*\n\n` +
-            `Seja muito bem-vindo(a) ao *${payload.product_name}*! 🚀\n\n` +
-            `Estamos muito felizes em ter você conosco nessa jornada de transformação com Inteligência Artificial na advocacia.\n\n` +
-            `Em breve você receberá todas as informações de acesso. Se tiver qualquer dúvida, estou aqui para ajudar! 💬\n\n` +
-            `_Equipe IDEA_`;
+          // Get product-specific welcome message
+          const welcomeMessage = getProductWelcomeMessage(
+            payload.Customer.full_name.split(' ')[0],
+            payload.product_name,
+            productType,
+            payload.webhook_event_type.toLowerCase() === 'assinatura_renovada'
+          );
           
           const zapiResponse = await fetch(
             `https://api.z-api.io/instances/${zapiInstanceId}/token/${zapiToken}/send-text`,

@@ -78,6 +78,30 @@ function getAlertType(lead: Lead): AlertItem | null {
     };
   }
   
+  if (notes.includes('assinatura_cancelada')) {
+    return {
+      lead,
+      type: 'chargeback',
+      icon: XCircle,
+      label: 'Assinatura Cancelada',
+      color: 'text-destructive',
+      bgColor: 'bg-destructive/10',
+      urgency: 'alta'
+    };
+  }
+  
+  if (notes.includes('assinatura_atrasada')) {
+    return {
+      lead,
+      type: 'chargeback',
+      icon: AlertTriangle,
+      label: 'Pagamento Atrasado',
+      color: 'text-warning',
+      bgColor: 'bg-warning/10',
+      urgency: 'alta'
+    };
+  }
+  
   return null;
 }
 
