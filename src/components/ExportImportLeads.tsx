@@ -1,18 +1,215 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import * as XLSX from 'xlsx';
 import { Button } from '@/components/ui/button';
-import { Download, Upload } from 'lucide-react';
+import { Download, Upload, FileSpreadsheet } from 'lucide-react';
 import { Lead, ProductType, LeadStatus, PRODUCTS, STATUSES } from '@/types/crm';
 import { useToast } from '@/hooks/use-toast';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 interface ExportImportLeadsProps {
   leads: Lead[];
   onImport: (leads: Omit<Lead, 'id' | 'createdAt' | 'updatedAt' | 'interactions'>[]) => Promise<void>;
 }
 
+// Mapeamento inteligente de status Kiwify para CRM
+const kiwifyStatusMap: Record<string, LeadStatus> = {
+  // Vendas aprovadas
+  'aprovada': 'fechado-ganho',
+  'pago': 'fechado-ganho',
+  'aprovado': 'fechado-ganho',
+  'completo': 'fechado-ganho',
+  'completed': 'fechado-ganho',
+  'paid': 'fechado-ganho',
+  'compra aprovada': 'fechado-ganho',
+  'venda aprovada': 'fechado-ganho',
+  
+  // Carrinho abandonado / PIX gerado
+  'abandonado': 'fechado-perdido',
+  'carrinho abandonado': 'fechado-perdido',
+  'abandoned': 'fechado-perdido',
+  'pix gerado': 'novo',
+  'boleto gerado': 'novo',
+  'aguardando pagamento': 'novo',
+  'aguardando': 'novo',
+  'pendente': 'novo',
+  'pending': 'novo',
+  
+  // Reembolsos
+  'reembolsado': 'fechado-perdido',
+  'reembolso': 'fechado-perdido',
+  'refunded': 'fechado-perdido',
+  'refund': 'fechado-perdido',
+  'estornado': 'fechado-perdido',
+  'compra reembolsada': 'fechado-perdido',
+  
+  // Recusado/Cancelado
+  'recusado': 'fechado-perdido',
+  'recusada': 'fechado-perdido',
+  'cancelado': 'fechado-perdido',
+  'cancelada': 'fechado-perdido',
+  'declined': 'fechado-perdido',
+  'canceled': 'fechado-perdido',
+  'cancelled': 'fechado-perdido',
+  'compra recusada': 'fechado-perdido',
+  
+  // Chargeback
+  'chargeback': 'fechado-perdido',
+  'disputa': 'fechado-perdido',
+  
+  // Assinaturas
+  'assinatura ativa': 'fechado-ganho',
+  'assinatura cancelada': 'fechado-perdido',
+  'assinatura atrasada': 'negociacao',
+  'assinatura renovada': 'fechado-ganho',
+};
+
+// Mapeamento de produtos Kiwify para CRM
+const kiwifyProductMap: Record<string, ProductType> = {
+  // Consultoria
+  'consultoria': 'consultoria',
+  'consultoria idea': 'consultoria',
+  'consultoria ia': 'consultoria',
+  
+  // Mentoria
+  'mentoria coletiva': 'mentoria-coletiva',
+  'mentoria individual': 'mentoria-individual',
+  'mentoria': 'mentoria-coletiva',
+  
+  // Curso
+  'curso idea': 'curso-idea',
+  'curso': 'curso-idea',
+  'idea': 'curso-idea',
+  
+  // E-books
+  'guia de ia para advogados': 'guia-ia',
+  'guia de ia': 'guia-ia',
+  'guia ia': 'guia-ia',
+  'ebook guia': 'guia-ia',
+  
+  'código dos prompts': 'codigo-prompts',
+  'codigo dos prompts': 'codigo-prompts',
+  'código de prompts': 'codigo-prompts',
+  'prompts': 'codigo-prompts',
+  
+  'combo': 'combo-ebooks',
+  'combo ebooks': 'combo-ebooks',
+  'combo e-books': 'combo-ebooks',
+  'pacote ebooks': 'combo-ebooks',
+};
+
+function detectKiwifyStatus(row: Record<string, unknown>): LeadStatus | null {
+  // Procura por colunas de status típicas da Kiwify
+  const statusColumns = [
+    'Status', 'status', 'Status da Compra', 'status da compra',
+    'Situação', 'situação', 'Situacao', 'situacao',
+    'Status do Pedido', 'status do pedido',
+    'Estado', 'estado'
+  ];
+  
+  for (const col of statusColumns) {
+    if (row[col]) {
+      const statusValue = String(row[col]).toLowerCase().trim();
+      if (kiwifyStatusMap[statusValue]) {
+        return kiwifyStatusMap[statusValue];
+      }
+    }
+  }
+  
+  return null;
+}
+
+function detectKiwifyProduct(row: Record<string, unknown>): ProductType | null {
+  const productColumns = [
+    'Produto', 'produto', 'Product', 'product',
+    'Nome do Produto', 'nome do produto',
+    'Oferta', 'oferta', 'Item', 'item'
+  ];
+  
+  for (const col of productColumns) {
+    if (row[col]) {
+      const productValue = String(row[col]).toLowerCase().trim();
+      
+      // Busca exata primeiro
+      if (kiwifyProductMap[productValue]) {
+        return kiwifyProductMap[productValue];
+      }
+      
+      // Busca parcial
+      for (const [key, value] of Object.entries(kiwifyProductMap)) {
+        if (productValue.includes(key) || key.includes(productValue)) {
+          return value;
+        }
+      }
+    }
+  }
+  
+  return null;
+}
+
+function detectKiwifyValue(row: Record<string, unknown>): number {
+  const valueColumns = [
+    'Valor', 'valor', 'Value', 'value',
+    'Preço', 'preco', 'preço', 'Price', 'price',
+    'Valor da Compra', 'valor da compra',
+    'Total', 'total', 'Valor Total', 'valor total'
+  ];
+  
+  for (const col of valueColumns) {
+    if (row[col] !== undefined && row[col] !== null && row[col] !== '') {
+      let value = row[col];
+      
+      // Se for string, limpa e converte
+      if (typeof value === 'string') {
+        // Remove R$, espaços, pontos de milhar
+        value = value.replace(/[R$\s.]/g, '').replace(',', '.');
+      }
+      
+      const numValue = parseFloat(String(value));
+      if (!isNaN(numValue) && numValue > 0) {
+        return numValue;
+      }
+    }
+  }
+  
+  return 0;
+}
+
+function getEventType(row: Record<string, unknown>): string {
+  const statusColumns = [
+    'Status', 'status', 'Status da Compra', 'status da compra',
+    'Situação', 'situação', 'Situacao', 'situacao'
+  ];
+  
+  for (const col of statusColumns) {
+    if (row[col]) {
+      return String(row[col]).trim();
+    }
+  }
+  
+  return 'Desconhecido';
+}
+
 export function ExportImportLeads({ leads, onImport }: ExportImportLeadsProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+  const [showPreview, setShowPreview] = useState(false);
+  const [previewData, setPreviewData] = useState<{
+    leads: Omit<Lead, 'id' | 'createdAt' | 'updatedAt' | 'interactions'>[];
+    summary: {
+      total: number;
+      vendas: number;
+      abandonados: number;
+      reembolsos: number;
+      pendentes: number;
+      valorTotal: number;
+    };
+  } | null>(null);
 
   const exportToExcel = () => {
     const exportData = leads.map(lead => ({
@@ -33,7 +230,6 @@ export function ExportImportLeads({ leads, onImport }: ExportImportLeadsProps) {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Leads');
 
-    // Auto-size columns
     const colWidths = Object.keys(exportData[0] || {}).map(key => ({
       wch: Math.max(key.length, 15)
     }));
@@ -91,7 +287,7 @@ export function ExportImportLeads({ leads, onImport }: ExportImportLeadsProps) {
         const sheet = workbook.Sheets[sheetName];
         const jsonData = XLSX.utils.sheet_to_json(sheet);
 
-        // Map imported data to Lead format
+        // Map para produtos e status CRM
         const productNameMap: Record<string, ProductType> = {};
         PRODUCTS.forEach(p => {
           productNameMap[p.name.toLowerCase()] = p.id;
@@ -106,25 +302,82 @@ export function ExportImportLeads({ leads, onImport }: ExportImportLeadsProps) {
         });
 
         const importedLeads: Omit<Lead, 'id' | 'createdAt' | 'updatedAt' | 'interactions'>[] = [];
+        let vendas = 0, abandonados = 0, reembolsos = 0, pendentes = 0, valorTotal = 0;
 
         for (const row of jsonData as Record<string, unknown>[]) {
-          const name = String(row['Nome'] || row['name'] || '').trim();
-          const email = String(row['Email'] || row['email'] || '').trim();
+          // Detecta nome - suporta vários formatos
+          const name = String(
+            row['Nome'] || row['name'] || row['Nome do Cliente'] || 
+            row['nome do cliente'] || row['Cliente'] || row['cliente'] ||
+            row['Comprador'] || row['comprador'] || ''
+          ).trim();
+          
+          // Detecta email
+          const email = String(
+            row['Email'] || row['email'] || row['E-mail'] || row['e-mail'] ||
+            row['Email do Cliente'] || row['email do cliente'] || ''
+          ).trim();
 
           if (!name || !email) continue;
 
-          const productKey = String(row['Produto'] || row['product'] || 'consultoria').toLowerCase();
-          const statusKey = String(row['Status'] || row['status'] || 'novo').toLowerCase();
+          // Detecta status automaticamente (Kiwify)
+          let status: LeadStatus = 'novo';
+          const kiwifyStatus = detectKiwifyStatus(row);
+          if (kiwifyStatus) {
+            status = kiwifyStatus;
+          } else {
+            // Fallback para mapeamento tradicional
+            const statusKey = String(row['Status'] || row['status'] || 'novo').toLowerCase();
+            status = statusNameMap[statusKey] || 'novo';
+          }
+
+          // Detecta produto automaticamente (Kiwify)
+          let product: ProductType = 'consultoria';
+          const kiwifyProduct = detectKiwifyProduct(row);
+          if (kiwifyProduct) {
+            product = kiwifyProduct;
+          } else {
+            const productKey = String(row['Produto'] || row['product'] || 'consultoria').toLowerCase();
+            product = productNameMap[productKey] || 'consultoria';
+          }
+
+          // Detecta valor
+          const value = detectKiwifyValue(row);
+
+          // Contabiliza estatísticas
+          const eventType = getEventType(row).toLowerCase();
+          if (status === 'fechado-ganho') {
+            vendas++;
+            valorTotal += value;
+          } else if (eventType.includes('abandon') || eventType.includes('carrinho')) {
+            abandonados++;
+          } else if (eventType.includes('reembolso') || eventType.includes('refund')) {
+            reembolsos++;
+          } else if (status === 'novo') {
+            pendentes++;
+          }
+
+          // Detecta telefone
+          const phone = String(
+            row['Telefone'] || row['phone'] || row['Tel'] || row['tel'] ||
+            row['Celular'] || row['celular'] || row['WhatsApp'] || row['whatsapp'] || ''
+          ).trim();
+
+          // Gera nota com tipo do evento original
+          const originalEvent = getEventType(row);
+          const notes = originalEvent !== 'Desconhecido' 
+            ? `Importado Kiwify: ${originalEvent}` 
+            : String(row['Observações'] || row['notes'] || '');
 
           importedLeads.push({
             name,
             email,
-            phone: String(row['Telefone'] || row['phone'] || ''),
-            product: productNameMap[productKey] || 'consultoria',
-            status: statusNameMap[statusKey] || 'novo',
-            value: Number(row['Valor'] || row['value']) || 0,
-            source: String(row['Origem'] || row['source'] || ''),
-            notes: String(row['Observações'] || row['notes'] || '')
+            phone,
+            product,
+            status,
+            value,
+            source: String(row['Origem'] || row['source'] || 'Kiwify'),
+            notes
           });
         }
 
@@ -137,7 +390,19 @@ export function ExportImportLeads({ leads, onImport }: ExportImportLeadsProps) {
           return;
         }
 
-        await onImport(importedLeads);
+        // Mostra preview antes de importar
+        setPreviewData({
+          leads: importedLeads,
+          summary: {
+            total: importedLeads.length,
+            vendas,
+            abandonados,
+            reembolsos,
+            pendentes,
+            valorTotal
+          }
+        });
+        setShowPreview(true);
       };
 
       reader.readAsBinaryString(file);
@@ -150,10 +415,17 @@ export function ExportImportLeads({ leads, onImport }: ExportImportLeadsProps) {
       });
     }
 
-    // Reset input
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+  };
+
+  const confirmImport = async () => {
+    if (!previewData) return;
+    
+    await onImport(previewData.leads);
+    setShowPreview(false);
+    setPreviewData(null);
   };
 
   const downloadTemplate = () => {
@@ -167,141 +439,119 @@ export function ExportImportLeads({ leads, onImport }: ExportImportLeadsProps) {
         Valor: 15000,
         Origem: 'Kiwify',
         Observações: 'Venda realizada em Janeiro/2024'
-      },
-      {
-        Nome: 'Dra. Maria Santos',
-        Email: 'maria@exemplo.com',
-        Telefone: '(21) 98888-5678',
-        Produto: 'guia-ia',
-        Status: 'fechado-ganho',
-        Valor: 99,
-        Origem: 'Kiwify',
-        Observações: 'E-book vendido em Fevereiro/2024'
-      },
-      {
-        Nome: 'Dr. Carlos Lima',
-        Email: 'carlos@exemplo.com',
-        Telefone: '(31) 97777-9012',
-        Produto: 'curso-idea',
-        Status: 'fechado-ganho',
-        Valor: 497,
-        Origem: 'Kiwify',
-        Observações: 'Curso vendido em Março/2024'
       }
     ];
 
-    // Add instructions sheet
     const instructionsData = [
-      { Campo: 'Nome', Descrição: 'Nome completo do cliente', Obrigatório: 'Sim', Exemplo: 'Dr. João Silva' },
-      { Campo: 'Email', Descrição: 'E-mail do cliente', Obrigatório: 'Sim', Exemplo: 'joao@exemplo.com' },
-      { Campo: 'Telefone', Descrição: 'Telefone com DDD', Obrigatório: 'Não', Exemplo: '(11) 99999-1234' },
-      { Campo: 'Produto', Descrição: 'ID do produto (ver lista abaixo)', Obrigatório: 'Sim', Exemplo: 'consultoria' },
-      { Campo: 'Status', Descrição: 'Status do lead (ver lista abaixo)', Obrigatório: 'Sim', Exemplo: 'fechado-ganho' },
-      { Campo: 'Valor', Descrição: 'Valor da venda em R$ (sem centavos)', Obrigatório: 'Sim para vendas', Exemplo: '15000' },
-      { Campo: 'Origem', Descrição: 'Origem do lead', Obrigatório: 'Não', Exemplo: 'Kiwify' },
-      { Campo: 'Observações', Descrição: 'Notas adicionais', Obrigatório: 'Não', Exemplo: 'Venda de Janeiro/2024' },
-    ];
-
-    const productsData = [
-      { ID: 'consultoria', Nome: 'Consultoria IDEA', Ticket: 'Alto' },
-      { ID: 'mentoria-coletiva', Nome: 'Mentoria Coletiva', Ticket: 'Médio' },
-      { ID: 'mentoria-individual', Nome: 'Mentoria Individual', Ticket: 'Médio-Alto' },
-      { ID: 'curso-idea', Nome: 'Curso IDEA', Ticket: 'Baixo-Médio' },
-      { ID: 'guia-ia', Nome: 'Guia de IA para Advogados', Ticket: 'R$ 99' },
-      { ID: 'codigo-prompts', Nome: 'Código dos Prompts', Ticket: 'R$ 99' },
-      { ID: 'combo-ebooks', Nome: 'Combo de E-books', Ticket: 'R$ 149' },
-    ];
-
-    const statusData = [
-      { ID: 'novo', Nome: 'Novo Lead', Descrição: 'Lead recém capturado' },
-      { ID: 'contato-inicial', Nome: 'Contato Inicial', Descrição: 'Primeiro contato realizado' },
-      { ID: 'negociacao', Nome: 'Em Negociação', Descrição: 'Negociando com o cliente' },
-      { ID: 'proposta-enviada', Nome: 'Proposta Enviada', Descrição: 'Proposta foi enviada' },
-      { ID: 'fechado-ganho', Nome: 'Fechado (Ganho)', Descrição: 'VENDA REALIZADA ✓' },
-      { ID: 'fechado-perdido', Nome: 'Fechado (Perdido)', Descrição: 'Lead perdido' },
+      { Campo: 'Nome', Descrição: 'Nome do cliente (obrigatório)', Exemplo: 'Dr. João Silva' },
+      { Campo: 'Email', Descrição: 'E-mail do cliente (obrigatório)', Exemplo: 'joao@exemplo.com' },
+      { Campo: 'Telefone', Descrição: 'Telefone com DDD', Exemplo: '(11) 99999-1234' },
+      { Campo: 'Produto', Descrição: 'Nome do produto', Exemplo: 'Curso IDEA' },
+      { Campo: 'Status', Descrição: 'Status da transação (detectado automaticamente)', Exemplo: 'Aprovada, Reembolsado, Abandonado' },
+      { Campo: 'Valor', Descrição: 'Valor em R$', Exemplo: '497' },
     ];
 
     const wb = XLSX.utils.book_new();
-    
-    // Template sheet
     const ws = XLSX.utils.json_to_sheet(templateData);
-    ws['!cols'] = [
-      { wch: 22 }, { wch: 28 }, { wch: 18 }, { wch: 20 },
-      { wch: 15 }, { wch: 10 }, { wch: 12 }, { wch: 35 }
-    ];
     XLSX.utils.book_append_sheet(wb, ws, 'Leads');
-
-    // Instructions sheet
+    
     const wsInst = XLSX.utils.json_to_sheet(instructionsData);
-    wsInst['!cols'] = [{ wch: 15 }, { wch: 35 }, { wch: 12 }, { wch: 25 }];
     XLSX.utils.book_append_sheet(wb, wsInst, 'Instruções');
 
-    // Products reference sheet
-    const wsProd = XLSX.utils.json_to_sheet(productsData);
-    wsProd['!cols'] = [{ wch: 20 }, { wch: 30 }, { wch: 15 }];
-    XLSX.utils.book_append_sheet(wb, wsProd, 'Produtos');
-
-    // Status reference sheet
-    const wsStat = XLSX.utils.json_to_sheet(statusData);
-    wsStat['!cols'] = [{ wch: 18 }, { wch: 20 }, { wch: 30 }];
-    XLSX.utils.book_append_sheet(wb, wsStat, 'Status');
-
-    XLSX.writeFile(wb, 'template_importacao_leads.xlsx');
-
-    toast({
-      title: "Template baixado!",
-      description: "Inclui instruções, lista de produtos e status",
-    });
+    XLSX.writeFile(wb, 'template_importacao.xlsx');
+    toast({ title: "Template baixado!" });
   };
 
   return (
-    <div className="flex items-center gap-2">
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept=".xlsx,.xls,.csv"
-        onChange={handleFileUpload}
-        className="hidden"
-      />
-      
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={() => fileInputRef.current?.click()}
-        className="gap-2"
-      >
-        <Upload className="w-4 h-4" />
-        Importar
-      </Button>
+    <>
+      <div className="flex items-center gap-2">
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".xlsx,.xls,.csv"
+          onChange={handleFileUpload}
+          className="hidden"
+        />
+        
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => fileInputRef.current?.click()}
+          className="gap-2"
+        >
+          <Upload className="w-4 h-4" />
+          Importar Kiwify
+        </Button>
 
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={downloadTemplate}
-        className="gap-2"
-      >
-        Template
-      </Button>
+        <Button variant="outline" size="sm" onClick={downloadTemplate}>
+          Template
+        </Button>
 
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={exportToExcel}
-        className="gap-2"
-      >
-        <Download className="w-4 h-4" />
-        Excel
-      </Button>
+        <Button variant="outline" size="sm" onClick={exportToExcel} className="gap-2">
+          <Download className="w-4 h-4" />
+          Excel
+        </Button>
 
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={exportToCSV}
-        className="gap-2"
-      >
-        <Download className="w-4 h-4" />
-        CSV
-      </Button>
-    </div>
+        <Button variant="outline" size="sm" onClick={exportToCSV} className="gap-2">
+          <Download className="w-4 h-4" />
+          CSV
+        </Button>
+      </div>
+
+      <Dialog open={showPreview} onOpenChange={setShowPreview}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileSpreadsheet className="w-5 h-5" />
+              Prévia da Importação Kiwify
+            </DialogTitle>
+            <DialogDescription>
+              O sistema detectou automaticamente os status dos leads
+            </DialogDescription>
+          </DialogHeader>
+
+          {previewData && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-3 rounded-lg bg-muted">
+                  <p className="text-sm text-muted-foreground">Total de Leads</p>
+                  <p className="text-2xl font-bold">{previewData.summary.total}</p>
+                </div>
+                <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20">
+                  <p className="text-sm text-green-600">Vendas Aprovadas</p>
+                  <p className="text-2xl font-bold text-green-600">{previewData.summary.vendas}</p>
+                </div>
+                <div className="p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
+                  <p className="text-sm text-yellow-600">Carrinhos Abandonados</p>
+                  <p className="text-2xl font-bold text-yellow-600">{previewData.summary.abandonados}</p>
+                </div>
+                <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20">
+                  <p className="text-sm text-red-600">Reembolsos</p>
+                  <p className="text-2xl font-bold text-red-600">{previewData.summary.reembolsos}</p>
+                </div>
+              </div>
+
+              {previewData.summary.valorTotal > 0 && (
+                <div className="p-4 rounded-lg bg-primary/10 border border-primary/20">
+                  <p className="text-sm text-muted-foreground">Valor Total em Vendas</p>
+                  <p className="text-3xl font-bold text-primary">
+                    {previewData.summary.valorTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                  </p>
+                </div>
+              )}
+
+              <div className="flex gap-2 pt-4">
+                <Button variant="outline" onClick={() => setShowPreview(false)} className="flex-1">
+                  Cancelar
+                </Button>
+                <Button onClick={confirmImport} className="flex-1">
+                  Importar {previewData.summary.total} Leads
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
