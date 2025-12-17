@@ -428,39 +428,6 @@ export function ExportImportLeads({ leads, onImport }: ExportImportLeadsProps) {
     setPreviewData(null);
   };
 
-  const downloadTemplate = () => {
-    const templateData = [
-      {
-        Nome: 'Dr. João Silva',
-        Email: 'joao@exemplo.com',
-        Telefone: '(11) 99999-1234',
-        Produto: 'consultoria',
-        Status: 'fechado-ganho',
-        Valor: 15000,
-        Origem: 'Kiwify',
-        Observações: 'Venda realizada em Janeiro/2024'
-      }
-    ];
-
-    const instructionsData = [
-      { Campo: 'Nome', Descrição: 'Nome do cliente (obrigatório)', Exemplo: 'Dr. João Silva' },
-      { Campo: 'Email', Descrição: 'E-mail do cliente (obrigatório)', Exemplo: 'joao@exemplo.com' },
-      { Campo: 'Telefone', Descrição: 'Telefone com DDD', Exemplo: '(11) 99999-1234' },
-      { Campo: 'Produto', Descrição: 'Nome do produto', Exemplo: 'Curso IDEA' },
-      { Campo: 'Status', Descrição: 'Status da transação (detectado automaticamente)', Exemplo: 'Aprovada, Reembolsado, Abandonado' },
-      { Campo: 'Valor', Descrição: 'Valor em R$', Exemplo: '497' },
-    ];
-
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.json_to_sheet(templateData);
-    XLSX.utils.book_append_sheet(wb, ws, 'Leads');
-    
-    const wsInst = XLSX.utils.json_to_sheet(instructionsData);
-    XLSX.utils.book_append_sheet(wb, wsInst, 'Instruções');
-
-    XLSX.writeFile(wb, 'template_importacao.xlsx');
-    toast({ title: "Template baixado!" });
-  };
 
   return (
     <>
@@ -483,9 +450,6 @@ export function ExportImportLeads({ leads, onImport }: ExportImportLeadsProps) {
           Importar Kiwify
         </Button>
 
-        <Button variant="outline" size="sm" onClick={downloadTemplate}>
-          Template
-        </Button>
 
         <Button variant="outline" size="sm" onClick={exportToExcel} className="gap-2">
           <Download className="w-4 h-4" />
