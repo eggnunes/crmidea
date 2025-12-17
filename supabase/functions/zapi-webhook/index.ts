@@ -39,10 +39,35 @@ serve(async (req) => {
       
       const phone = payload.phone || payload.from?.replace('@c.us', '').replace('@s.whatsapp.net', '');
       // IMPORTANT: Prioritize pushName (contact's chosen name) over senderName (business contact name)
-      // senderName can sometimes be the business account name, not the contact's actual name
-      const pushName = payload.pushName || payload.senderName || null;
-      // Also check for 'name' field which some Z-API versions use
-      const senderName = pushName || payload.name || null;
+      // Z-API sends the contact name in different fields depending on the event type
+      // pushName is the contact's WhatsApp profile name
+      // senderName may be the business contact name in the phone's address book
+      // notifyName is another field some Z-API versions use
+      const rawPushName = payload.pushName || null;
+      const rawSenderName = payload.senderName || null;
+      const rawNotifyName = payload.notifyName || null;
+      const rawName = payload.name || null;
+      
+      // Priority: pushName > notifyName > senderName > name
+      // But exclude business names (mentoria, idea, etc.)
+      const isBusinessName = (n: string | null) => {
+        if (!n) return true;
+        const lower = n.toLowerCase();
+        return lower.includes('mentoria') || lower.includes('idea') || lower.includes('ideia');
+      };
+      
+      let senderName: string | null = null;
+      if (rawPushName && !isBusinessName(rawPushName)) {
+        senderName = rawPushName;
+      } else if (rawNotifyName && !isBusinessName(rawNotifyName)) {
+        senderName = rawNotifyName;
+      } else if (rawSenderName && !isBusinessName(rawSenderName)) {
+        senderName = rawSenderName;
+      } else if (rawName && !isBusinessName(rawName)) {
+        senderName = rawName;
+      }
+      
+      console.log('Name fields from Z-API:', { rawPushName, rawSenderName, rawNotifyName, rawName, resolvedName: senderName });
       const zapiMessageId = payload.messageId || payload.id?.id;
       const isGroup = payload.isGroup || payload.chatId?.includes('@g.us') || false;
       
@@ -147,15 +172,14 @@ serve(async (req) => {
       } else {
         // Update existing conversation
         // Update contact_name if:
-        // 1. Current name is null/empty (always update)
-        // 2. We have a valid name AND it's not the business name
-        const hasValidName = senderName && 
-          senderName.trim() !== '' && 
-          !senderName.toLowerCase().includes('mentoria') &&
-          !senderName.toLowerCase().includes('idea');
+        // 1. Current name is null/empty (always update with any valid name)
+        // 2. Current name is just the phone number (update with real name)
+        // 3. We have a valid name AND it's different from current
+        const hasValidName = senderName && senderName.trim() !== '';
         
         const currentNameIsEmpty = !conversation.contact_name || conversation.contact_name.trim() === '';
-        const shouldUpdateName = hasValidName && (currentNameIsEmpty || senderName !== conversation.contact_name);
+        const currentNameIsPhone = conversation.contact_name && /^\d+$/.test(conversation.contact_name);
+        const shouldUpdateName = hasValidName && (currentNameIsEmpty || currentNameIsPhone || senderName !== conversation.contact_name);
         
         const updateData: Record<string, unknown> = {
           last_message_at: new Date().toISOString(),
@@ -165,6 +189,8 @@ serve(async (req) => {
         if (shouldUpdateName) {
           updateData.contact_name = senderName;
           console.log(`Updating contact_name from "${conversation.contact_name}" to "${senderName}"`);
+        } else {
+          console.log(`Not updating name: hasValidName=${hasValidName}, currentNameIsEmpty=${currentNameIsEmpty}, currentName="${conversation.contact_name}"`);
         }
         
         await supabase

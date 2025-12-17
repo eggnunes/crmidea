@@ -74,3 +74,6 @@ verify_jwt = true
 
 [functions.generate-chat-transcription]
 verify_jwt = true
+
+[functions.update-instagram-names]
+verify_jwt = false
