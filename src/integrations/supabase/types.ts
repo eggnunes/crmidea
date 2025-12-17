@@ -332,6 +332,7 @@ export type Database = {
           manychat_subscriber_id: string | null
           notify_in_app: boolean
           notify_whatsapp: boolean
+          personal_whatsapp: string | null
           updated_at: string
           user_id: string
         }
@@ -342,6 +343,7 @@ export type Database = {
           manychat_subscriber_id?: string | null
           notify_in_app?: boolean
           notify_whatsapp?: boolean
+          personal_whatsapp?: string | null
           updated_at?: string
           user_id: string
         }
@@ -352,6 +354,7 @@ export type Database = {
           manychat_subscriber_id?: string | null
           notify_in_app?: boolean
           notify_whatsapp?: boolean
+          personal_whatsapp?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -659,6 +662,36 @@ export type Database = {
           created_at?: string
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      welcome_templates: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          message_template: string
+          product_type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          message_template: string
+          product_type: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          message_template?: string
+          product_type?: string
+          updated_at?: string
           user_id?: string
         }
         Relationships: []

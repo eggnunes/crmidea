@@ -10,7 +10,8 @@ import {
   Settings,
   ShieldCheck,
   BarChart3,
-  MessageCircle
+  MessageCircle,
+  Bell
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NavLink } from "@/components/NavLink";
@@ -30,6 +31,7 @@ const navItems = [
   { to: "/produtos", icon: Package, label: "Produtos" },
   { to: "/integracoes", icon: BarChart3, label: "Integrações" },
   { to: "/whatsapp", icon: MessageCircle, label: "Central de Atendimento" },
+  { to: "/alertas", icon: Bell, label: "Central de Alertas" },
   { to: "/configuracoes", icon: Settings, label: "Configurações" },
 ];
 

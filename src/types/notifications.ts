@@ -16,6 +16,17 @@ export interface FollowUpSettings {
   notify_in_app: boolean;
   notify_whatsapp: boolean;
   manychat_subscriber_id: string | null;
+  personal_whatsapp: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WelcomeTemplate {
+  id: string;
+  user_id: string;
+  product_type: string;
+  message_template: string;
+  is_active: boolean;
   created_at: string;
   updated_at: string;
 }
