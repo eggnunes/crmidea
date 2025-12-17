@@ -136,73 +136,47 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Try to extract subscriber ID from various sources
-      igUserId = conv.channel_user_id;
+      // Check if we have a manychat_subscriber_id - that's the ONLY valid ID for ManyChat API
+      // channel_user_id and contact_phone contain Instagram user IDs, NOT ManyChat subscriber IDs
+      const subscriberId = conv.manychat_subscriber_id;
       
-      // If no channel_user_id, try to extract from contact_phone
-      if (!igUserId) {
-        const contactPhone = conv.contact_phone as string;
+      if (subscriberId) {
+        console.log('Found existing manychat_subscriber_id:', subscriberId);
         
-        // contact_phone could be: "2913251505525012" or "ig_1919197228" or "590561846900755"
-        if (contactPhone?.startsWith('ig_')) {
-          igUserId = contactPhone.replace('ig_', '');
-        } else if (contactPhone && /^\d{10,}$/.test(contactPhone)) {
-          // If it's purely numeric with 10+ digits, could be a subscriber_id
-          igUserId = contactPhone;
-        }
-      }
-    }
+        // Fetch subscriber info from ManyChat
+        const subscriberResponse = await fetch(
+          `https://api.manychat.com/fb/subscriber/getInfo?subscriber_id=${subscriberId}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${manychatApiKey}`,
+              'Content-Type': 'application/json',
+            },
+          }
+        );
 
-    // If we have a potential subscriber ID, try to fetch info directly
-    if (igUserId && /^\d+$/.test(igUserId)) {
-      console.log('Trying to fetch subscriber info directly for ID:', igUserId);
-      
-      const subscriberResponse = await fetch(
-        `https://api.manychat.com/fb/subscriber/getInfo?subscriber_id=${igUserId}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${manychatApiKey}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
+        if (subscriberResponse.ok) {
+          const subscriberData = await subscriberResponse.json();
+          console.log('ManyChat subscriber data:', JSON.stringify(subscriberData, null, 2));
 
-      if (subscriberResponse.ok) {
-        const subscriberData = await subscriberResponse.json();
-        console.log('Direct subscriber lookup result:', JSON.stringify(subscriberData, null, 2));
-
-        if (subscriberData?.data?.id) {
-          const subscriberId = subscriberData.data.id.toString();
           const igUsername = subscriberData?.data?.ig_username;
           const fullName = subscriberData?.data?.name || 
             `${subscriberData?.data?.first_name || ''} ${subscriberData?.data?.last_name || ''}`.trim();
           
           const newName = igUsername || fullName || null;
+          
+          // Check if name is valid
+          const isValidName = newName && 
+            !newName.includes('{{') && 
+            !newName.toLowerCase().includes('instagram user') &&
+            !/^ig\s*\d+$/i.test(newName);
 
-          // Update the conversation
-          if (convId && newName) {
-            const updateData: Record<string, unknown> = { manychat_subscriber_id: subscriberId };
-            
-            // Check if name should be updated
-            const currentName = conversation?.contact_name as string | null;
-            const currentIsPlaceholder = !currentName || 
-              /^ig\s*\d*$/i.test(currentName.trim()) ||
-              currentName.toLowerCase().includes('instagram user');
-            
-            if (currentIsPlaceholder && !newName.includes('{{') && !/^ig\s*\d+$/i.test(newName)) {
-              updateData.contact_name = newName;
-            }
-
-            const { error: updateError } = await supabase
+          if (isValidName && newName !== conv.contact_name) {
+            await supabase
               .from('whatsapp_conversations')
-              .update(updateData)
+              .update({ contact_name: newName })
               .eq('id', convId);
-
-            if (updateError) {
-              console.error('Error updating conversation:', updateError);
-            } else {
-              console.log('Updated conversation with subscriber ID and name:', subscriberId, newName);
-            }
+            
+            console.log(`Updated contact name from "${conv.contact_name}" to "${newName}"`);
           }
 
           return new Response(
@@ -214,26 +188,39 @@ Deno.serve(async (req) => {
                 name: newName || fullName,
                 ig_username: igUsername,
               },
-              updated: true,
+              updated: isValidName && newName !== conv.contact_name,
+              newName: isValidName ? newName : conv.contact_name,
             }),
             { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
+        } else {
+          console.log('ManyChat API error:', subscriberResponse.status);
         }
-      } else {
-        console.log('Direct subscriber lookup failed:', subscriberResponse.status);
       }
+      
+      // No manychat_subscriber_id - cannot auto-lookup
+      // Explain that user needs to send a new message via ManyChat to populate the ID
+      console.log('No manychat_subscriber_id found - cannot auto-lookup');
+      
+      return new Response(
+        JSON.stringify({ 
+          error: 'Vinculação automática não disponível', 
+          message: 'Esta conversa foi criada antes da integração com ManyChat.\n\nPara vincular automaticamente:\n1. Peça para o contato enviar uma nova mensagem no Instagram\n2. A mensagem será recebida via ManyChat e vinculará automaticamente\n\nOu vincule manualmente:\n1. Abra o ManyChat > Contacts\n2. Encontre o contato pelo username\n3. Copie o ID numérico do subscriber\n4. Cole no campo acima',
+          limitation: true,
+          requiresNewMessage: true
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    // Fallback: explain the limitation
-    console.log('Could not find subscriber, ManyChat API limitation');
-    
+    // Fallback for missing conversation
     return new Response(
       JSON.stringify({ 
-        error: 'Busca automática não disponível', 
-        message: 'Não foi possível encontrar o subscriber automaticamente. Para vincular o contato:\n\n1. Abra o ManyChat\n2. Vá em Contacts e encontre o contato pelo nome\n3. Copie o ID numérico do subscriber\n4. Cole no campo acima',
+        error: 'Conversa não encontrada', 
+        message: 'Não foi possível encontrar a conversa',
         limitation: true
       }),
-      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
