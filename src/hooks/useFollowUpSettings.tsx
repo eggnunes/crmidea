@@ -47,6 +47,7 @@ export function useFollowUpSettings() {
             notify_in_app: newSettings.notify_in_app,
             notify_whatsapp: newSettings.notify_whatsapp,
             manychat_subscriber_id: newSettings.manychat_subscriber_id,
+            personal_whatsapp: newSettings.personal_whatsapp,
           })
           .eq('id', settings.id);
 
@@ -63,6 +64,7 @@ export function useFollowUpSettings() {
             notify_in_app: newSettings.notify_in_app ?? true,
             notify_whatsapp: newSettings.notify_whatsapp ?? true,
             manychat_subscriber_id: newSettings.manychat_subscriber_id ?? null,
+            personal_whatsapp: newSettings.personal_whatsapp ?? null,
           })
           .select()
           .single();

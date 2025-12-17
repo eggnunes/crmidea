@@ -12,6 +12,7 @@ import { ProductsPage } from "./pages/ProductsPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { IntegrationsDashboardPage } from "./pages/IntegrationsDashboardPage";
 import { WhatsAppPage } from "./pages/WhatsAppPage";
+import { AlertsCenterPage } from "./pages/AlertsCenterPage";
 import AdminUsersPage from "./pages/AdminUsersPage";
 import { AuthPage } from "./pages/AuthPage";
 import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
@@ -55,6 +56,7 @@ function AppRoutes() {
                 <Route path="/produtos" element={<ProductsPage />} />
                 <Route path="/integracoes" element={<IntegrationsDashboardPage />} />
                 <Route path="/whatsapp" element={<WhatsAppPage />} />
+                <Route path="/alertas" element={<AlertsCenterPage />} />
                 <Route path="/configuracoes" element={<SettingsPage />} />
                 <Route path="/admin/usuarios" element={<AdminUsersPage />} />
                 <Route path="*" element={<NotFound />} />

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Settings, Bell, User, Palette, Database, Shield, Send, Loader2, Link2, CheckCircle, XCircle, RefreshCw } from "lucide-react";
+import { Settings, Bell, User, Palette, Database, Shield, Send, Loader2, Link2, CheckCircle, XCircle, RefreshCw, Sparkles } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
@@ -14,6 +14,8 @@ import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { FollowUpLogsCard } from "@/components/FollowUpLogsCard";
 import { Badge } from "@/components/ui/badge";
+import { WelcomeTemplatesManager } from "@/components/WelcomeTemplatesManager";
+import { PersonalWhatsAppConfig } from "@/components/PersonalWhatsAppConfig";
 
 export function SettingsPage() {
   const { user } = useAuth();
@@ -240,10 +242,14 @@ export function SettingsPage() {
 
       {/* Settings Tabs */}
       <Tabs defaultValue="notifications" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-flex">
+        <TabsList className="grid w-full grid-cols-6 lg:w-auto lg:inline-flex">
           <TabsTrigger value="notifications" className="gap-2">
             <Bell className="w-4 h-4" />
             <span className="hidden sm:inline">Notificações</span>
+          </TabsTrigger>
+          <TabsTrigger value="templates" className="gap-2">
+            <Sparkles className="w-4 h-4" />
+            <span className="hidden sm:inline">Templates</span>
           </TabsTrigger>
           <TabsTrigger value="integrations" className="gap-2">
             <Link2 className="w-4 h-4" />
@@ -372,6 +378,12 @@ export function SettingsPage() {
           </Card>
 
           <FollowUpLogsCard />
+        </TabsContent>
+
+        {/* Templates Tab */}
+        <TabsContent value="templates" className="space-y-6">
+          <WelcomeTemplatesManager />
+          <PersonalWhatsAppConfig />
         </TabsContent>
 
         {/* Integrations Tab */}
