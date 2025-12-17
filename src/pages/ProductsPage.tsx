@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MonthlySalesReport } from "@/components/MonthlySalesReport";
+import { SalesEvolutionChart } from "@/components/SalesEvolutionChart";
 import { Separator } from "@/components/ui/separator";
 
 const productIcons: Record<string, React.ElementType> = {
@@ -179,6 +180,9 @@ export function ProductsPage() {
 
       {/* Monthly Sales Report */}
       <MonthlySalesReport leads={leads} />
+
+      {/* Sales Evolution Chart */}
+      <SalesEvolutionChart leads={leads} />
 
       <Separator className="my-6" />
 

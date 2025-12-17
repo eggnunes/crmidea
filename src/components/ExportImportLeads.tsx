@@ -163,27 +163,94 @@ export function ExportImportLeads({ leads, onImport }: ExportImportLeadsProps) {
         Email: 'joao@exemplo.com',
         Telefone: '(11) 99999-1234',
         Produto: 'consultoria',
-        Status: 'novo',
+        Status: 'fechado-ganho',
         Valor: 15000,
-        Origem: 'Instagram',
-        Observações: 'Lead qualificado'
+        Origem: 'Kiwify',
+        Observações: 'Venda realizada em Janeiro/2024'
+      },
+      {
+        Nome: 'Dra. Maria Santos',
+        Email: 'maria@exemplo.com',
+        Telefone: '(21) 98888-5678',
+        Produto: 'guia-ia',
+        Status: 'fechado-ganho',
+        Valor: 99,
+        Origem: 'Kiwify',
+        Observações: 'E-book vendido em Fevereiro/2024'
+      },
+      {
+        Nome: 'Dr. Carlos Lima',
+        Email: 'carlos@exemplo.com',
+        Telefone: '(31) 97777-9012',
+        Produto: 'curso-idea',
+        Status: 'fechado-ganho',
+        Valor: 497,
+        Origem: 'Kiwify',
+        Observações: 'Curso vendido em Março/2024'
       }
     ];
 
-    const ws = XLSX.utils.json_to_sheet(templateData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Template');
-
-    ws['!cols'] = [
-      { wch: 20 }, { wch: 25 }, { wch: 18 }, { wch: 20 },
-      { wch: 15 }, { wch: 10 }, { wch: 15 }, { wch: 30 }
+    // Add instructions sheet
+    const instructionsData = [
+      { Campo: 'Nome', Descrição: 'Nome completo do cliente', Obrigatório: 'Sim', Exemplo: 'Dr. João Silva' },
+      { Campo: 'Email', Descrição: 'E-mail do cliente', Obrigatório: 'Sim', Exemplo: 'joao@exemplo.com' },
+      { Campo: 'Telefone', Descrição: 'Telefone com DDD', Obrigatório: 'Não', Exemplo: '(11) 99999-1234' },
+      { Campo: 'Produto', Descrição: 'ID do produto (ver lista abaixo)', Obrigatório: 'Sim', Exemplo: 'consultoria' },
+      { Campo: 'Status', Descrição: 'Status do lead (ver lista abaixo)', Obrigatório: 'Sim', Exemplo: 'fechado-ganho' },
+      { Campo: 'Valor', Descrição: 'Valor da venda em R$ (sem centavos)', Obrigatório: 'Sim para vendas', Exemplo: '15000' },
+      { Campo: 'Origem', Descrição: 'Origem do lead', Obrigatório: 'Não', Exemplo: 'Kiwify' },
+      { Campo: 'Observações', Descrição: 'Notas adicionais', Obrigatório: 'Não', Exemplo: 'Venda de Janeiro/2024' },
     ];
 
-    XLSX.writeFile(wb, 'template_leads.xlsx');
+    const productsData = [
+      { ID: 'consultoria', Nome: 'Consultoria IDEA', Ticket: 'Alto' },
+      { ID: 'mentoria-coletiva', Nome: 'Mentoria Coletiva', Ticket: 'Médio' },
+      { ID: 'mentoria-individual', Nome: 'Mentoria Individual', Ticket: 'Médio-Alto' },
+      { ID: 'curso-idea', Nome: 'Curso IDEA', Ticket: 'Baixo-Médio' },
+      { ID: 'guia-ia', Nome: 'Guia de IA para Advogados', Ticket: 'R$ 99' },
+      { ID: 'codigo-prompts', Nome: 'Código dos Prompts', Ticket: 'R$ 99' },
+      { ID: 'combo-ebooks', Nome: 'Combo de E-books', Ticket: 'R$ 149' },
+    ];
+
+    const statusData = [
+      { ID: 'novo', Nome: 'Novo Lead', Descrição: 'Lead recém capturado' },
+      { ID: 'contato-inicial', Nome: 'Contato Inicial', Descrição: 'Primeiro contato realizado' },
+      { ID: 'negociacao', Nome: 'Em Negociação', Descrição: 'Negociando com o cliente' },
+      { ID: 'proposta-enviada', Nome: 'Proposta Enviada', Descrição: 'Proposta foi enviada' },
+      { ID: 'fechado-ganho', Nome: 'Fechado (Ganho)', Descrição: 'VENDA REALIZADA ✓' },
+      { ID: 'fechado-perdido', Nome: 'Fechado (Perdido)', Descrição: 'Lead perdido' },
+    ];
+
+    const wb = XLSX.utils.book_new();
+    
+    // Template sheet
+    const ws = XLSX.utils.json_to_sheet(templateData);
+    ws['!cols'] = [
+      { wch: 22 }, { wch: 28 }, { wch: 18 }, { wch: 20 },
+      { wch: 15 }, { wch: 10 }, { wch: 12 }, { wch: 35 }
+    ];
+    XLSX.utils.book_append_sheet(wb, ws, 'Leads');
+
+    // Instructions sheet
+    const wsInst = XLSX.utils.json_to_sheet(instructionsData);
+    wsInst['!cols'] = [{ wch: 15 }, { wch: 35 }, { wch: 12 }, { wch: 25 }];
+    XLSX.utils.book_append_sheet(wb, wsInst, 'Instruções');
+
+    // Products reference sheet
+    const wsProd = XLSX.utils.json_to_sheet(productsData);
+    wsProd['!cols'] = [{ wch: 20 }, { wch: 30 }, { wch: 15 }];
+    XLSX.utils.book_append_sheet(wb, wsProd, 'Produtos');
+
+    // Status reference sheet
+    const wsStat = XLSX.utils.json_to_sheet(statusData);
+    wsStat['!cols'] = [{ wch: 18 }, { wch: 20 }, { wch: 30 }];
+    XLSX.utils.book_append_sheet(wb, wsStat, 'Status');
+
+    XLSX.writeFile(wb, 'template_importacao_leads.xlsx');
 
     toast({
       title: "Template baixado!",
-      description: "Use este modelo para importar seus leads",
+      description: "Inclui instruções, lista de produtos e status",
     });
   };
 
