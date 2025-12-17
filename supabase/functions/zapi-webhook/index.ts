@@ -25,6 +25,18 @@ serve(async (req) => {
     
     // Handle incoming message
     if (eventType === 'ReceivedCallback' || payload.isNewsletter === false) {
+      // CRITICAL: Check if message was sent BY the business (fromMe = true)
+      // If fromMe is true, this is an outgoing message we sent, NOT an incoming message from contact
+      // Skip processing to avoid AI responding to its own messages
+      const fromMe = payload.fromMe === true;
+      
+      if (fromMe) {
+        console.log('Message sent by business (fromMe: true), skipping to avoid loop');
+        return new Response(JSON.stringify({ status: 'skipped', reason: 'fromMe' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      
       const phone = payload.phone || payload.from?.replace('@c.us', '').replace('@s.whatsapp.net', '');
       const senderName = payload.senderName || payload.pushName || null;
       const zapiMessageId = payload.messageId || payload.id?.id;
