@@ -449,61 +449,67 @@ export function ChatDetailsSidebar({ conversation, onContactNameUpdated, onQuick
                     )}
                   </p>
                 )}
-                {!conversation.manychat_subscriber_id && (
-                  <div className="space-y-2 mt-2">
+                {/* Button to search/update subscriber info */}
+                <div className="space-y-2 mt-2">
+                  {!conversation.manychat_subscriber_id && (
                     <p className="text-xs text-amber-500">
                       Vincule o subscriber ID do ManyChat para enviar mensagens
                     </p>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="w-full"
-                      onClick={async () => {
-                        setSearchingSubscriber(true);
-                        try {
-                          const { data, error } = await supabase.functions.invoke("manychat-find-subscriber", {
-                            body: { conversationId: conversation.id },
-                          });
-                          
-                          if (error) throw error;
-                          
-                          if (data?.error) {
-                            toast({ 
-                              title: data.limitation ? "Limitação da API" : "Não encontrado", 
-                              description: data.message || "Subscriber não encontrado no ManyChat",
-                              variant: data.limitation ? "default" : "destructive",
-                              duration: data.limitation ? 8000 : 5000,
-                            });
-                          } else if (data?.subscriberId) {
-                            setSubscriberId(data.subscriberId);
-                            toast({ 
-                              title: "Sucesso", 
-                              description: `Subscriber encontrado: ${data.subscriberData?.name || data.subscriberId}` 
-                            });
-                            onContactNameUpdated();
-                          }
-                        } catch (error) {
-                          console.error("Error searching subscriber:", error);
+                  )}
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full"
+                    onClick={async () => {
+                      setSearchingSubscriber(true);
+                      try {
+                        const { data, error } = await supabase.functions.invoke("manychat-find-subscriber", {
+                          body: { 
+                            conversationId: conversation.id,
+                            fetchNameOnly: !!conversation.manychat_subscriber_id
+                          },
+                        });
+                        
+                        if (error) throw error;
+                        
+                        if (data?.error) {
                           toast({ 
-                            title: "Erro", 
-                            description: "Não foi possível buscar o subscriber",
-                            variant: "destructive" 
+                            title: data.limitation ? "Limitação da API" : "Não encontrado", 
+                            description: data.message || "Subscriber não encontrado no ManyChat",
+                            variant: data.limitation ? "default" : "destructive",
+                            duration: data.limitation ? 8000 : 5000,
                           });
-                        } finally {
-                          setSearchingSubscriber(false);
+                        } else if (data?.subscriberId) {
+                          setSubscriberId(data.subscriberId);
+                          const message = data.updated && data.newName
+                            ? `Nome atualizado para: ${data.newName}`
+                            : data.subscriberData?.name
+                              ? `Subscriber encontrado: ${data.subscriberData.name}`
+                              : `Subscriber ID: ${data.subscriberId}`;
+                          toast({ title: "Sucesso", description: message });
+                          onContactNameUpdated();
                         }
-                      }}
-                      disabled={searchingSubscriber}
-                    >
-                      {searchingSubscriber ? (
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      ) : (
-                        <Search className="w-4 h-4 mr-2" />
-                      )}
-                      Buscar automaticamente
-                    </Button>
-                  </div>
-                )}
+                      } catch (error) {
+                        console.error("Error searching subscriber:", error);
+                        toast({ 
+                          title: "Erro", 
+                          description: "Não foi possível buscar o subscriber",
+                          variant: "destructive" 
+                        });
+                      } finally {
+                        setSearchingSubscriber(false);
+                      }
+                    }}
+                    disabled={searchingSubscriber}
+                  >
+                    {searchingSubscriber ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Search className="w-4 h-4 mr-2" />
+                    )}
+                    {conversation.manychat_subscriber_id ? "Atualizar nome do ManyChat" : "Buscar automaticamente"}
+                  </Button>
+                </div>
               </div>
             )}
             
