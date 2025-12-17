@@ -68,11 +68,11 @@ Deno.serve(async (req) => {
       return lower.includes('instagram user') || 
              lower.includes('usuário instagram') ||
              lower === 'user' ||
-             lower === 'instagram';
+             lower === 'instagram' ||
+             /^ig\s*\d+$/i.test(lower); // Matches "IG 123456" format
     };
     
     // Use ig_username as primary identifier, but only if it's not a template variable
-    // If ManyChat sends literal {{ig_username}}, fall back to name or a default
     const resolvedUsername = !isTemplateVariable(ig_username) && !isGenericPlaceholder(ig_username) 
       ? ig_username?.trim() 
       : null;
@@ -80,10 +80,52 @@ Deno.serve(async (req) => {
       ? name?.trim() 
       : null;
     
-    // Build best possible contact name - prioritize actual name/username over generic fallbacks
+    // Try to fetch subscriber info from ManyChat to get real Instagram username
+    let manychatUsername: string | null = null;
+    const manychatApiKey = Deno.env.get('MANYCHAT_API_KEY');
+    
+    if (!resolvedUsername && manychatApiKey && subscriber_id) {
+      try {
+        console.log('Fetching subscriber info from ManyChat for:', subscriber_id);
+        const subscriberResponse = await fetch(
+          `https://api.manychat.com/fb/subscriber/getInfo?subscriber_id=${subscriber_id}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${manychatApiKey}`,
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+        
+        if (subscriberResponse.ok) {
+          const subscriberData = await subscriberResponse.json();
+          console.log('ManyChat subscriber data:', JSON.stringify(subscriberData, null, 2));
+          
+          // ManyChat returns ig_username in subscriber data
+          const mcUsername = subscriberData?.data?.ig_username;
+          const mcName = subscriberData?.data?.name || subscriberData?.data?.first_name;
+          
+          if (mcUsername && !isTemplateVariable(mcUsername) && !isGenericPlaceholder(mcUsername)) {
+            manychatUsername = mcUsername;
+            console.log('Got Instagram username from ManyChat API:', manychatUsername);
+          } else if (mcName && !isTemplateVariable(mcName) && !isGenericPlaceholder(mcName)) {
+            manychatUsername = mcName;
+            console.log('Got name from ManyChat API:', manychatUsername);
+          }
+        } else {
+          console.log('ManyChat API error:', subscriberResponse.status);
+        }
+      } catch (e) {
+        console.error('Error fetching ManyChat subscriber info:', e);
+      }
+    }
+    
+    // Build best possible contact name - prioritize actual username over generic fallbacks
     let contactName: string;
     if (resolvedUsername) {
       contactName = resolvedUsername;
+    } else if (manychatUsername) {
+      contactName = manychatUsername;
     } else if (resolvedName) {
       contactName = resolvedName;
     } else {
@@ -94,7 +136,26 @@ Deno.serve(async (req) => {
     
     const contactPhone = `ig_${subscriber_id}`;
     
-    console.log('Processing Instagram DM:', { subscriber_id, name, ig_username, resolvedUsername, resolvedName, contactName });
+    console.log('Processing Instagram DM:', { subscriber_id, name, ig_username, resolvedUsername, resolvedName, manychatUsername, contactName });
+    
+    // Helper to check if a name is a placeholder (IG XXXXXX format)
+    const isPlaceholderName = (n?: string | null) => {
+      if (!n) return true;
+      return /^IG\s*\d*$/i.test(n.trim()) || /^ig_\d+$/.test(n.trim());
+    };
+    
+    // Helper to determine best name: prefer real name over placeholder
+    const getBestName = (newName: string, existingName?: string | null) => {
+      const existingIsPlaceholder = isPlaceholderName(existingName);
+      const newIsPlaceholder = isPlaceholderName(newName);
+      
+      // If new name is real, always use it
+      if (!newIsPlaceholder) return newName;
+      // If existing is real, keep it
+      if (!existingIsPlaceholder && existingName) return existingName;
+      // Both are placeholders or existing is empty, use new
+      return newName;
+    };
 
     // Find or create conversation
     // First, try to find by manychat_subscriber_id
@@ -104,6 +165,24 @@ Deno.serve(async (req) => {
       .eq('user_id', userId)
       .eq('manychat_subscriber_id', subscriber_id)
       .maybeSingle();
+
+    // If found by subscriber_id, check if name needs updating
+    if (conversation) {
+      const bestName = getBestName(contactName, conversation.contact_name);
+      if (bestName !== conversation.contact_name) {
+        console.log(`Updating existing conversation name from "${conversation.contact_name}" to "${bestName}"`);
+        const { data: updatedConv } = await supabase
+          .from('whatsapp_conversations')
+          .update({ 
+            contact_name: bestName,
+            profile_picture_url: profile_pic || conversation.profile_picture_url 
+          })
+          .eq('id', conversation.id)
+          .select()
+          .single();
+        conversation = updatedConv;
+      }
+    }
 
     if (!conversation) {
       // Check if this is a valid subscriber_id (not a test/admin ID)
@@ -122,11 +201,12 @@ Deno.serve(async (req) => {
         
         if (existingByUsername) {
           console.log('Found existing Instagram conversation by username, updating:', existingByUsername.id);
+          const bestName = getBestName(contactName, existingByUsername.contact_name);
           const { data: updatedConv } = await supabase
             .from('whatsapp_conversations')
             .update({ 
               manychat_subscriber_id: subscriber_id,
-              contact_name: contactName || existingByUsername.contact_name,
+              contact_name: bestName,
               profile_picture_url: profile_pic || existingByUsername.profile_picture_url 
             })
             .eq('id', existingByUsername.id)
@@ -147,13 +227,16 @@ Deno.serve(async (req) => {
 
         if (existingConv) {
           // Only update subscriber_id if not a test request
+          const bestName = getBestName(contactName, existingConv.contact_name);
           const updateData: Record<string, unknown> = {
-            contact_name: contactName || existingConv.contact_name,
+            contact_name: bestName,
             profile_picture_url: profile_pic || existingConv.profile_picture_url 
           };
           if (!isTestRequest) {
             updateData.manychat_subscriber_id = subscriber_id;
           }
+          
+          console.log(`Updating Instagram conversation name from "${existingConv.contact_name}" to "${bestName}"`);
           
           const { data: updatedConv } = await supabase
             .from('whatsapp_conversations')

@@ -146,12 +146,16 @@ serve(async (req) => {
         console.log('Created new conversation:', conversation.id);
       } else {
         // Update existing conversation
-        // Only update contact_name if we have a real name (not empty, not business name)
-        const shouldUpdateName = senderName && 
+        // Update contact_name if:
+        // 1. Current name is null/empty (always update)
+        // 2. We have a valid name AND it's not the business name
+        const hasValidName = senderName && 
           senderName.trim() !== '' && 
           !senderName.toLowerCase().includes('mentoria') &&
-          !senderName.toLowerCase().includes('idea') &&
-          senderName !== conversation.contact_name;
+          !senderName.toLowerCase().includes('idea');
+        
+        const currentNameIsEmpty = !conversation.contact_name || conversation.contact_name.trim() === '';
+        const shouldUpdateName = hasValidName && (currentNameIsEmpty || senderName !== conversation.contact_name);
         
         const updateData: Record<string, unknown> = {
           last_message_at: new Date().toISOString(),
@@ -160,6 +164,7 @@ serve(async (req) => {
         
         if (shouldUpdateName) {
           updateData.contact_name = senderName;
+          console.log(`Updating contact_name from "${conversation.contact_name}" to "${senderName}"`);
         }
         
         await supabase
