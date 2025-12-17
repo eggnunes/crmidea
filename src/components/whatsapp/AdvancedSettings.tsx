@@ -8,7 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { useAIAssistantConfig } from "@/hooks/useAIAssistantConfig";
-import { Loader2, Save, Clock, Mic, Calendar, MessageCircle, Volume2, Plus, Trash2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { Loader2, Save, Clock, Mic, Calendar, MessageCircle, Volume2, Plus, Trash2, RefreshCw, Database } from "lucide-react";
 
 interface InactivityAction {
   timeout: number;
@@ -19,7 +21,9 @@ interface InactivityAction {
 
 export function AdvancedSettings() {
   const { config, loading, updateConfig } = useAIAssistantConfig();
+  const { toast } = useToast();
   const [saving, setSaving] = useState(false);
+  const [updatingNames, setUpdatingNames] = useState(false);
   const [formData, setFormData] = useState({
     elevenlabs_enabled: false,
     elevenlabs_voice_id: "",
@@ -473,6 +477,64 @@ export function AdvancedSettings() {
               </p>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Data Maintenance */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Database className="w-5 h-5" />
+            Manutenção de Dados
+          </CardTitle>
+          <CardDescription>
+            Ferramentas para atualizar e corrigir dados das conversas
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <Label>Atualizar Nomes do Instagram</Label>
+              <p className="text-sm text-muted-foreground">
+                Busca os nomes reais dos contatos Instagram via ManyChat API
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              onClick={async () => {
+                setUpdatingNames(true);
+                try {
+                  const { data, error } = await supabase.functions.invoke("update-instagram-names");
+                  if (error) throw error;
+                  
+                  const updated = data?.updated || 0;
+                  const total = data?.total || 0;
+                  
+                  toast({
+                    title: "Nomes atualizados",
+                    description: `${updated} de ${total} conversas atualizadas`,
+                  });
+                } catch (error) {
+                  console.error("Error updating names:", error);
+                  toast({
+                    title: "Erro",
+                    description: "Não foi possível atualizar os nomes",
+                    variant: "destructive",
+                  });
+                } finally {
+                  setUpdatingNames(false);
+                }
+              }}
+              disabled={updatingNames}
+            >
+              {updatingNames ? (
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              ) : (
+                <RefreshCw className="w-4 h-4 mr-2" />
+              )}
+              Atualizar Nomes
+            </Button>
+          </div>
         </CardContent>
       </Card>
 

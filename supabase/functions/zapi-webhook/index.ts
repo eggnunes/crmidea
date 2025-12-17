@@ -38,36 +38,45 @@ serve(async (req) => {
       }
       
       const phone = payload.phone || payload.from?.replace('@c.us', '').replace('@s.whatsapp.net', '');
+      
+      // Capture profile picture URL from Z-API
+      const profilePicUrl = payload.photo || payload.profilePicUrl || payload.senderPhoto || null;
+      
       // IMPORTANT: Prioritize pushName (contact's chosen name) over senderName (business contact name)
       // Z-API sends the contact name in different fields depending on the event type
       // pushName is the contact's WhatsApp profile name
       // senderName may be the business contact name in the phone's address book
       // notifyName is another field some Z-API versions use
-      const rawPushName = payload.pushName || null;
+      const rawPushName = payload.pushName || payload.notifyName || null;
       const rawSenderName = payload.senderName || null;
-      const rawNotifyName = payload.notifyName || null;
+      const rawContactName = payload.contactName || payload.contact?.name || null;
       const rawName = payload.name || null;
       
-      // Priority: pushName > notifyName > senderName > name
-      // But exclude business names (mentoria, idea, etc.)
+      // Priority: pushName > contactName > senderName > name
+      // Exclude business names and phone numbers
       const isBusinessName = (n: string | null) => {
         if (!n) return true;
         const lower = n.toLowerCase();
         return lower.includes('mentoria') || lower.includes('idea') || lower.includes('ideia');
       };
       
+      const isPhoneNumber = (n: string | null) => {
+        if (!n) return true;
+        return /^\+?\d{8,15}$/.test(n.replace(/[\s\-\(\)]/g, ''));
+      };
+      
       let senderName: string | null = null;
-      if (rawPushName && !isBusinessName(rawPushName)) {
+      if (rawPushName && !isBusinessName(rawPushName) && !isPhoneNumber(rawPushName)) {
         senderName = rawPushName;
-      } else if (rawNotifyName && !isBusinessName(rawNotifyName)) {
-        senderName = rawNotifyName;
-      } else if (rawSenderName && !isBusinessName(rawSenderName)) {
+      } else if (rawContactName && !isBusinessName(rawContactName) && !isPhoneNumber(rawContactName)) {
+        senderName = rawContactName;
+      } else if (rawSenderName && !isBusinessName(rawSenderName) && !isPhoneNumber(rawSenderName)) {
         senderName = rawSenderName;
-      } else if (rawName && !isBusinessName(rawName)) {
+      } else if (rawName && !isBusinessName(rawName) && !isPhoneNumber(rawName)) {
         senderName = rawName;
       }
       
-      console.log('Name fields from Z-API:', { rawPushName, rawSenderName, rawNotifyName, rawName, resolvedName: senderName });
+      console.log('Name fields from Z-API:', { rawPushName, rawSenderName, rawContactName, rawName, resolvedName: senderName, profilePicUrl });
       const zapiMessageId = payload.messageId || payload.id?.id;
       const isGroup = payload.isGroup || payload.chatId?.includes('@g.us') || false;
       
@@ -160,6 +169,7 @@ serve(async (req) => {
             user_id: userId,
             contact_phone: phone,
             contact_name: senderName,
+            profile_picture_url: profilePicUrl,
             last_message_at: new Date().toISOString(),
             unread_count: 1,
           })
@@ -168,7 +178,7 @@ serve(async (req) => {
 
         if (convError) throw convError;
         conversation = newConv;
-        console.log('Created new conversation:', conversation.id);
+        console.log('Created new conversation:', conversation.id, 'with name:', senderName, 'photo:', profilePicUrl);
       } else {
         // Update existing conversation
         // Update contact_name if:
@@ -178,8 +188,11 @@ serve(async (req) => {
         const hasValidName = senderName && senderName.trim() !== '';
         
         const currentNameIsEmpty = !conversation.contact_name || conversation.contact_name.trim() === '';
-        const currentNameIsPhone = conversation.contact_name && /^\d+$/.test(conversation.contact_name);
-        const shouldUpdateName = hasValidName && (currentNameIsEmpty || currentNameIsPhone || senderName !== conversation.contact_name);
+        const currentNameIsPhone = conversation.contact_name && /^\+?\d{8,15}$/.test(conversation.contact_name.replace(/[\s\-\(\)]/g, ''));
+        const shouldUpdateName = hasValidName && (currentNameIsEmpty || currentNameIsPhone);
+        
+        // Update photo if we have one and current is empty
+        const shouldUpdatePhoto = profilePicUrl && !conversation.profile_picture_url;
         
         const updateData: Record<string, unknown> = {
           last_message_at: new Date().toISOString(),
@@ -189,8 +202,11 @@ serve(async (req) => {
         if (shouldUpdateName) {
           updateData.contact_name = senderName;
           console.log(`Updating contact_name from "${conversation.contact_name}" to "${senderName}"`);
-        } else {
-          console.log(`Not updating name: hasValidName=${hasValidName}, currentNameIsEmpty=${currentNameIsEmpty}, currentName="${conversation.contact_name}"`);
+        }
+        
+        if (shouldUpdatePhoto) {
+          updateData.profile_picture_url = profilePicUrl;
+          console.log(`Updating profile_picture_url to "${profilePicUrl}"`);
         }
         
         await supabase
