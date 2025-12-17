@@ -470,14 +470,30 @@ export function ChatDetailsSidebar({ conversation, onContactNameUpdated, onQuick
                           },
                         });
                         
-                        if (error) throw error;
+                        // Handle function errors (including 400 responses)
+                        if (error) {
+                          // Try to parse the error context for limitation info
+                          const errorData = error.context?.body ? JSON.parse(error.context.body) : null;
+                          if (errorData?.limitation) {
+                            toast({ 
+                              title: "Vinculação pendente", 
+                              description: errorData.requiresNewMessage 
+                                ? "Peça ao contato enviar uma nova mensagem no Instagram para vincular automaticamente, ou insira o ID manualmente."
+                                : errorData.message,
+                              duration: 6000,
+                            });
+                            return;
+                          }
+                          throw error;
+                        }
                         
                         if (data?.error) {
                           toast({ 
-                            title: data.limitation ? "Limitação da API" : "Não encontrado", 
-                            description: data.message || "Subscriber não encontrado no ManyChat",
-                            variant: data.limitation ? "default" : "destructive",
-                            duration: data.limitation ? 8000 : 5000,
+                            title: data.limitation ? "Vinculação pendente" : "Não encontrado", 
+                            description: data.requiresNewMessage 
+                              ? "Peça ao contato enviar uma nova mensagem no Instagram para vincular automaticamente."
+                              : data.message || "Subscriber não encontrado no ManyChat",
+                            duration: 6000,
                           });
                         } else if (data?.subscriberId) {
                           setSubscriberId(data.subscriberId);
@@ -489,12 +505,20 @@ export function ChatDetailsSidebar({ conversation, onContactNameUpdated, onQuick
                           toast({ title: "Sucesso", description: message });
                           onContactNameUpdated();
                         }
-                      } catch (error) {
+                      } catch (error: unknown) {
                         console.error("Error searching subscriber:", error);
+                        // Try to extract error message from response
+                        let errorMessage = "Não foi possível buscar o subscriber";
+                        if (error && typeof error === 'object' && 'context' in error) {
+                          try {
+                            const ctx = (error as { context?: { body?: string } }).context;
+                            const body = ctx?.body ? JSON.parse(ctx.body) : null;
+                            if (body?.message) errorMessage = body.message;
+                          } catch { /* ignore parse errors */ }
+                        }
                         toast({ 
-                          title: "Erro", 
-                          description: "Não foi possível buscar o subscriber",
-                          variant: "destructive" 
+                          title: "Aviso", 
+                          description: errorMessage,
                         });
                       } finally {
                         setSearchingSubscriber(false);
