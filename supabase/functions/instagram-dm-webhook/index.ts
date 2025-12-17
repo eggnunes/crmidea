@@ -58,14 +58,40 @@ Deno.serve(async (req) => {
     // Check if values are literal template variables (ManyChat not resolving them)
     const isTemplateVariable = (value?: string) => {
       if (!value) return true;
-      return value.includes('{{') || value.includes('}}');
+      return value.includes('{{') || value.includes('}}') || value.trim() === '';
+    };
+    
+    // Check if value is a generic placeholder
+    const isGenericPlaceholder = (value?: string) => {
+      if (!value) return true;
+      const lower = value.toLowerCase().trim();
+      return lower.includes('instagram user') || 
+             lower.includes('usuário instagram') ||
+             lower === 'user' ||
+             lower === 'instagram';
     };
     
     // Use ig_username as primary identifier, but only if it's not a template variable
     // If ManyChat sends literal {{ig_username}}, fall back to name or a default
-    const resolvedUsername = !isTemplateVariable(ig_username) ? ig_username?.trim() : null;
-    const resolvedName = !isTemplateVariable(name) ? name?.trim() : null;
-    const contactName = resolvedUsername || resolvedName || `Instagram ${subscriber_id}`;
+    const resolvedUsername = !isTemplateVariable(ig_username) && !isGenericPlaceholder(ig_username) 
+      ? ig_username?.trim() 
+      : null;
+    const resolvedName = !isTemplateVariable(name) && !isGenericPlaceholder(name) 
+      ? name?.trim() 
+      : null;
+    
+    // Build best possible contact name - prioritize actual name/username over generic fallbacks
+    let contactName: string;
+    if (resolvedUsername) {
+      contactName = resolvedUsername;
+    } else if (resolvedName) {
+      contactName = resolvedName;
+    } else {
+      // Last resort: use subscriber_id but make it shorter and cleaner
+      const shortId = subscriber_id.slice(-6);
+      contactName = `IG ${shortId}`;
+    }
+    
     const contactPhone = `ig_${subscriber_id}`;
     
     console.log('Processing Instagram DM:', { subscriber_id, name, ig_username, resolvedUsername, resolvedName, contactName });

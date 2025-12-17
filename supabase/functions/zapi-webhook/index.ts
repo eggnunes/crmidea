@@ -38,7 +38,11 @@ serve(async (req) => {
       }
       
       const phone = payload.phone || payload.from?.replace('@c.us', '').replace('@s.whatsapp.net', '');
-      const senderName = payload.senderName || payload.pushName || null;
+      // IMPORTANT: Prioritize pushName (contact's chosen name) over senderName (business contact name)
+      // senderName can sometimes be the business account name, not the contact's actual name
+      const pushName = payload.pushName || payload.senderName || null;
+      // Also check for 'name' field which some Z-API versions use
+      const senderName = pushName || payload.name || null;
       const zapiMessageId = payload.messageId || payload.id?.id;
       const isGroup = payload.isGroup || payload.chatId?.includes('@g.us') || false;
       
@@ -142,13 +146,25 @@ serve(async (req) => {
         console.log('Created new conversation:', conversation.id);
       } else {
         // Update existing conversation
+        // Only update contact_name if we have a real name (not empty, not business name)
+        const shouldUpdateName = senderName && 
+          senderName.trim() !== '' && 
+          !senderName.toLowerCase().includes('mentoria') &&
+          !senderName.toLowerCase().includes('idea') &&
+          senderName !== conversation.contact_name;
+        
+        const updateData: Record<string, unknown> = {
+          last_message_at: new Date().toISOString(),
+          unread_count: (conversation.unread_count || 0) + 1,
+        };
+        
+        if (shouldUpdateName) {
+          updateData.contact_name = senderName;
+        }
+        
         await supabase
           .from('whatsapp_conversations')
-          .update({
-            contact_name: senderName || conversation.contact_name,
-            last_message_at: new Date().toISOString(),
-            unread_count: (conversation.unread_count || 0) + 1,
-          })
+          .update(updateData)
           .eq('id', conversation.id);
       }
 
