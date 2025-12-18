@@ -726,17 +726,8 @@ export function ExportImportLeads({ leads, onImport }: ExportImportLeadsProps) {
           value: lead.status === 'fechado-ganho' ? lead.totalSalesValue : lead.value
         }));
         
-        // Recalcula estatísticas após consolidação - usa o valor total de TODAS as transações
+        // Recalcula apenas contagem de leads após consolidação (não o valor, que já foi calculado corretamente)
         let finalVendas = 0, finalAbandonados = 0, finalReembolsos = 0, finalPendentes = 0;
-        // Para o valor total, verifica pelo status original da nota (Importado Kiwify: paid)
-        const vendasAprovadas = importedLeads.filter(lead => {
-          const noteEvent = (lead.notes || '').toLowerCase();
-          return noteEvent.includes('paid') || 
-                 noteEvent.includes('aprovada') || 
-                 noteEvent.includes('aprovado') ||
-                 lead.status === 'fechado-ganho';
-        });
-        const finalValorTotal = vendasAprovadas.reduce((sum, lead) => sum + lead.value, 0);
         
         for (const lead of finalLeads) {
           const eventNote = lead.notes?.toLowerCase() || '';
@@ -768,15 +759,17 @@ export function ExportImportLeads({ leads, onImport }: ExportImportLeadsProps) {
         }
 
         // Mostra preview antes de importar
+        // IMPORTANTE: Usa valorTotal calculado diretamente durante processamento (linhas 650-652)
+        // que soma TODOS os valores líquidos de transações "paid"
         setPreviewData({
           leads: finalLeads,
           summary: {
             total: finalLeads.length,
-            vendas: finalVendas,
-            abandonados: finalAbandonados,
-            reembolsos: finalReembolsos,
-            pendentes: finalPendentes,
-            valorTotal: finalValorTotal,
+            vendas,        // Usa o contador original de vendas
+            abandonados,   // Usa o contador original
+            reembolsos,    // Usa o contador original
+            pendentes,     // Usa o contador original
+            valorTotal,    // Usa o valor calculado diretamente, não recalculado
             comData
           }
         });
