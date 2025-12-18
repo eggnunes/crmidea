@@ -364,7 +364,7 @@ export function LeadsPage() {
     await deleteLead(id);
   };
 
-  const handleImport = async (leadsToImport: Omit<Lead, 'id' | 'createdAt' | 'updatedAt' | 'interactions'>[]) => {
+  const handleImport = async (leadsToImport: (Omit<Lead, 'id' | 'createdAt' | 'updatedAt' | 'interactions'> & { importedCreatedAt?: string })[]) => {
     await importLeads(leadsToImport);
   };
 
