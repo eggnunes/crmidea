@@ -252,22 +252,27 @@ function parseValue(value: unknown): number {
   if (typeof value === 'string') {
     let cleaned = value.replace(/[R$\s]/g, '').trim();
     
-    // Detecta o formato: brasileiro (1.234,56) vs americano (1,234.56)
-    // Se termina com vírgula + 2 dígitos = formato brasileiro
-    // Se termina com ponto + 2 dígitos = formato americano/Kiwify
-    const brazilianFormat = /,\d{2}$/.test(cleaned);
-    const americanFormat = /\.\d{2}$/.test(cleaned);
+    // Se vazio ou zero, retorna 0
+    if (!cleaned || cleaned === '0') return 0;
     
-    if (brazilianFormat) {
+    // Detecta o formato: brasileiro (1.234,56) vs americano (1,234.56)
+    // Brasileiro: vírgula seguida de 1-2 dígitos no final
+    // Americano: ponto seguido de 1-2 dígitos no final
+    const brazilianFormat = /,\d{1,2}$/.test(cleaned);
+    const americanFormat = /\.\d{1,2}$/.test(cleaned);
+    
+    // Verifica também se há ponto como separador de milhar (brasileiro)
+    // Padrão brasileiro típico: 1.234,56 (ponto como milhar, vírgula como decimal)
+    const hasBrazilianThousands = /\d{1,3}\.\d{3}/.test(cleaned) && brazilianFormat;
+    
+    if (brazilianFormat || hasBrazilianThousands) {
       // Formato brasileiro: remove pontos de milhar, converte vírgula em ponto
       cleaned = cleaned.replace(/\./g, '').replace(',', '.');
     } else if (americanFormat) {
       // Formato americano: remove vírgulas de milhar, mantém ponto decimal
       cleaned = cleaned.replace(/,/g, '');
-    } else {
-      // Fallback: tenta limpar ambos
-      cleaned = cleaned.replace(/[.,]/g, '');
     }
+    // Se não detectou formato, assume que é um número simples sem separadores
     
     const numValue = parseFloat(cleaned);
     if (!isNaN(numValue) && numValue > 0) return numValue;
