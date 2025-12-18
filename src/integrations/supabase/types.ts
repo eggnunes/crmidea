@@ -230,6 +230,33 @@ export type Database = {
         }
         Relationships: []
       }
+      column_mappings: {
+        Row: {
+          created_at: string
+          id: string
+          mapping: Json
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          mapping: Json
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          mapping?: Json
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       contact_tags: {
         Row: {
           color: string | null
