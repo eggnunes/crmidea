@@ -21,6 +21,8 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ChatDetailsSidebar } from "./ChatDetailsSidebar";
+import { NewConversationDialog } from "./NewConversationDialog";
+import { SyncLeadsToContacts } from "./SyncLeadsToContacts";
 
 const CHANNEL_OPTIONS = [
   { value: 'all', label: 'Todos os canais', icon: MessageSquare },
@@ -365,14 +367,24 @@ export function WhatsAppConversations() {
         selectedConversation && !showConversationList ? "hidden md:flex" : "flex"
       )}>
         <div className="p-3 space-y-2 border-b">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2">
             <h2 className="text-lg font-semibold flex items-center gap-2">
               <MessageSquare className="w-5 h-5" />
               Conversas
             </h2>
-            <Button variant="ghost" size="icon" onClick={() => setShowGlobalSearch(true)} title="Busca global">
-              <SearchIcon className="w-4 h-4" />
-            </Button>
+            <div className="flex items-center gap-1">
+              <Button variant="ghost" size="icon" onClick={() => setShowGlobalSearch(true)} title="Busca global">
+                <SearchIcon className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <NewConversationDialog onConversationCreated={(convId) => {
+              refetch();
+              const conv = allConversations.find(c => c.id === convId);
+              if (conv) setSelectedConversation(conv);
+            }} />
+            <SyncLeadsToContacts />
           </div>
           <Select value={channelFilter} onValueChange={(value) => setChannelFilter(value as ChannelType | 'all')}>
             <SelectTrigger className="w-full h-8 text-xs">
