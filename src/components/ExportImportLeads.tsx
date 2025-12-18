@@ -506,13 +506,34 @@ export function ExportImportLeads({ leads, onImport }: ExportImportLeadsProps) {
 
           // Contabiliza estatísticas
           const eventType = getEventType(row).toLowerCase();
+          
+          // Verifica se é carrinho abandonado (PIX/boleto gerado sem pagamento, ou explicitamente abandonado)
+          const isAbandonedCart = 
+            eventType.includes('abandon') || 
+            eventType.includes('carrinho') ||
+            eventType.includes('pix gerado') ||
+            eventType.includes('pix_gerado') ||
+            eventType.includes('boleto gerado') ||
+            eventType.includes('boleto_gerado') ||
+            eventType.includes('aguardando pagamento') ||
+            eventType.includes('aguardando_pagamento') ||
+            eventType.includes('pendente') ||
+            eventType.includes('pending');
+          
+          // Verifica se é reembolso
+          const isRefund = 
+            eventType.includes('reembolso') || 
+            eventType.includes('refund') ||
+            eventType.includes('estorno') ||
+            eventType.includes('reembolsado');
+          
           if (status === 'fechado-ganho') {
             vendas++;
             valorTotal += value;
-          } else if (eventType.includes('abandon') || eventType.includes('carrinho')) {
-            abandonados++;
-          } else if (eventType.includes('reembolso') || eventType.includes('refund')) {
+          } else if (isRefund) {
             reembolsos++;
+          } else if (isAbandonedCart) {
+            abandonados++;
           } else if (status === 'novo') {
             pendentes++;
           }
