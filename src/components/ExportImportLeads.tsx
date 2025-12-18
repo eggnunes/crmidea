@@ -598,6 +598,10 @@ export function ExportImportLeads({ leads, onImport }: ExportImportLeadsProps) {
           // Contabiliza estatísticas baseado no status original da planilha
           const eventType = getEventType(row).toLowerCase().trim();
           
+          // IMPORTANTE: Verifica diretamente se o status original é "paid" para contabilizar valor
+          // Isso garante que somamos TODOS os valores líquidos de transações pagas
+          const isPaidTransaction = eventType === 'paid' || eventType === 'aprovada' || eventType === 'aprovado';
+          
           // Verifica se é carrinho abandonado (waiting_payment ou equivalente)
           const isAbandonedCart = abandonedCartStatuses.some(s => 
             eventType === s || eventType.includes(s)
@@ -613,27 +617,15 @@ export function ExportImportLeads({ leads, onImport }: ExportImportLeadsProps) {
             eventType === s || eventType.includes(s)
           );
           
-          // Log para debug de todas as transações
-          console.log('Transação processada:', { 
-            name: finalName, 
-            email: finalEmail, 
-            status, 
-            eventType,
-            value,
-            valorLiquido: row['Valor líquido'] || row['Valor Líquido'] || row['valor líquido'],
-            allValueColumns: Object.entries(row).filter(([k]) => k.toLowerCase().includes('valor')).map(([k, v]) => `${k}: ${v}`)
-          });
-          
-          if (status === 'fechado-ganho') {
+          // Contabiliza APENAS transações com status "paid" original
+          if (isPaidTransaction) {
             vendas++;
             valorTotal += value;
-            console.log(`✅ Venda contabilizada: ${finalName} - R$ ${value.toFixed(2)} (Total parcial: R$ ${valorTotal.toFixed(2)})`);
           } else if (isRefund) {
             reembolsos++;
           } else if (isAbandonedCart) {
             abandonados++;
           } else if (isRefused) {
-            // Recusados são contabilizados como pendentes (podem tentar novamente)
             pendentes++;
           } else if (status === 'novo') {
             pendentes++;
@@ -707,19 +699,15 @@ export function ExportImportLeads({ leads, onImport }: ExportImportLeadsProps) {
         
         // Recalcula estatísticas após consolidação - usa o valor total de TODAS as transações
         let finalVendas = 0, finalAbandonados = 0, finalReembolsos = 0, finalPendentes = 0;
-        // Para o valor total, soma de todas as transações originais (não consolidadas)
-        const vendasAprovadas = importedLeads.filter(lead => lead.status === 'fechado-ganho');
+        // Para o valor total, verifica pelo status original da nota (Importado Kiwify: paid)
+        const vendasAprovadas = importedLeads.filter(lead => {
+          const noteEvent = (lead.notes || '').toLowerCase();
+          return noteEvent.includes('paid') || 
+                 noteEvent.includes('aprovada') || 
+                 noteEvent.includes('aprovado') ||
+                 lead.status === 'fechado-ganho';
+        });
         const finalValorTotal = vendasAprovadas.reduce((sum, lead) => sum + lead.value, 0);
-        
-        console.log('=== RESUMO FINAL ===');
-        console.log(`Total de transações processadas: ${importedLeads.length}`);
-        console.log(`Vendas aprovadas encontradas: ${vendasAprovadas.length}`);
-        console.log(`Valor total das vendas: R$ ${finalValorTotal.toFixed(2)}`);
-        console.log('Detalhamento das vendas:', vendasAprovadas.map(v => ({ 
-          name: v.name, 
-          email: v.email, 
-          value: v.value 
-        })));
         
         for (const lead of finalLeads) {
           const eventNote = lead.notes?.toLowerCase() || '';
@@ -871,8 +859,9 @@ export function ExportImportLeads({ leads, onImport }: ExportImportLeadsProps) {
       // Contabiliza estatísticas
       const isAbandonedCart = abandonedCartStatuses.some(s => statusRaw === s || statusRaw.includes(s));
       const isRefund = refundStatuses.some(s => statusRaw === s || statusRaw.includes(s));
+      const isPaidTransaction = statusRaw === 'paid' || statusRaw.includes('aprovada') || statusRaw.includes('aprovado');
 
-      if (status === 'fechado-ganho') {
+      if (isPaidTransaction || status === 'fechado-ganho') {
         vendas++;
         valorTotal += value;
       } else if (isRefund) {
@@ -921,7 +910,8 @@ export function ExportImportLeads({ leads, onImport }: ExportImportLeadsProps) {
     let finalVendas = 0, finalAbandonados = 0, finalReembolsos = 0, finalPendentes = 0, finalValorTotal = 0;
     for (const lead of finalLeads) {
       const eventNote = lead.notes?.toLowerCase() || '';
-      if (lead.status === 'fechado-ganho') {
+      const isPaid = eventNote.includes('paid') || eventNote.includes('aprovada') || eventNote.includes('aprovado');
+      if (isPaid || lead.status === 'fechado-ganho') {
         finalVendas++;
         finalValorTotal += lead.value;
       } else if (refundStatuses.some(s => eventNote.includes(s))) {
