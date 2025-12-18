@@ -589,11 +589,17 @@ export function LeadsPage() {
                     <tr 
                       key={lead.id} 
                       className={cn(
-                        "border-b border-border/30 hover:bg-secondary/20 transition-colors",
+                        "border-b border-border/30 hover:bg-secondary/20 transition-colors cursor-pointer",
                         isSelected && "bg-primary/5"
                       )}
+                      onClick={(e) => {
+                        // Don't open details if clicking on interactive elements
+                        const target = e.target as HTMLElement;
+                        if (target.closest('button, a, input, [role="checkbox"]')) return;
+                        setViewingLead(lead);
+                      }}
                     >
-                      <td className="p-4">
+                      <td className="p-4" onClick={(e) => e.stopPropagation()}>
                         <Checkbox 
                           checked={isSelected}
                           onCheckedChange={() => toggleSelectLead(lead.id)}

@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { STATUSES, Lead, LeadStatus, PRODUCTS } from "@/types/crm";
+import { STATUSES, Lead, LeadStatus, PRODUCTS, Interaction } from "@/types/crm";
 import { useLeads } from "@/hooks/useLeads";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { Loader2 } from "lucide-react";
+import { Loader2, Phone, Mail } from "lucide-react";
 import {
   DndContext,
   DragEndEvent,
@@ -21,9 +21,244 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { LeadAssignees } from "@/components/LeadAssignees";
 
-function LeadCard({ lead, isDragging = false }: { lead: Lead; isDragging?: boolean }) {
+// Helper function to get the reason/motivo for a lead's current status
+function getStatusReason(lead: Lead): string | null {
+  // Check the most recent interaction for context
+  if (lead.interactions.length > 0) {
+    const latestInteraction = lead.interactions[lead.interactions.length - 1];
+    const desc = latestInteraction.description.toLowerCase();
+    
+    // Map common interaction descriptions to readable reasons
+    if (desc.includes('carrinho abandonado') || desc.includes('pix gerado') || desc.includes('boleto gerado')) {
+      return 'Carrinho abandonado';
+    }
+    if (desc.includes('reembolso') || desc.includes('reembolsado')) {
+      return 'Reembolso';
+    }
+    if (desc.includes('recusad') || desc.includes('recusa')) {
+      return 'Pagamento recusado';
+    }
+    if (desc.includes('chargeback')) {
+      return 'Chargeback';
+    }
+    if (desc.includes('compra aprovada') || desc.includes('pagamento confirmado')) {
+      return 'Compra aprovada';
+    }
+    if (desc.includes('cancelad')) {
+      return 'Cancelamento';
+    }
+    
+    // Return the description itself if it's short enough
+    if (latestInteraction.description.length <= 30) {
+      return latestInteraction.description;
+    }
+  }
+  
+  // Check notes for reason
+  if (lead.notes) {
+    const notes = lead.notes.toLowerCase();
+    if (notes.includes('carrinho abandonado')) return 'Carrinho abandonado';
+    if (notes.includes('reembolso')) return 'Reembolso';
+    if (notes.includes('recusad')) return 'Pagamento recusado';
+    if (notes.includes('chargeback')) return 'Chargeback';
+  }
+  
+  return null;
+}
+
+function LeadDetailDialog({ 
+  lead, 
+  onAddInteraction,
+  onClose 
+}: { 
+  lead: Lead; 
+  onAddInteraction: (leadId: string, interaction: Omit<Interaction, 'id'>) => void;
+  onClose: () => void;
+}) {
+  const [newInteraction, setNewInteraction] = useState({
+    type: 'whatsapp' as Interaction['type'],
+    description: ''
+  });
+
   const product = PRODUCTS.find(p => p.id === lead.product);
+  const statusInfo = STATUSES.find(s => s.id === lead.status);
+  const reason = getStatusReason(lead);
+
+  const handleAddInteraction = () => {
+    if (!newInteraction.description) {
+      toast.error('Descreva a interação');
+      return;
+    }
+    onAddInteraction(lead.id, {
+      date: new Date().toISOString().split('T')[0],
+      type: newInteraction.type,
+      description: newInteraction.description
+    });
+    setNewInteraction({ type: 'whatsapp', description: '' });
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Lead Info */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-4">
+          <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center">
+            <span className="text-xl font-bold text-foreground">
+              {lead.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+            </span>
+          </div>
+          <div>
+            <h3 className="text-xl font-bold">{lead.name}</h3>
+            <p className="text-muted-foreground">{product?.name}</p>
+          </div>
+        </div>
+
+        {/* Status and Reason */}
+        <div className="p-3 rounded-lg bg-secondary/50 border border-border">
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="text-sm text-muted-foreground">Status:</span>
+              <p className="font-medium">{statusInfo?.name}</p>
+            </div>
+            {reason && (
+              <div className="text-right">
+                <span className="text-sm text-muted-foreground">Motivo:</span>
+                <p className="font-medium text-warning">{reason}</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4 text-sm">
+          <div>
+            <span className="text-muted-foreground">E-mail:</span>
+            <p className="font-medium">{lead.email || '-'}</p>
+          </div>
+          <div>
+            <span className="text-muted-foreground">Telefone:</span>
+            <p className="font-medium">{lead.phone || '-'}</p>
+          </div>
+          <div>
+            <span className="text-muted-foreground">Valor:</span>
+            <p className="font-medium">R$ {lead.value.toLocaleString('pt-BR')}</p>
+          </div>
+          <div>
+            <span className="text-muted-foreground">Origem:</span>
+            <p className="font-medium">{lead.source || '-'}</p>
+          </div>
+          <div>
+            <span className="text-muted-foreground">Data de Aquisição:</span>
+            <p className="font-medium">
+              {new Date(lead.createdAt).toLocaleDateString('pt-BR', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric'
+              })}
+            </p>
+          </div>
+          <div>
+            <span className="text-muted-foreground">Última Atualização:</span>
+            <p className="font-medium">
+              {new Date(lead.updatedAt).toLocaleDateString('pt-BR', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric'
+              })}
+            </p>
+          </div>
+        </div>
+
+        {lead.notes && (
+          <div>
+            <span className="text-muted-foreground text-sm">Observações:</span>
+            <p className="text-sm mt-1">{lead.notes}</p>
+          </div>
+        )}
+
+        {/* Lead Assignees */}
+        <div className="border-t border-border pt-4">
+          <LeadAssignees leadId={lead.id} />
+        </div>
+      </div>
+
+      {/* Interactions */}
+      <div className="border-t border-border pt-4">
+        <h4 className="font-semibold mb-3">Histórico de Interações</h4>
+        
+        {/* Add Interaction */}
+        <div className="flex gap-2 mb-4">
+          <Select
+            value={newInteraction.type}
+            onValueChange={(value: Interaction['type']) => setNewInteraction({ ...newInteraction, type: value })}
+          >
+            <SelectTrigger className="w-32">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="whatsapp">WhatsApp</SelectItem>
+              <SelectItem value="email">E-mail</SelectItem>
+              <SelectItem value="ligacao">Ligação</SelectItem>
+              <SelectItem value="reuniao">Reunião</SelectItem>
+              <SelectItem value="outro">Outro</SelectItem>
+            </SelectContent>
+          </Select>
+          <Input
+            value={newInteraction.description}
+            onChange={(e) => setNewInteraction({ ...newInteraction, description: e.target.value })}
+            placeholder="Descreva a interação..."
+            className="flex-1"
+          />
+          <Button onClick={handleAddInteraction} size="sm">
+            Adicionar
+          </Button>
+        </div>
+
+        {/* Interaction List */}
+        <div className="space-y-2 max-h-48 overflow-y-auto">
+          {lead.interactions.length > 0 ? (
+            [...lead.interactions].reverse().map(interaction => (
+              <div key={interaction.id} className="p-3 bg-secondary/50 rounded-lg text-sm">
+                <div className="flex items-center justify-between mb-1">
+                  <Badge variant="outline" className="text-xs capitalize">
+                    {interaction.type}
+                  </Badge>
+                  <span className="text-muted-foreground text-xs">{interaction.date}</span>
+                </div>
+                <p>{interaction.description}</p>
+              </div>
+            ))
+          ) : (
+            <p className="text-muted-foreground text-sm text-center py-4">
+              Nenhuma interação registrada
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function LeadCard({ lead, isDragging = false, onClick }: { lead: Lead; isDragging?: boolean; onClick?: () => void }) {
+  const product = PRODUCTS.find(p => p.id === lead.product);
+  const reason = getStatusReason(lead);
   
   const productColors: Record<string, string> = {
     consultoria: "border-l-consultoria",
@@ -37,8 +272,10 @@ function LeadCard({ lead, isDragging = false }: { lead: Lead; isDragging?: boole
       className={cn(
         "p-3 bg-secondary border border-border rounded-lg border-l-4 transition-all shadow-sm",
         productColors[product?.color || 'primary'],
-        isDragging && "opacity-50 scale-105 shadow-xl"
+        isDragging && "opacity-50 scale-105 shadow-xl",
+        onClick && "cursor-pointer hover:bg-secondary/80"
       )}
+      onClick={onClick}
     >
       <div className="flex items-start justify-between gap-2 mb-2">
         <h4 className="font-medium text-sm text-foreground line-clamp-1">{lead.name}</h4>
@@ -54,11 +291,17 @@ function LeadCard({ lead, isDragging = false }: { lead: Lead; isDragging?: boole
           {lead.interactions.length} interações
         </span>
       </div>
+      {/* Show reason/motivo */}
+      {reason && (
+        <div className="mt-2 pt-2 border-t border-border/50">
+          <span className="text-xs text-warning">{reason}</span>
+        </div>
+      )}
     </div>
   );
 }
 
-function SortableLeadCard({ lead }: { lead: Lead }) {
+function SortableLeadCard({ lead, onCardClick }: { lead: Lead; onCardClick: (lead: Lead) => void }) {
   const {
     attributes,
     listeners,
@@ -73,6 +316,13 @@ function SortableLeadCard({ lead }: { lead: Lead }) {
     transition,
   };
 
+  const handleClick = (e: React.MouseEvent) => {
+    // Only trigger click if not dragging
+    if (!isDragging) {
+      onCardClick(lead);
+    }
+  };
+
   return (
     <div
       ref={setNodeRef}
@@ -80,6 +330,7 @@ function SortableLeadCard({ lead }: { lead: Lead }) {
       {...attributes}
       {...listeners}
       className="cursor-grab active:cursor-grabbing"
+      onClick={handleClick}
     >
       <LeadCard lead={lead} isDragging={isDragging} />
     </div>
@@ -89,11 +340,13 @@ function SortableLeadCard({ lead }: { lead: Lead }) {
 function PipelineColumn({ 
   status, 
   leads,
-  totalValue
+  totalValue,
+  onCardClick
 }: { 
   status: typeof STATUSES[0]; 
   leads: Lead[];
   totalValue: number;
+  onCardClick: (lead: Lead) => void;
 }) {
   const statusHeaderColors: Record<string, string> = {
     info: "bg-info/10 border-info/30",
@@ -123,7 +376,7 @@ function PipelineColumn({
       <div className="bg-background/50 rounded-b-lg border border-t-0 border-border p-2 min-h-[400px] space-y-2">
         <SortableContext items={leads.map(l => l.id)} strategy={verticalListSortingStrategy}>
           {leads.map(lead => (
-            <SortableLeadCard key={lead.id} lead={lead} />
+            <SortableLeadCard key={lead.id} lead={lead} onCardClick={onCardClick} />
           ))}
         </SortableContext>
         {leads.length === 0 && (
@@ -137,8 +390,9 @@ function PipelineColumn({
 }
 
 export function PipelinePage() {
-  const { leads, loading, updateLeadStatus } = useLeads();
+  const { leads, loading, updateLeadStatus, addInteraction } = useLeads();
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [viewingLead, setViewingLead] = useState<Lead | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -185,6 +439,10 @@ export function PipelinePage() {
     }
   };
 
+  const handleCardClick = (lead: Lead) => {
+    setViewingLead(lead);
+  };
+
   // Group leads by status
   const leadsByStatus = STATUSES.reduce((acc, status) => {
     acc[status.id] = leads.filter(l => l.status === status.id);
@@ -215,6 +473,7 @@ export function PipelinePage() {
               totalValue={
                 (leadsByStatus[status.id] || []).reduce((acc, l) => acc + l.value, 0)
               }
+              onCardClick={handleCardClick}
             />
           ))}
         </div>
@@ -223,6 +482,22 @@ export function PipelinePage() {
           {activeLead && <LeadCard lead={activeLead} isDragging />}
         </DragOverlay>
       </DndContext>
+
+      {/* Lead Detail Dialog */}
+      <Dialog open={!!viewingLead} onOpenChange={(open) => !open && setViewingLead(null)}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Detalhes do Lead</DialogTitle>
+          </DialogHeader>
+          {viewingLead && (
+            <LeadDetailDialog 
+              lead={viewingLead} 
+              onAddInteraction={addInteraction}
+              onClose={() => setViewingLead(null)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
