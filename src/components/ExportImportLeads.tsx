@@ -100,31 +100,61 @@ const kiwifyProductMap: Record<string, ProductType> = {
   'consultoria idea': 'consultoria',
   'consultoria ia': 'consultoria',
   
-  // Mentoria
+  // Mentoria IDEA
   'mentoria coletiva': 'mentoria-coletiva',
   'mentoria individual': 'mentoria-individual',
-  'mentoria': 'mentoria-coletiva',
+  'mentoria idea': 'mentoria-coletiva',
+  'mentoria idea (inteligência de dados e artificial)': 'mentoria-coletiva',
   
-  // Curso
+  // Curso IDEA
   'curso idea': 'curso-idea',
-  'curso': 'curso-idea',
-  'idea': 'curso-idea',
   
-  // E-books
-  'guia de ia para advogados': 'guia-ia',
-  'guia de ia': 'guia-ia',
-  'guia ia': 'guia-ia',
-  'ebook guia': 'guia-ia',
+  // E-books Unitários (Guia de IA + Código dos Prompts unificados)
+  'guia de ia para advogados': 'ebook-unitario',
+  'guia de ia para advogados com rafael egg nunes': 'ebook-unitario',
+  'guia de ia': 'ebook-unitario',
+  'guia ia': 'ebook-unitario',
+  'código dos prompts': 'ebook-unitario',
+  'codigo dos prompts': 'ebook-unitario',
+  'código de prompts': 'ebook-unitario',
+  'prompts': 'ebook-unitario',
   
-  'código dos prompts': 'codigo-prompts',
-  'codigo dos prompts': 'codigo-prompts',
-  'código de prompts': 'codigo-prompts',
-  'prompts': 'codigo-prompts',
-  
+  // Combo E-books (separado)
   'combo': 'combo-ebooks',
   'combo ebooks': 'combo-ebooks',
   'combo e-books': 'combo-ebooks',
   'pacote ebooks': 'combo-ebooks',
+  
+  // Imersão IDEA
+  'imersão idea': 'imersao-idea',
+  'imersao idea': 'imersao-idea',
+  'imersão idea com rafael egg nunes': 'imersao-idea',
+  'orderbump - imersão idea com rafael egg nunes': 'imersao-idea',
+  'orderbump imersão idea': 'imersao-idea',
+  
+  // Fraternidade Safe Black
+  'fraternidade safe black': 'fraternidade-safe-black',
+  'safe black': 'fraternidade-safe-black',
+  
+  // Clube MQP
+  'clube mqp': 'clube-mqp',
+  'mqp': 'clube-mqp',
+  
+  // Fraternidade Safe Pró
+  'fraternidade safe pró': 'fraternidade-safe-pro',
+  'fraternidade safe pro': 'fraternidade-safe-pro',
+  'safe pró': 'fraternidade-safe-pro',
+  'safe pro': 'fraternidade-safe-pro',
+  
+  // Safe Skills
+  'safe skills': 'safe-skills',
+  
+  // Safe Experience
+  'safe experience': 'safe-experience',
+  
+  // Mentoria Marcello Safe
+  'mentoria marcello safe': 'mentoria-marcello-safe',
+  'marcello safe': 'mentoria-marcello-safe',
 };
 
 function detectKiwifyStatus(row: Record<string, unknown>): LeadStatus | null {
@@ -202,12 +232,32 @@ function detectKiwifyProduct(row: Record<string, unknown>): ProductType | null {
     return kiwifyProductMap[productValue];
   }
   
-  // Busca parcial
+  // Busca parcial por palavras-chave
+  const productLower = productValue.toLowerCase();
+  
+  // Mapeamentos por palavra-chave específica
+  if (productLower.includes('fraternidade') && productLower.includes('black')) return 'fraternidade-safe-black';
+  if (productLower.includes('fraternidade') && (productLower.includes('pró') || productLower.includes('pro'))) return 'fraternidade-safe-pro';
+  if (productLower.includes('safe skills')) return 'safe-skills';
+  if (productLower.includes('safe experience')) return 'safe-experience';
+  if (productLower.includes('marcello') || productLower.includes('mentoria safe')) return 'mentoria-marcello-safe';
+  if (productLower.includes('mqp') || productLower.includes('clube mqp')) return 'clube-mqp';
+  if (productLower.includes('imersão') || productLower.includes('imersao') || productLower.includes('orderbump')) return 'imersao-idea';
+  if (productLower.includes('consultoria')) return 'consultoria';
+  if (productLower.includes('mentoria') && productLower.includes('idea')) return 'mentoria-coletiva';
+  if (productLower.includes('curso') && productLower.includes('idea')) return 'curso-idea';
+  if (productLower.includes('combo')) return 'combo-ebooks';
+  if (productLower.includes('guia') || productLower.includes('código') || productLower.includes('codigo') || productLower.includes('prompts')) return 'ebook-unitario';
+  
+  // Busca parcial genérica no mapa
   for (const [key, value] of Object.entries(kiwifyProductMap)) {
     if (productValue.includes(key) || key.includes(productValue)) {
       return value;
     }
   }
+  
+  // Log produto não reconhecido
+  console.warn(`[PRODUTO NÃO RECONHECIDO] "${productValue}"`);
   
   return null;
 }

@@ -949,6 +949,14 @@ export type Database = {
         | "guia_ia"
         | "codigo_prompts"
         | "combo_ebooks"
+        | "ebook_unitario"
+        | "imersao_idea"
+        | "fraternidade_safe_black"
+        | "clube_mqp"
+        | "fraternidade_safe_pro"
+        | "safe_skills"
+        | "safe_experience"
+        | "mentoria_marcello_safe"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1102,6 +1110,14 @@ export const Constants = {
         "guia_ia",
         "codigo_prompts",
         "combo_ebooks",
+        "ebook_unitario",
+        "imersao_idea",
+        "fraternidade_safe_black",
+        "clube_mqp",
+        "fraternidade_safe_pro",
+        "safe_skills",
+        "safe_experience",
+        "mentoria_marcello_safe",
       ],
     },
   },
