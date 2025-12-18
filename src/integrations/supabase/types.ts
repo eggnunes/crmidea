@@ -454,6 +454,47 @@ export type Database = {
           },
         ]
       }
+      lead_products: {
+        Row: {
+          created_at: string
+          id: string
+          lead_id: string
+          notes: string | null
+          product: Database["public"]["Enums"]["product_type"]
+          status: Database["public"]["Enums"]["lead_status"]
+          updated_at: string
+          value: number | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          lead_id: string
+          notes?: string | null
+          product: Database["public"]["Enums"]["product_type"]
+          status?: Database["public"]["Enums"]["lead_status"]
+          updated_at?: string
+          value?: number | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          lead_id?: string
+          notes?: string | null
+          product?: Database["public"]["Enums"]["product_type"]
+          status?: Database["public"]["Enums"]["lead_status"]
+          updated_at?: string
+          value?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_products_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leads: {
         Row: {
           company: string | null

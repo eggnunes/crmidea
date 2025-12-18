@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { PRODUCTS, STATUSES, Lead, ProductType, LeadStatus, Interaction } from "@/types/crm";
 import { useLeads } from "@/hooks/useLeads";
+import { useLeadProducts } from "@/hooks/useLeadProducts";
 import { 
   Plus, 
   Search, 
@@ -11,7 +12,10 @@ import {
   Eye,
   Edit,
   Loader2,
-  MoreHorizontal
+  MoreHorizontal,
+  Package,
+  ChevronDown,
+  ChevronUp
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -210,10 +214,22 @@ function LeadDetailDialog({
     description: ''
   });
   const [isChangingStatus, setIsChangingStatus] = useState(false);
-  const [isChangingProduct, setIsChangingProduct] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState(lead.status);
-  const [selectedProduct, setSelectedProduct] = useState(lead.product);
   const [statusReason, setStatusReason] = useState('');
+  
+  // New product form state
+  const [isAddingProduct, setIsAddingProduct] = useState(false);
+  const [newProductData, setNewProductData] = useState({
+    product: '' as ProductType,
+    status: 'novo' as LeadStatus,
+    value: 0
+  });
+  const [showProducts, setShowProducts] = useState(true);
+  const [editingProductId, setEditingProductId] = useState<string | null>(null);
+  const [editingProductStatus, setEditingProductStatus] = useState<LeadStatus>('novo');
+
+  // Use the lead products hook
+  const { leadProducts, loading: loadingProducts, addLeadProduct, updateLeadProduct, deleteLeadProduct } = useLeadProducts(lead.id);
 
   const product = PRODUCTS.find(p => p.id === lead.product);
   const status = STATUSES.find(s => s.id === lead.status);
@@ -240,7 +256,6 @@ function LeadDetailDialog({
     try {
       await onUpdateLead(lead.id, { status: selectedStatus });
       
-      // Add interaction explaining the status change
       if (statusReason) {
         onAddInteraction(lead.id, {
           date: new Date().toISOString().split('T')[0],
@@ -257,37 +272,63 @@ function LeadDetailDialog({
     }
   };
 
-  const handleProductChange = async () => {
-    if (selectedProduct === lead.product) {
-      setIsChangingProduct(false);
+  const handleAddNewProduct = async () => {
+    if (!newProductData.product) {
+      toast.error('Selecione um produto');
       return;
     }
 
-    const previousProduct = PRODUCTS.find(p => p.id === lead.product)?.name;
-    const newProductName = PRODUCTS.find(p => p.id === selectedProduct)?.name;
+    const productName = PRODUCTS.find(p => p.id === newProductData.product)?.name;
+    const statusName = STATUSES.find(s => s.id === newProductData.status)?.name;
 
-    try {
-      await onUpdateLead(lead.id, { 
-        product: selectedProduct,
-        status: 'negociacao' // Move to negotiation when changing product
-      });
-      
-      // Add interaction explaining the product change
+    const result = await addLeadProduct({
+      product: newProductData.product,
+      status: newProductData.status,
+      value: newProductData.value
+    });
+
+    if (result) {
       onAddInteraction(lead.id, {
         date: new Date().toISOString().split('T')[0],
         type: 'outro',
-        description: `Produto alterado de "${previousProduct}" para "${newProductName}". Lead movido para negociação.`
+        description: `Novo produto adicionado: "${productName}" - Fase: ${statusName}`
       });
       
-      toast.success('Produto atualizado com sucesso');
-      setIsChangingProduct(false);
-    } catch (error) {
-      toast.error('Erro ao atualizar produto');
+      setIsAddingProduct(false);
+      setNewProductData({ product: '' as ProductType, status: 'novo', value: 0 });
     }
   };
 
+  const handleUpdateProductStatus = async (productId: string, newStatus: LeadStatus) => {
+    const productItem = leadProducts.find(p => p.id === productId);
+    if (!productItem) return;
+
+    const productName = PRODUCTS.find(p => p.id === productItem.product)?.name;
+    const statusName = STATUSES.find(s => s.id === newStatus)?.name;
+
+    const success = await updateLeadProduct(productId, { status: newStatus });
+    
+    if (success) {
+      onAddInteraction(lead.id, {
+        date: new Date().toISOString().split('T')[0],
+        type: 'outro',
+        description: `Produto "${productName}" movido para fase: ${statusName}`
+      });
+      setEditingProductId(null);
+    }
+  };
+
+  const statusColors: Record<string, string> = {
+    info: "bg-info/10 text-info border-info/20",
+    primary: "bg-primary/10 text-primary border-primary/20",
+    warning: "bg-warning/10 text-warning border-warning/20",
+    mentoria: "bg-mentoria/10 text-mentoria border-mentoria/20",
+    success: "bg-success/10 text-success border-success/20",
+    destructive: "bg-destructive/10 text-destructive border-destructive/20"
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-h-[70vh] overflow-y-auto pr-2">
       {/* Lead Info */}
       <div className="space-y-4">
         <div className="flex items-center gap-4">
@@ -298,48 +339,198 @@ function LeadDetailDialog({
           </div>
           <div className="flex-1">
             <h3 className="text-xl font-bold">{lead.name}</h3>
-            
-            {/* Product - Editable */}
-            {isChangingProduct ? (
-              <div className="flex items-center gap-2 mt-1">
-                <Select
-                  value={selectedProduct}
-                  onValueChange={(value) => setSelectedProduct(value as ProductType)}
-                >
-                  <SelectTrigger className="w-48 h-8 text-sm">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {PRODUCTS.map(p => (
-                      <SelectItem key={p.id} value={p.id}>
-                        {p.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button size="sm" variant="outline" onClick={() => setIsChangingProduct(false)}>
-                  Cancelar
-                </Button>
-                <Button size="sm" onClick={handleProductChange}>
-                  Salvar
-                </Button>
-              </div>
-            ) : (
-              <p 
-                className="text-muted-foreground cursor-pointer hover:text-foreground transition-colors flex items-center gap-1"
-                onClick={() => setIsChangingProduct(true)}
-              >
-                {product?.name}
-                <Edit className="w-3 h-3" />
-              </p>
-            )}
+            <p className="text-muted-foreground text-sm">{lead.email}</p>
           </div>
         </div>
 
-        {/* Status - Editable */}
+        {/* Products Section */}
+        <div className="border border-border rounded-lg overflow-hidden">
+          <button
+            onClick={() => setShowProducts(!showProducts)}
+            className="w-full p-3 bg-secondary/30 flex items-center justify-between hover:bg-secondary/50 transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <Package className="w-4 h-4" />
+              <span className="font-semibold text-sm">Produtos ({leadProducts.length})</span>
+            </div>
+            {showProducts ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          </button>
+          
+          {showProducts && (
+            <div className="p-3 space-y-3">
+              {loadingProducts ? (
+                <div className="flex justify-center py-4">
+                  <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                </div>
+              ) : (
+                <>
+                  {/* List existing products */}
+                  {leadProducts.map(lp => {
+                    const productInfo = PRODUCTS.find(p => p.id === lp.product);
+                    const statusInfo = STATUSES.find(s => s.id === lp.status);
+                    const isEditing = editingProductId === lp.id;
+
+                    return (
+                      <div key={lp.id} className="p-3 bg-secondary/50 rounded-lg">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <p className="font-medium text-sm">{productInfo?.name}</p>
+                            {lp.value > 0 && (
+                              <p className="text-xs text-muted-foreground">
+                                R$ {lp.value.toLocaleString('pt-BR')}
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {isEditing ? (
+                              <div className="flex items-center gap-2">
+                                <Select
+                                  value={editingProductStatus}
+                                  onValueChange={(value) => setEditingProductStatus(value as LeadStatus)}
+                                >
+                                  <SelectTrigger className="w-40 h-8 text-xs">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {STATUSES.map(s => (
+                                      <SelectItem key={s.id} value={s.id}>
+                                        {s.name}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                <Button 
+                                  size="sm" 
+                                  variant="outline" 
+                                  className="h-8 px-2"
+                                  onClick={() => setEditingProductId(null)}
+                                >
+                                  Cancelar
+                                </Button>
+                                <Button 
+                                  size="sm" 
+                                  className="h-8 px-2"
+                                  onClick={() => handleUpdateProductStatus(lp.id, editingProductStatus)}
+                                >
+                                  Salvar
+                                </Button>
+                              </div>
+                            ) : (
+                              <>
+                                <Badge 
+                                  variant="outline" 
+                                  className={cn("text-xs cursor-pointer hover:opacity-80", statusColors[statusInfo?.color || 'primary'])}
+                                  onClick={() => {
+                                    setEditingProductId(lp.id);
+                                    setEditingProductStatus(lp.status);
+                                  }}
+                                >
+                                  {statusInfo?.name}
+                                  <Edit className="w-3 h-3 ml-1" />
+                                </Badge>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7 text-destructive hover:text-destructive"
+                                  onClick={() => deleteLeadProduct(lp.id)}
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {/* Add new product form */}
+                  {isAddingProduct ? (
+                    <div className="p-3 border border-dashed border-border rounded-lg space-y-3">
+                      <div>
+                        <Label className="text-xs">Produto</Label>
+                        <Select
+                          value={newProductData.product}
+                          onValueChange={(value) => setNewProductData({ ...newProductData, product: value as ProductType })}
+                        >
+                          <SelectTrigger className="h-9 text-sm">
+                            <SelectValue placeholder="Selecione um produto" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {PRODUCTS.map(p => (
+                              <SelectItem key={p.id} value={p.id}>
+                                {p.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label className="text-xs">Fase inicial</Label>
+                        <Select
+                          value={newProductData.status}
+                          onValueChange={(value) => setNewProductData({ ...newProductData, status: value as LeadStatus })}
+                        >
+                          <SelectTrigger className="h-9 text-sm">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {STATUSES.map(s => (
+                              <SelectItem key={s.id} value={s.id}>
+                                {s.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label className="text-xs">Valor (R$)</Label>
+                        <Input
+                          type="number"
+                          value={newProductData.value}
+                          onChange={(e) => setNewProductData({ ...newProductData, value: Number(e.target.value) })}
+                          className="h-9"
+                          placeholder="0"
+                        />
+                      </div>
+                      <div className="flex justify-end gap-2">
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          onClick={() => {
+                            setIsAddingProduct(false);
+                            setNewProductData({ product: '' as ProductType, status: 'novo', value: 0 });
+                          }}
+                        >
+                          Cancelar
+                        </Button>
+                        <Button size="sm" onClick={handleAddNewProduct}>
+                          Adicionar Produto
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="w-full"
+                      onClick={() => setIsAddingProduct(true)}
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Adicionar Novo Produto
+                    </Button>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Original Product/Status (legacy) */}
         <div className="p-3 rounded-lg bg-secondary/50 border border-border/50">
+          <p className="text-xs text-muted-foreground mb-2">Produto principal (original)</p>
           <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Status atual:</span>
+            <span className="text-sm font-medium">{product?.name}</span>
             {isChangingStatus ? (
               <div className="flex-1 ml-4 space-y-2">
                 <Select
@@ -381,7 +572,7 @@ function LeadDetailDialog({
                 className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
                 onClick={() => setIsChangingStatus(true)}
               >
-                <Badge variant="outline" className="text-xs">
+                <Badge variant="outline" className={cn("text-xs", statusColors[status?.color || 'primary'])}>
                   {status?.name}
                 </Badge>
                 <Edit className="w-3 h-3 text-muted-foreground" />
@@ -392,16 +583,8 @@ function LeadDetailDialog({
 
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div>
-            <span className="text-muted-foreground">E-mail:</span>
-            <p className="font-medium">{lead.email || '-'}</p>
-          </div>
-          <div>
             <span className="text-muted-foreground">Telefone:</span>
             <p className="font-medium">{lead.phone || '-'}</p>
-          </div>
-          <div>
-            <span className="text-muted-foreground">Valor:</span>
-            <p className="font-medium">R$ {lead.value.toLocaleString('pt-BR')}</p>
           </div>
           <div>
             <span className="text-muted-foreground">Origem:</span>
