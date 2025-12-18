@@ -375,7 +375,12 @@ function getEventType(row: Record<string, unknown>): string {
 }
 
 function detectKiwifyDate(row: Record<string, unknown>): string | null {
+  // IMPORTANTE: Inclui "Data de liberação" que é o formato usado na Kiwify
   const dateColumns = [
+    // Kiwify específico
+    'Data de liberação', 'data de liberação', 'Data de Liberação',
+    'Data de liberacao', 'data de liberacao',
+    // Outros formatos comuns
     'Data', 'data', 'Date', 'date',
     'Data da Compra', 'data da compra',
     'Data do Pedido', 'data do pedido',
@@ -386,54 +391,99 @@ function detectKiwifyDate(row: Record<string, unknown>): string | null {
     'Data/Hora', 'data/hora'
   ];
   
+  // Primeiro tenta busca exata
   for (const col of dateColumns) {
     if (row[col] !== undefined && row[col] !== null && row[col] !== '') {
       const dateValue = row[col];
-      
-      // Se for número (Excel serial date)
-      if (typeof dateValue === 'number') {
-        // Excel usa dias desde 1/1/1900, ajuste para JavaScript
-        const excelEpoch = new Date(1899, 11, 30);
-        const jsDate = new Date(excelEpoch.getTime() + dateValue * 86400000);
-        return jsDate.toISOString();
+      const parsed = parseDateValue(dateValue);
+      if (parsed) return parsed;
+    }
+  }
+  
+  // Busca case-insensitive e com normalização de acentos
+  const rowKeys = Object.keys(row);
+  for (const key of rowKeys) {
+    const normalizedKey = key.toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+    
+    // Busca por "data de liberacao" ou variações
+    if (normalizedKey.includes('data') && (
+      normalizedKey.includes('liberacao') || 
+      normalizedKey.includes('compra') || 
+      normalizedKey.includes('pedido') ||
+      normalizedKey.includes('transacao') ||
+      normalizedKey.includes('venda') ||
+      normalizedKey.includes('criacao')
+    )) {
+      const dateValue = row[key];
+      if (dateValue !== undefined && dateValue !== null && dateValue !== '') {
+        const parsed = parseDateValue(dateValue);
+        if (parsed) return parsed;
       }
-      
-      // Se for string, tenta parsear
-      if (typeof dateValue === 'string') {
-        const dateStr = dateValue.trim();
-        
-        // Tenta formato DD/MM/YYYY ou DD/MM/YYYY HH:MM
-        const brMatch = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
-        if (brMatch) {
-          const [, day, month, year, hour = '0', min = '0', sec = '0'] = brMatch;
-          const date = new Date(
-            parseInt(year),
-            parseInt(month) - 1,
-            parseInt(day),
-            parseInt(hour),
-            parseInt(min),
-            parseInt(sec)
-          );
-          if (!isNaN(date.getTime())) {
-            return date.toISOString();
-          }
-        }
-        
-        // Tenta formato YYYY-MM-DD
-        const isoMatch = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
-        if (isoMatch) {
-          const parsed = new Date(dateStr);
-          if (!isNaN(parsed.getTime())) {
-            return parsed.toISOString();
-          }
-        }
-        
-        // Tenta parse genérico
-        const genericParsed = new Date(dateStr);
-        if (!isNaN(genericParsed.getTime())) {
-          return genericParsed.toISOString();
-        }
+    }
+  }
+  
+  // Fallback: qualquer coluna que contenha "data" ou "date"
+  for (const key of rowKeys) {
+    const normalizedKey = key.toLowerCase();
+    if (normalizedKey.includes('data') || normalizedKey.includes('date')) {
+      const dateValue = row[key];
+      if (dateValue !== undefined && dateValue !== null && dateValue !== '') {
+        const parsed = parseDateValue(dateValue);
+        if (parsed) return parsed;
       }
+    }
+  }
+  
+  return null;
+}
+
+function parseDateValue(dateValue: unknown): string | null {
+  // Se for número (Excel serial date)
+  if (typeof dateValue === 'number') {
+    // Excel usa dias desde 1/1/1900, ajuste para JavaScript
+    const excelEpoch = new Date(1899, 11, 30);
+    const jsDate = new Date(excelEpoch.getTime() + dateValue * 86400000);
+    if (!isNaN(jsDate.getTime())) {
+      return jsDate.toISOString();
+    }
+  }
+  
+  // Se for string, tenta parsear
+  if (typeof dateValue === 'string') {
+    const dateStr = dateValue.trim();
+    
+    // Tenta formato DD/MM/YYYY ou DD/MM/YYYY HH:MM
+    const brMatch = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+    if (brMatch) {
+      const [, day, month, year, hour = '0', min = '0', sec = '0'] = brMatch;
+      const date = new Date(
+        parseInt(year),
+        parseInt(month) - 1,
+        parseInt(day),
+        parseInt(hour),
+        parseInt(min),
+        parseInt(sec)
+      );
+      if (!isNaN(date.getTime())) {
+        return date.toISOString();
+      }
+    }
+    
+    // Tenta formato YYYY-MM-DD
+    const isoMatch = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (isoMatch) {
+      const parsed = new Date(dateStr);
+      if (!isNaN(parsed.getTime())) {
+        return parsed.toISOString();
+      }
+    }
+    
+    // Tenta parse genérico
+    const genericParsed = new Date(dateStr);
+    if (!isNaN(genericParsed.getTime())) {
+      return genericParsed.toISOString();
     }
   }
   
@@ -695,10 +745,12 @@ export function ExportImportLeads({ leads, onImport }: ExportImportLeadsProps) {
           // Email final (com fallback)
           const finalEmail = email || `${name.toLowerCase().replace(/\s+/g, '.')}@importado.com`;
 
-          // Detecta data
+          // Detecta data da transação
           const transactionDate = detectKiwifyDate(row);
           if (transactionDate) {
             comData++;
+          } else {
+            console.log(`[SEM DATA] ${finalName} - Colunas disponíveis:`, Object.keys(row).filter(k => k.toLowerCase().includes('data')));
           }
 
           // CONTABILIZA APENAS SE STATUS É "PAID"
@@ -706,6 +758,11 @@ export function ExportImportLeads({ leads, onImport }: ExportImportLeadsProps) {
           const isAbandonedCart = rawStatus === 'waiting_payment' || rawStatus.includes('waiting') || rawStatus.includes('aguardando');
           const isRefund = rawStatus === 'refunded' || rawStatus.includes('reembolso') || rawStatus.includes('reembolsado');
           const isRefused = rawStatus === 'refused' || rawStatus.includes('recusado');
+          
+          // Log para debug de carrinhos abandonados
+          if (isAbandonedCart && transactionDate) {
+            console.log(`[ABANDONADO] ${finalName}: Data = ${new Date(transactionDate).toLocaleDateString('pt-BR')}`);
+          }
           
           // Soma APENAS transações com status "paid"
           if (isPaidTransaction) {
