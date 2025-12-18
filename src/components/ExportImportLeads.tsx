@@ -213,28 +213,47 @@ function detectKiwifyProduct(row: Record<string, unknown>): ProductType | null {
 }
 
 function detectKiwifyValue(row: Record<string, unknown>): number {
+  // Colunas específicas do Kiwify primeiro (mais precisas)
   const valueColumns = [
+    'Valor líquido', 'valor líquido', 'Valor liquido', 'valor liquido',
+    'Total com acréscimo', 'total com acréscimo', 'Total com acrescimo', 'total com acrescimo',
+    'Preço base do produto', 'preço base do produto', 'Preco base do produto', 'preco base do produto',
+    'Valor da compra em moeda da conta', 'valor da compra em moeda da conta',
     'Valor', 'valor', 'Value', 'value',
     'Preço', 'preco', 'preço', 'Price', 'price',
     'Valor da Compra', 'valor da compra',
     'Total', 'total', 'Valor Total', 'valor total'
   ];
   
+  // Busca case-insensitive por todas as colunas
   for (const col of valueColumns) {
+    // Busca exata primeiro
     if (row[col] !== undefined && row[col] !== null && row[col] !== '') {
-      let value = row[col];
-      
-      // Se for string, limpa e converte
-      if (typeof value === 'string') {
-        // Remove R$, espaços, pontos de milhar
-        value = value.replace(/[R$\s.]/g, '').replace(',', '.');
-      }
-      
-      const numValue = parseFloat(String(value));
-      if (!isNaN(numValue) && numValue > 0) {
-        return numValue;
+      const numValue = parseValue(row[col]);
+      if (numValue > 0) return numValue;
+    }
+    
+    // Busca case-insensitive
+    const lowerCol = col.toLowerCase();
+    for (const rowKey of Object.keys(row)) {
+      if (rowKey.toLowerCase() === lowerCol && row[rowKey] !== undefined && row[rowKey] !== null && row[rowKey] !== '') {
+        const numValue = parseValue(row[rowKey]);
+        if (numValue > 0) return numValue;
       }
     }
+  }
+  
+  return 0;
+}
+
+function parseValue(value: unknown): number {
+  if (typeof value === 'number') return value;
+  
+  if (typeof value === 'string') {
+    // Remove R$, espaços, pontos de milhar e converte vírgula em ponto
+    const cleaned = value.replace(/[R$\s]/g, '').replace(/\./g, '').replace(',', '.');
+    const numValue = parseFloat(cleaned);
+    if (!isNaN(numValue) && numValue > 0) return numValue;
   }
   
   return 0;
