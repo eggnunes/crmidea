@@ -45,6 +45,17 @@ import { ExportImportLeads } from "@/components/ExportImportLeads";
 import { LeadAssignees } from "@/components/LeadAssignees";
 import { DateRangeFilter } from "@/components/DateRangeFilter";
 import { isWithinInterval, startOfDay, endOfDay } from "date-fns";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 function LeadForm({ 
   onSubmit, 
@@ -327,6 +338,9 @@ export function LeadsPage() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
   const [viewingLead, setViewingLead] = useState<Lead | null>(null);
+  const [selectedLeads, setSelectedLeads] = useState<Set<string>>(new Set());
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   if (loading) {
     return (
@@ -394,6 +408,44 @@ export function LeadsPage() {
     await importLeads(leadsToImport);
   };
 
+  // Bulk selection functions
+  const toggleSelectLead = (leadId: string) => {
+    setSelectedLeads(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(leadId)) {
+        newSet.delete(leadId);
+      } else {
+        newSet.add(leadId);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedLeads.size === filteredLeads.length) {
+      setSelectedLeads(new Set());
+    } else {
+      setSelectedLeads(new Set(filteredLeads.map(l => l.id)));
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    setIsDeleting(true);
+    try {
+      const selectedArray = Array.from(selectedLeads);
+      for (const leadId of selectedArray) {
+        await deleteLead(leadId);
+      }
+      toast.success(`${selectedArray.length} leads excluídos com sucesso`);
+      setSelectedLeads(new Set());
+    } catch (error) {
+      toast.error('Erro ao excluir alguns leads');
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteDialog(false);
+    }
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
@@ -403,6 +455,16 @@ export function LeadsPage() {
           <p className="text-muted-foreground mt-1">Gerencie seus potenciais clientes</p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
+          {selectedLeads.size > 0 && (
+            <Button 
+              variant="destructive" 
+              onClick={() => setShowDeleteDialog(true)}
+              className="gap-2"
+            >
+              <Trash2 className="w-4 h-4" />
+              Excluir {selectedLeads.size} selecionado{selectedLeads.size > 1 ? 's' : ''}
+            </Button>
+          )}
           <ExportImportLeads leads={filteredLeads} onImport={handleImport} />
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
@@ -481,6 +543,13 @@ export function LeadsPage() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-border/50 bg-secondary/30">
+                <th className="p-4 w-12">
+                  <Checkbox 
+                    checked={filteredLeads.length > 0 && selectedLeads.size === filteredLeads.length}
+                    onCheckedChange={toggleSelectAll}
+                    aria-label="Selecionar todos"
+                  />
+                </th>
                 <th className="text-left p-4 font-semibold text-sm">Lead</th>
                 <th className="text-left p-4 font-semibold text-sm">Contato</th>
                 <th className="text-left p-4 font-semibold text-sm">Produto</th>
@@ -494,12 +563,23 @@ export function LeadsPage() {
                 filteredLeads.map(lead => {
                   const product = PRODUCTS.find(p => p.id === lead.product);
                   const status = STATUSES.find(s => s.id === lead.status);
+                  const isSelected = selectedLeads.has(lead.id);
                   
                   return (
                     <tr 
                       key={lead.id} 
-                      className="border-b border-border/30 hover:bg-secondary/20 transition-colors"
+                      className={cn(
+                        "border-b border-border/30 hover:bg-secondary/20 transition-colors",
+                        isSelected && "bg-primary/5"
+                      )}
                     >
+                      <td className="p-4">
+                        <Checkbox 
+                          checked={isSelected}
+                          onCheckedChange={() => toggleSelectLead(lead.id)}
+                          aria-label={`Selecionar ${lead.name}`}
+                        />
+                      </td>
                       <td className="p-4">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center">
@@ -594,7 +674,7 @@ export function LeadsPage() {
                 })
               ) : (
                 <tr>
-                  <td colSpan={6} className="p-8 text-center text-muted-foreground">
+                  <td colSpan={7} className="p-8 text-center text-muted-foreground">
                     {leads.length === 0 
                       ? "Nenhum lead cadastrado. Adicione seu primeiro lead!"
                       : "Nenhum lead encontrado com os filtros aplicados"
@@ -637,6 +717,36 @@ export function LeadsPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Bulk Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar exclusão em massa</AlertDialogTitle>
+            <AlertDialogDescription>
+              Você está prestes a excluir {selectedLeads.size} lead{selectedLeads.size > 1 ? 's' : ''}. 
+              Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleBulkDelete}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Excluindo...
+                </>
+              ) : (
+                `Excluir ${selectedLeads.size} lead${selectedLeads.size > 1 ? 's' : ''}`
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
