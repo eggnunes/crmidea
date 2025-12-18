@@ -224,7 +224,7 @@ function detectKiwifyValue(row: Record<string, unknown>): number {
       const rawValue = row[key];
       if (rawValue !== undefined && rawValue !== null && rawValue !== '') {
         const numValue = parseValue(rawValue);
-        if (numValue >= 0) {
+        if (numValue > 0) {
           return numValue;
         }
       }
@@ -238,7 +238,7 @@ function detectKiwifyValue(row: Record<string, unknown>): number {
   for (const col of liquidoVariations) {
     if (row[col] !== undefined && row[col] !== null && row[col] !== '') {
       const numValue = parseValue(row[col]);
-      if (numValue >= 0) return numValue;
+      if (numValue > 0) return numValue;
     }
   }
   
@@ -248,12 +248,37 @@ function detectKiwifyValue(row: Record<string, unknown>): number {
     if (lowerKey.includes('líquido') || lowerKey.includes('liquido')) {
       if (row[key] !== undefined && row[key] !== null && row[key] !== '') {
         const numValue = parseValue(row[key]);
-        if (numValue >= 0) return numValue;
+        if (numValue > 0) return numValue;
       }
     }
   }
   
-  // 4. Fallback para outras colunas de valor (menos prioritárias)
+  // 4. IMPORTANTE: Para transações de AFILIADO, o valor está na coluna "Comissão do afiliado"
+  // (o "Valor líquido" está vazio para afiliados)
+  const affiliateCommissionColumns = [
+    'Comissão do afiliado', 'comissão do afiliado', 'Comissao do afiliado',
+    'Affiliate Commission', 'affiliate_commission'
+  ];
+  
+  for (const col of affiliateCommissionColumns) {
+    if (row[col] !== undefined && row[col] !== null && row[col] !== '') {
+      const numValue = parseValue(row[col]);
+      if (numValue > 0) return numValue;
+    }
+  }
+  
+  // 5. Busca parcial por "comissão" ou "comissao" + "afiliado"
+  for (const key of rowKeys) {
+    const normalizedKey = key.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (normalizedKey.includes('comissao') && normalizedKey.includes('afiliado')) {
+      if (row[key] !== undefined && row[key] !== null && row[key] !== '') {
+        const numValue = parseValue(row[key]);
+        if (numValue > 0) return numValue;
+      }
+    }
+  }
+  
+  // 6. Fallback para outras colunas de valor (menos prioritárias)
   const fallbackColumns = [
     'Total com acréscimo', 'total com acréscimo',
     'Preço base do produto', 'preço base do produto',
@@ -265,7 +290,7 @@ function detectKiwifyValue(row: Record<string, unknown>): number {
   for (const col of fallbackColumns) {
     if (row[col] !== undefined && row[col] !== null && row[col] !== '') {
       const numValue = parseValue(row[col]);
-      if (numValue >= 0) return numValue;
+      if (numValue > 0) return numValue;
     }
   }
   
