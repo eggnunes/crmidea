@@ -214,39 +214,41 @@ function detectKiwifyProduct(row: Record<string, unknown>): ProductType | null {
 
 function detectKiwifyValue(row: Record<string, unknown>): number {
   // IMPORTANTE: Para Kiwify, SEMPRE priorizar "Valor líquido" que é o valor real que a Kiwify mostra
-  // Busca exata pela coluna "Valor líquido" primeiro
-  
   const rowKeys = Object.keys(row);
   
-  // 1. Busca EXATA por "Valor líquido" (com variações de case e acentuação)
+  // 1. Busca por QUALQUER coluna que contenha "valor" E "liquido" (com ou sem acento)
+  for (const key of rowKeys) {
+    const normalizedKey = key.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    // Verifica se contém "valor" e "liquido" na mesma chave
+    if (normalizedKey.includes('valor') && normalizedKey.includes('liquido')) {
+      const rawValue = row[key];
+      if (rawValue !== undefined && rawValue !== null && rawValue !== '') {
+        const numValue = parseValue(rawValue);
+        if (numValue >= 0) {
+          return numValue;
+        }
+      }
+    }
+  }
+  
+  // 2. Busca EXATA por "Valor líquido" (com variações de case e acentuação)
   const liquidoVariations = ['Valor líquido', 'Valor Líquido', 'valor líquido', 'VALOR LÍQUIDO', 
                               'Valor liquido', 'Valor Liquido', 'valor liquido'];
   
   for (const col of liquidoVariations) {
     if (row[col] !== undefined && row[col] !== null && row[col] !== '') {
       const numValue = parseValue(row[col]);
-      if (numValue > 0) return numValue;
+      if (numValue >= 0) return numValue;
     }
   }
   
-  // 2. Busca case-insensitive por "Valor líquido"
-  for (const key of rowKeys) {
-    const lowerKey = key.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    if (lowerKey === 'valor liquido') {
-      if (row[key] !== undefined && row[key] !== null && row[key] !== '') {
-        const numValue = parseValue(row[key]);
-        if (numValue > 0) return numValue;
-      }
-    }
-  }
-  
-  // 3. Busca parcial - coluna que contém exatamente "líquido" (mas não outras colunas de valor)
+  // 3. Busca parcial - coluna que contém "líquido" ou "liquido"
   for (const key of rowKeys) {
     const lowerKey = key.toLowerCase();
     if (lowerKey.includes('líquido') || lowerKey.includes('liquido')) {
       if (row[key] !== undefined && row[key] !== null && row[key] !== '') {
         const numValue = parseValue(row[key]);
-        if (numValue > 0) return numValue;
+        if (numValue >= 0) return numValue;
       }
     }
   }
@@ -263,7 +265,7 @@ function detectKiwifyValue(row: Record<string, unknown>): number {
   for (const col of fallbackColumns) {
     if (row[col] !== undefined && row[col] !== null && row[col] !== '') {
       const numValue = parseValue(row[col]);
-      if (numValue > 0) return numValue;
+      if (numValue >= 0) return numValue;
     }
   }
   
@@ -271,7 +273,10 @@ function detectKiwifyValue(row: Record<string, unknown>): number {
 }
 
 function parseValue(value: unknown): number {
-  if (typeof value === 'number') return value;
+  if (typeof value === 'number') {
+    // Arredonda para 2 casas decimais para evitar problemas de precisão
+    return Math.round(value * 100) / 100;
+  }
   
   if (typeof value === 'string') {
     let cleaned = value.replace(/[R$\s]/g, '').trim();
@@ -299,7 +304,10 @@ function parseValue(value: unknown): number {
     // Se não detectou formato, assume que é um número simples sem separadores
     
     const numValue = parseFloat(cleaned);
-    if (!isNaN(numValue) && numValue > 0) return numValue;
+    if (!isNaN(numValue)) {
+      // Arredonda para 2 casas decimais para evitar problemas de precisão
+      return Math.round(numValue * 100) / 100;
+    }
   }
   
   return 0;
@@ -623,9 +631,6 @@ export function ExportImportLeads({ leads, onImport }: ExportImportLeadsProps) {
           const eventType = getEventType(row).toLowerCase().trim()
             .normalize('NFD').replace(/[\u0300-\u036f]/g, ''); // Remove acentos
           
-          // DEBUG: Log para verificar cada transação
-          console.log(`[IMPORT DEBUG] Row: ${finalName}, Status: "${eventType}", Value: ${value}`);
-          
           // IMPORTANTE: Verifica diretamente se o status original é "paid" para contabilizar valor
           // Inclui verificações mais abrangentes para garantir que nenhuma venda seja perdida
           const isPaidTransaction = eventType === 'paid' || 
@@ -634,8 +639,7 @@ export function ExportImportLeads({ leads, onImport }: ExportImportLeadsProps) {
                                     eventType.startsWith('paid') ||
                                     eventType === 'compra aprovada' ||
                                     eventType.includes('paid') ||
-                                    eventType === 'aprovado' ||
-                                    eventType === 'aprovação';
+                                    eventType === 'aprovacao';
           
           // Verifica se é carrinho abandonado (waiting_payment ou equivalente)
           const isAbandonedCart = abandonedCartStatuses.some(s => 
@@ -653,13 +657,13 @@ export function ExportImportLeads({ leads, onImport }: ExportImportLeadsProps) {
           );
           
           // Contabiliza APENAS transações com status "paid" original
+          // Usa arredondamento para evitar erros de precisão de ponto flutuante
           if (isPaidTransaction) {
             vendas++;
-            valorTotal += value;
-            console.log(`[IMPORT DEBUG] ✓ PAID: ${finalName} - R$ ${value.toFixed(2)} - Total acumulado: R$ ${valorTotal.toFixed(2)}`);
+            // Arredonda a soma para 2 casas decimais
+            valorTotal = Math.round((valorTotal + value) * 100) / 100;
           } else if (isRefund) {
             reembolsos++;
-            console.log(`[IMPORT DEBUG] ✗ REFUND: ${finalName} - R$ ${value.toFixed(2)}`);
           } else if (isAbandonedCart) {
             abandonados++;
           } else if (isRefused) {
