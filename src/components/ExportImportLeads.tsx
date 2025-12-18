@@ -250,8 +250,25 @@ function parseValue(value: unknown): number {
   if (typeof value === 'number') return value;
   
   if (typeof value === 'string') {
-    // Remove R$, espaços, pontos de milhar e converte vírgula em ponto
-    const cleaned = value.replace(/[R$\s]/g, '').replace(/\./g, '').replace(',', '.');
+    let cleaned = value.replace(/[R$\s]/g, '').trim();
+    
+    // Detecta o formato: brasileiro (1.234,56) vs americano (1,234.56)
+    // Se termina com vírgula + 2 dígitos = formato brasileiro
+    // Se termina com ponto + 2 dígitos = formato americano/Kiwify
+    const brazilianFormat = /,\d{2}$/.test(cleaned);
+    const americanFormat = /\.\d{2}$/.test(cleaned);
+    
+    if (brazilianFormat) {
+      // Formato brasileiro: remove pontos de milhar, converte vírgula em ponto
+      cleaned = cleaned.replace(/\./g, '').replace(',', '.');
+    } else if (americanFormat) {
+      // Formato americano: remove vírgulas de milhar, mantém ponto decimal
+      cleaned = cleaned.replace(/,/g, '');
+    } else {
+      // Fallback: tenta limpar ambos
+      cleaned = cleaned.replace(/[.,]/g, '');
+    }
+    
     const numValue = parseFloat(cleaned);
     if (!isNaN(numValue) && numValue > 0) return numValue;
   }
