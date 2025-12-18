@@ -284,7 +284,7 @@ export function useLeads() {
     }
   };
 
-  const importLeads = async (leadsToImport: Omit<Lead, 'id' | 'createdAt' | 'updatedAt' | 'interactions'>[]) => {
+  const importLeads = async (leadsToImport: (Omit<Lead, 'id' | 'createdAt' | 'updatedAt' | 'interactions'> & { importedCreatedAt?: string })[]) => {
     if (!user) return;
 
     try {
@@ -298,7 +298,8 @@ export function useLeads() {
         status: reverseStatusMap[lead.status] || 'novo' as DbLeadStatus,
         value: lead.value || 0,
         source: lead.source || null,
-        notes: lead.notes || null
+        notes: lead.notes || null,
+        created_at: lead.importedCreatedAt || new Date().toISOString()
       }));
 
       const { data, error } = await supabase

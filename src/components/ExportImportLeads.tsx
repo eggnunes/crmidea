@@ -12,9 +12,13 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 
+interface ImportedLead extends Omit<Lead, 'id' | 'createdAt' | 'updatedAt' | 'interactions'> {
+  importedCreatedAt?: string;
+}
+
 interface ExportImportLeadsProps {
   leads: Lead[];
-  onImport: (leads: Omit<Lead, 'id' | 'createdAt' | 'updatedAt' | 'interactions'>[]) => Promise<void>;
+  onImport: (leads: ImportedLead[]) => Promise<void>;
 }
 
 // Mapeamento inteligente de status Kiwify para CRM
@@ -195,12 +199,78 @@ function getEventType(row: Record<string, unknown>): string {
   return 'Desconhecido';
 }
 
+function detectKiwifyDate(row: Record<string, unknown>): string | null {
+  const dateColumns = [
+    'Data', 'data', 'Date', 'date',
+    'Data da Compra', 'data da compra',
+    'Data do Pedido', 'data do pedido',
+    'Data da Transação', 'data da transação',
+    'Data da Venda', 'data da venda',
+    'Created', 'created', 'Created At', 'created_at',
+    'Data de Criação', 'data de criação',
+    'Data/Hora', 'data/hora'
+  ];
+  
+  for (const col of dateColumns) {
+    if (row[col] !== undefined && row[col] !== null && row[col] !== '') {
+      const dateValue = row[col];
+      
+      // Se for número (Excel serial date)
+      if (typeof dateValue === 'number') {
+        // Excel usa dias desde 1/1/1900, ajuste para JavaScript
+        const excelEpoch = new Date(1899, 11, 30);
+        const jsDate = new Date(excelEpoch.getTime() + dateValue * 86400000);
+        return jsDate.toISOString();
+      }
+      
+      // Se for string, tenta parsear
+      if (typeof dateValue === 'string') {
+        const dateStr = dateValue.trim();
+        
+        // Tenta formato DD/MM/YYYY ou DD/MM/YYYY HH:MM
+        const brMatch = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+        if (brMatch) {
+          const [, day, month, year, hour = '0', min = '0', sec = '0'] = brMatch;
+          const date = new Date(
+            parseInt(year),
+            parseInt(month) - 1,
+            parseInt(day),
+            parseInt(hour),
+            parseInt(min),
+            parseInt(sec)
+          );
+          if (!isNaN(date.getTime())) {
+            return date.toISOString();
+          }
+        }
+        
+        // Tenta formato YYYY-MM-DD
+        const isoMatch = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        if (isoMatch) {
+          const parsed = new Date(dateStr);
+          if (!isNaN(parsed.getTime())) {
+            return parsed.toISOString();
+          }
+        }
+        
+        // Tenta parse genérico
+        const genericParsed = new Date(dateStr);
+        if (!isNaN(genericParsed.getTime())) {
+          return genericParsed.toISOString();
+        }
+      }
+    }
+  }
+  
+  return null;
+}
+
 export function ExportImportLeads({ leads, onImport }: ExportImportLeadsProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const [showPreview, setShowPreview] = useState(false);
   const [previewData, setPreviewData] = useState<{
-    leads: Omit<Lead, 'id' | 'createdAt' | 'updatedAt' | 'interactions'>[];
+    leads: ImportedLead[];
     summary: {
       total: number;
       vendas: number;
@@ -208,6 +278,7 @@ export function ExportImportLeads({ leads, onImport }: ExportImportLeadsProps) {
       reembolsos: number;
       pendentes: number;
       valorTotal: number;
+      comData: number;
     };
   } | null>(null);
 
@@ -301,8 +372,8 @@ export function ExportImportLeads({ leads, onImport }: ExportImportLeadsProps) {
           statusNameMap[s.id] = s.id;
         });
 
-        const importedLeads: Omit<Lead, 'id' | 'createdAt' | 'updatedAt' | 'interactions'>[] = [];
-        let vendas = 0, abandonados = 0, reembolsos = 0, pendentes = 0, valorTotal = 0;
+        const importedLeads: ImportedLead[] = [];
+        let vendas = 0, abandonados = 0, reembolsos = 0, pendentes = 0, valorTotal = 0, comData = 0;
 
         for (const row of jsonData as Record<string, unknown>[]) {
           // Detecta nome - suporta vários formatos
@@ -344,6 +415,12 @@ export function ExportImportLeads({ leads, onImport }: ExportImportLeadsProps) {
           // Detecta valor
           const value = detectKiwifyValue(row);
 
+          // Detecta data da transação
+          const transactionDate = detectKiwifyDate(row);
+          if (transactionDate) {
+            comData++;
+          }
+
           // Contabiliza estatísticas
           const eventType = getEventType(row).toLowerCase();
           if (status === 'fechado-ganho') {
@@ -377,7 +454,8 @@ export function ExportImportLeads({ leads, onImport }: ExportImportLeadsProps) {
             status,
             value,
             source: String(row['Origem'] || row['source'] || 'Kiwify'),
-            notes
+            notes,
+            importedCreatedAt: transactionDate || undefined
           });
         }
 
@@ -399,7 +477,8 @@ export function ExportImportLeads({ leads, onImport }: ExportImportLeadsProps) {
             abandonados,
             reembolsos,
             pendentes,
-            valorTotal
+            valorTotal,
+            comData
           }
         });
         setShowPreview(true);
@@ -494,6 +573,15 @@ export function ExportImportLeads({ leads, onImport }: ExportImportLeadsProps) {
                   <p className="text-2xl font-bold text-red-600">{previewData.summary.reembolsos}</p>
                 </div>
               </div>
+
+              {previewData.summary.comData > 0 && (
+                <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                  <p className="text-sm text-blue-600">Datas Reconhecidas</p>
+                  <p className="text-lg font-semibold text-blue-600">
+                    {previewData.summary.comData} de {previewData.summary.total} leads com data original
+                  </p>
+                </div>
+              )}
 
               {previewData.summary.valorTotal > 0 && (
                 <div className="p-4 rounded-lg bg-primary/10 border border-primary/20">
