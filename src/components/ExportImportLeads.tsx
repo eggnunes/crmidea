@@ -213,33 +213,54 @@ function detectKiwifyProduct(row: Record<string, unknown>): ProductType | null {
 }
 
 function detectKiwifyValue(row: Record<string, unknown>): number {
-  // Colunas específicas do Kiwify primeiro (mais precisas)
+  // Ordem de prioridade: Valor líquido é o que a Kiwify usa no dashboard
   const valueColumns = [
+    // Valor líquido (prioridade máxima)
     'Valor líquido', 'valor líquido', 'Valor liquido', 'valor liquido',
+    'Valor Líquido', 'Valor Liquido', 'Net Value', 'net_value',
+    // Total com acréscimo
     'Total com acréscimo', 'total com acréscimo', 'Total com acrescimo', 'total com acrescimo',
+    // Preço base
     'Preço base do produto', 'preço base do produto', 'Preco base do produto', 'preco base do produto',
+    'Preço base', 'preço base', 'Preco base', 'preco base',
+    // Valor da compra
     'Valor da compra em moeda da conta', 'valor da compra em moeda da conta',
+    'Valor da Compra', 'valor da compra', 'Valor compra', 'valor compra',
+    // Genéricos
     'Valor', 'valor', 'Value', 'value',
     'Preço', 'preco', 'preço', 'Price', 'price',
-    'Valor da Compra', 'valor da compra',
-    'Total', 'total', 'Valor Total', 'valor total'
+    'Total', 'total', 'Valor Total', 'valor total',
+    'Amount', 'amount', 'Montante', 'montante'
   ];
   
-  // Busca case-insensitive por todas as colunas
+  const rowKeys = Object.keys(row);
+  
+  // Busca exata primeiro (mais rápido)
   for (const col of valueColumns) {
-    // Busca exata primeiro
     if (row[col] !== undefined && row[col] !== null && row[col] !== '') {
       const numValue = parseValue(row[col]);
       if (numValue > 0) return numValue;
     }
-    
-    // Busca case-insensitive
+  }
+  
+  // Busca case-insensitive
+  for (const col of valueColumns) {
     const lowerCol = col.toLowerCase();
-    for (const rowKey of Object.keys(row)) {
+    for (const rowKey of rowKeys) {
       if (rowKey.toLowerCase() === lowerCol && row[rowKey] !== undefined && row[rowKey] !== null && row[rowKey] !== '') {
         const numValue = parseValue(row[rowKey]);
         if (numValue > 0) return numValue;
       }
+    }
+  }
+  
+  // Busca parcial - se a coluna contém "valor" ou "líquido"
+  for (const rowKey of rowKeys) {
+    const lowerKey = rowKey.toLowerCase();
+    if ((lowerKey.includes('valor') || lowerKey.includes('liquido') || lowerKey.includes('líquido') || lowerKey.includes('total')) 
+        && row[rowKey] !== undefined && row[rowKey] !== null && row[rowKey] !== '') {
+      const numValue = parseValue(row[rowKey]);
+      if (numValue > 0) return numValue;
     }
   }
   
@@ -595,6 +616,10 @@ export function ExportImportLeads({ leads, onImport }: ExportImportLeadsProps) {
           if (status === 'fechado-ganho') {
             vendas++;
             valorTotal += value;
+            // Log vendas com valor 0 para debug
+            if (value === 0) {
+              console.log('Venda aprovada com valor 0:', { name: finalName, email: finalEmail, eventType, row });
+            }
           } else if (isRefund) {
             reembolsos++;
           } else if (isAbandonedCart) {
