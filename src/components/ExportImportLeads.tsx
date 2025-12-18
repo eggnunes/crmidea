@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { ColumnMapper, ColumnMapping } from './ColumnMapper';
+import { ProductMapper, ProductMapping } from './ProductMapper';
 
 interface ImportedLead extends Omit<Lead, 'id' | 'createdAt' | 'updatedAt' | 'interactions'> {
   importedCreatedAt?: string;
@@ -545,8 +546,11 @@ export function ExportImportLeads({ leads, onImport }: ExportImportLeadsProps) {
   const { toast } = useToast();
   const [showPreview, setShowPreview] = useState(false);
   const [showMapper, setShowMapper] = useState(false);
+  const [showProductMapper, setShowProductMapper] = useState(false);
   const [rawExcelData, setRawExcelData] = useState<Record<string, unknown>[]>([]);
   const [excelColumns, setExcelColumns] = useState<string[]>([]);
+  const [detectedProducts, setDetectedProducts] = useState<string[]>([]);
+  const [productMapping, setProductMapping] = useState<ProductMapping>({});
   const [previewData, setPreviewData] = useState<{
     leads: ImportedLead[];
     summary: {
@@ -642,22 +646,84 @@ export function ExportImportLeads({ leads, onImport }: ExportImportLeadsProps) {
           setExcelColumns(Object.keys(jsonData[0]));
         }
 
-        // Map para produtos e status CRM
-        const productNameMap: Record<string, ProductType> = {};
-        PRODUCTS.forEach(p => {
-          productNameMap[p.name.toLowerCase()] = p.id;
-          productNameMap[p.shortName.toLowerCase()] = p.id;
-          productNameMap[p.id] = p.id;
-        });
+        // PASSO 1: Detecta todos os produtos únicos da planilha
+        const productColumns = [
+          'Produto', 'produto', 'Product', 'product',
+          'Nome do Produto', 'nome do produto',
+          'Oferta', 'oferta', 'Item', 'item'
+        ];
+        
+        const uniqueProducts = new Set<string>();
+        for (const row of jsonData) {
+          for (const col of productColumns) {
+            const value = row[col];
+            if (value && typeof value === 'string' && value.trim()) {
+              uniqueProducts.add(value.trim());
+              break;
+            }
+            // Busca case-insensitive
+            for (const rowKey of Object.keys(row)) {
+              if (rowKey.toLowerCase() === col.toLowerCase() && row[rowKey]) {
+                const val = String(row[rowKey]).trim();
+                if (val) {
+                  uniqueProducts.add(val);
+                  break;
+                }
+              }
+            }
+          }
+        }
+        
+        const productsArray = Array.from(uniqueProducts).sort();
+        console.log('Produtos únicos detectados:', productsArray);
+        
+        // Se encontrou produtos, mostra tela de correspondência
+        if (productsArray.length > 0) {
+          setDetectedProducts(productsArray);
+          setShowProductMapper(true);
+          toast({
+            title: `${productsArray.length} produto(s) detectado(s)`,
+            description: "Configure a correspondência dos produtos antes de importar",
+          });
+        } else {
+          // Se não detectou produtos, processa direto
+          processImportData(jsonData, {});
+        }
+      };
 
-        const statusNameMap: Record<string, LeadStatus> = {};
-        STATUSES.forEach(s => {
-          statusNameMap[s.name.toLowerCase()] = s.id;
-          statusNameMap[s.id] = s.id;
-        });
+      reader.readAsBinaryString(file);
+    } catch (error) {
+      console.error('Error importing file:', error);
+      toast({
+        title: "Erro ao importar",
+        description: "Verifique o formato do arquivo",
+        variant: "destructive",
+      });
+    }
 
-        const importedLeads: ImportedLead[] = [];
-        let vendas = 0, abandonados = 0, reembolsos = 0, pendentes = 0, valorTotal = 0, comData = 0;
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  // Função que processa a importação com o mapeamento de produtos
+  const processImportData = (jsonData: Record<string, unknown>[], appliedProductMapping: ProductMapping) => {
+    // Map para produtos e status CRM
+    const productNameMap: Record<string, ProductType> = {};
+    PRODUCTS.forEach(p => {
+      productNameMap[p.name.toLowerCase()] = p.id;
+      productNameMap[p.shortName.toLowerCase()] = p.id;
+      productNameMap[p.id] = p.id;
+    });
+
+    const statusNameMap: Record<string, LeadStatus> = {};
+    STATUSES.forEach(s => {
+      statusNameMap[s.name.toLowerCase()] = s.id;
+      statusNameMap[s.id] = s.id;
+    });
+
+    const importedLeads: ImportedLead[] = [];
+    let vendas = 0, abandonados = 0, reembolsos = 0, pendentes = 0, valorTotal = 0, comData = 0;
 
         // PASSO 1: Encontrar as colunas exatas de Status e Valor líquido na primeira linha
         const firstRow = jsonData[0] as Record<string, unknown>;
@@ -758,15 +824,27 @@ export function ExportImportLeads({ leads, onImport }: ExportImportLeadsProps) {
             'Número', 'numero', 'Fone', 'fone'
           ]);
 
-          // Detecta produto
-          let product: ProductType = 'consultoria';
-          const kiwifyProduct = detectKiwifyProduct(row);
-          if (kiwifyProduct) {
-            product = kiwifyProduct;
+          // Detecta produto - PRIMEIRO verifica o mapeamento do usuário
+          let product: ProductType = 'ebook-unitario'; // Default
+          const rawProductValue = findValue(['Produto', 'product', 'Oferta', 'oferta', 'Item']);
+          
+          // Verifica se há mapeamento definido pelo usuário
+          if (rawProductValue && appliedProductMapping[rawProductValue]) {
+            const mapping = appliedProductMapping[rawProductValue];
+            if (mapping.targetProduct !== 'NEW') {
+              product = mapping.targetProduct;
+            }
+            // Se é NEW, usa o default ebook-unitario
           } else {
-            const rawProduct = findValue(['Produto', 'product', 'Oferta', 'oferta', 'Item'])?.toLowerCase();
-            if (rawProduct && productNameMap[rawProduct]) {
-              product = productNameMap[rawProduct];
+            // Fallback para detecção automática
+            const kiwifyProduct = detectKiwifyProduct(row);
+            if (kiwifyProduct) {
+              product = kiwifyProduct;
+            } else {
+              const rawProduct = rawProductValue?.toLowerCase();
+              if (rawProduct && productNameMap[rawProduct]) {
+                product = productNameMap[rawProduct];
+              }
             }
           }
 
@@ -943,21 +1021,24 @@ export function ExportImportLeads({ leads, onImport }: ExportImportLeadsProps) {
           }
         });
         setShowPreview(true);
-      };
+  };
 
-      reader.readAsBinaryString(file);
-    } catch (error) {
-      console.error('Error importing file:', error);
+  // Handler para quando o usuário confirma o mapeamento de produtos
+  const handleProductMappingConfirm = (mapping: ProductMapping, newProducts: { id: string; name: string }[]) => {
+    setProductMapping(mapping);
+    setShowProductMapper(false);
+    
+    // Log novos produtos que precisariam ser criados
+    if (newProducts.length > 0) {
+      console.log('Novos produtos a criar:', newProducts);
       toast({
-        title: "Erro ao importar",
-        description: "Verifique o formato do arquivo",
-        variant: "destructive",
+        title: `${newProducts.length} novo(s) produto(s)`,
+        description: "Esses produtos serão tratados como 'E-book Unitário' por enquanto",
       });
     }
-
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
+    
+    // Processa os dados com o mapeamento aplicado
+    processImportData(rawExcelData, mapping);
   };
 
   const confirmImport = async () => {
@@ -1277,6 +1358,24 @@ export function ExportImportLeads({ leads, onImport }: ExportImportLeadsProps) {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de Correspondência de Produtos */}
+      <Dialog open={showProductMapper} onOpenChange={setShowProductMapper}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden">
+          <DialogHeader>
+            <DialogTitle>Correspondência de Produtos</DialogTitle>
+            <DialogDescription>
+              Mapeie os produtos da planilha para os produtos cadastrados no CRM
+            </DialogDescription>
+          </DialogHeader>
+          
+          <ProductMapper
+            detectedProducts={detectedProducts}
+            onConfirm={handleProductMappingConfirm}
+            onCancel={() => setShowProductMapper(false)}
+          />
         </DialogContent>
       </Dialog>
     </>
