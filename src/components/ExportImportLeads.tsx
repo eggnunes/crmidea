@@ -613,13 +613,21 @@ export function ExportImportLeads({ leads, onImport }: ExportImportLeadsProps) {
             eventType === s || eventType.includes(s)
           );
           
+          // Log para debug de todas as transações
+          console.log('Transação processada:', { 
+            name: finalName, 
+            email: finalEmail, 
+            status, 
+            eventType,
+            value,
+            valorLiquido: row['Valor líquido'] || row['Valor Líquido'] || row['valor líquido'],
+            allValueColumns: Object.entries(row).filter(([k]) => k.toLowerCase().includes('valor')).map(([k, v]) => `${k}: ${v}`)
+          });
+          
           if (status === 'fechado-ganho') {
             vendas++;
             valorTotal += value;
-            // Log vendas com valor 0 para debug
-            if (value === 0) {
-              console.log('Venda aprovada com valor 0:', { name: finalName, email: finalEmail, eventType, row });
-            }
+            console.log(`✅ Venda contabilizada: ${finalName} - R$ ${value.toFixed(2)} (Total parcial: R$ ${valorTotal.toFixed(2)})`);
           } else if (isRefund) {
             reembolsos++;
           } else if (isAbandonedCart) {
@@ -700,9 +708,18 @@ export function ExportImportLeads({ leads, onImport }: ExportImportLeadsProps) {
         // Recalcula estatísticas após consolidação - usa o valor total de TODAS as transações
         let finalVendas = 0, finalAbandonados = 0, finalReembolsos = 0, finalPendentes = 0;
         // Para o valor total, soma de todas as transações originais (não consolidadas)
-        const finalValorTotal = importedLeads
-          .filter(lead => lead.status === 'fechado-ganho')
-          .reduce((sum, lead) => sum + lead.value, 0);
+        const vendasAprovadas = importedLeads.filter(lead => lead.status === 'fechado-ganho');
+        const finalValorTotal = vendasAprovadas.reduce((sum, lead) => sum + lead.value, 0);
+        
+        console.log('=== RESUMO FINAL ===');
+        console.log(`Total de transações processadas: ${importedLeads.length}`);
+        console.log(`Vendas aprovadas encontradas: ${vendasAprovadas.length}`);
+        console.log(`Valor total das vendas: R$ ${finalValorTotal.toFixed(2)}`);
+        console.log('Detalhamento das vendas:', vendasAprovadas.map(v => ({ 
+          name: v.name, 
+          email: v.email, 
+          value: v.value 
+        })));
         
         for (const lead of finalLeads) {
           const eventNote = lead.notes?.toLowerCase() || '';
