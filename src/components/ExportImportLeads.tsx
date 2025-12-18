@@ -624,7 +624,8 @@ export function ExportImportLeads({ leads, onImport }: ExportImportLeadsProps) {
         }
 
         // Consolida leads duplicados por email - se um lead foi recusado mas depois pagou, mantém como pago
-        const consolidatedLeads = new Map<string, ImportedLead>();
+        // E ACUMULA valores de todas as vendas aprovadas do mesmo cliente
+        const consolidatedLeads = new Map<string, ImportedLead & { totalSalesValue: number }>();
         const statusPriority: Record<LeadStatus, number> = {
           'fechado-ganho': 6, // Mais alta prioridade
           'fechado-perdido': 1, // Mais baixa
@@ -639,26 +640,45 @@ export function ExportImportLeads({ leads, onImport }: ExportImportLeadsProps) {
           const existing = consolidatedLeads.get(key);
           
           if (!existing) {
-            consolidatedLeads.set(key, lead);
+            consolidatedLeads.set(key, { 
+              ...lead, 
+              totalSalesValue: lead.status === 'fechado-ganho' ? lead.value : 0 
+            });
           } else {
-            // Se o novo lead tem status com prioridade maior, substitui
+            // Acumula o valor se for uma venda aprovada
+            if (lead.status === 'fechado-ganho') {
+              existing.totalSalesValue += lead.value;
+            }
+            
+            // Se o novo lead tem status com prioridade maior, atualiza (mas mantém o totalSalesValue acumulado)
             if (statusPriority[lead.status] > statusPriority[existing.status]) {
-              consolidatedLeads.set(key, lead);
+              const accumulatedValue = existing.totalSalesValue + (lead.status === 'fechado-ganho' ? 0 : 0); // Já foi adicionado acima
+              consolidatedLeads.set(key, { 
+                ...lead, 
+                totalSalesValue: existing.totalSalesValue // Mantém o valor acumulado
+              });
             }
           }
         }
         
-        const finalLeads = Array.from(consolidatedLeads.values());
+        // Converte para array final, usando o valor acumulado para leads fechado-ganho
+        const finalLeads = Array.from(consolidatedLeads.values()).map(lead => ({
+          ...lead,
+          value: lead.status === 'fechado-ganho' ? lead.totalSalesValue : lead.value
+        }));
         
-        // Recalcula estatísticas após consolidação
-        let finalVendas = 0, finalAbandonados = 0, finalReembolsos = 0, finalPendentes = 0, finalValorTotal = 0;
+        // Recalcula estatísticas após consolidação - usa o valor total de TODAS as transações
+        let finalVendas = 0, finalAbandonados = 0, finalReembolsos = 0, finalPendentes = 0;
+        // Para o valor total, soma de todas as transações originais (não consolidadas)
+        const finalValorTotal = importedLeads
+          .filter(lead => lead.status === 'fechado-ganho')
+          .reduce((sum, lead) => sum + lead.value, 0);
         
         for (const lead of finalLeads) {
           const eventNote = lead.notes?.toLowerCase() || '';
           
           if (lead.status === 'fechado-ganho') {
             finalVendas++;
-            finalValorTotal += lead.value;
           } else if (refundStatuses.some(s => eventNote.includes(s))) {
             finalReembolsos++;
           } else if (abandonedCartStatuses.some(s => eventNote.includes(s))) {
