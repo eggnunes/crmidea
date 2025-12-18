@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { DashboardCharts } from "@/components/DashboardCharts";
 import { RecoveryAlertsCard } from "@/components/RecoveryAlertsCard";
 import { RecentPurchasesCard } from "@/components/RecentPurchasesCard";
+import { MonthlyComparisonChart } from "@/components/MonthlyComparisonChart";
 
 function StatCard({ 
   title, 
@@ -215,6 +216,9 @@ export function DashboardPage() {
 
       {/* Charts Section */}
       <DashboardCharts leads={leads} />
+
+      {/* Monthly Comparison Chart */}
+      <MonthlyComparisonChart leads={leads} />
 
       {/* Prominent Alerts Section */}
       <div className="space-y-4">
