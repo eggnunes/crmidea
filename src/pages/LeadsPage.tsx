@@ -198,17 +198,25 @@ function LeadForm({
 
 function LeadDetailDialog({ 
   lead, 
-  onAddInteraction 
+  onAddInteraction,
+  onUpdateLead
 }: { 
   lead: Lead; 
   onAddInteraction: (leadId: string, interaction: Omit<Interaction, 'id'>) => void;
+  onUpdateLead: (leadId: string, data: Partial<Omit<Lead, 'id' | 'createdAt' | 'updatedAt' | 'interactions'>>) => Promise<void>;
 }) {
   const [newInteraction, setNewInteraction] = useState({
     type: 'whatsapp' as Interaction['type'],
     description: ''
   });
+  const [isChangingStatus, setIsChangingStatus] = useState(false);
+  const [isChangingProduct, setIsChangingProduct] = useState(false);
+  const [selectedStatus, setSelectedStatus] = useState(lead.status);
+  const [selectedProduct, setSelectedProduct] = useState(lead.product);
+  const [statusReason, setStatusReason] = useState('');
 
   const product = PRODUCTS.find(p => p.id === lead.product);
+  const status = STATUSES.find(s => s.id === lead.status);
 
   const handleAddInteraction = () => {
     if (!newInteraction.description) {
@@ -223,6 +231,61 @@ function LeadDetailDialog({
     setNewInteraction({ type: 'whatsapp', description: '' });
   };
 
+  const handleStatusChange = async () => {
+    if (selectedStatus === lead.status && !statusReason) {
+      setIsChangingStatus(false);
+      return;
+    }
+
+    try {
+      await onUpdateLead(lead.id, { status: selectedStatus });
+      
+      // Add interaction explaining the status change
+      if (statusReason) {
+        onAddInteraction(lead.id, {
+          date: new Date().toISOString().split('T')[0],
+          type: 'outro',
+          description: `Status alterado para "${STATUSES.find(s => s.id === selectedStatus)?.name}": ${statusReason}`
+        });
+      }
+      
+      toast.success('Status atualizado com sucesso');
+      setIsChangingStatus(false);
+      setStatusReason('');
+    } catch (error) {
+      toast.error('Erro ao atualizar status');
+    }
+  };
+
+  const handleProductChange = async () => {
+    if (selectedProduct === lead.product) {
+      setIsChangingProduct(false);
+      return;
+    }
+
+    const previousProduct = PRODUCTS.find(p => p.id === lead.product)?.name;
+    const newProductName = PRODUCTS.find(p => p.id === selectedProduct)?.name;
+
+    try {
+      await onUpdateLead(lead.id, { 
+        product: selectedProduct,
+        status: 'negociacao' // Move to negotiation when changing product
+      });
+      
+      // Add interaction explaining the product change
+      onAddInteraction(lead.id, {
+        date: new Date().toISOString().split('T')[0],
+        type: 'outro',
+        description: `Produto alterado de "${previousProduct}" para "${newProductName}". Lead movido para negociação.`
+      });
+      
+      toast.success('Produto atualizado com sucesso');
+      setIsChangingProduct(false);
+    } catch (error) {
+      toast.error('Erro ao atualizar produto');
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Lead Info */}
@@ -233,9 +296,97 @@ function LeadDetailDialog({
               {lead.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
             </span>
           </div>
-          <div>
+          <div className="flex-1">
             <h3 className="text-xl font-bold">{lead.name}</h3>
-            <p className="text-muted-foreground">{product?.name}</p>
+            
+            {/* Product - Editable */}
+            {isChangingProduct ? (
+              <div className="flex items-center gap-2 mt-1">
+                <Select
+                  value={selectedProduct}
+                  onValueChange={(value) => setSelectedProduct(value as ProductType)}
+                >
+                  <SelectTrigger className="w-48 h-8 text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PRODUCTS.map(p => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button size="sm" variant="outline" onClick={() => setIsChangingProduct(false)}>
+                  Cancelar
+                </Button>
+                <Button size="sm" onClick={handleProductChange}>
+                  Salvar
+                </Button>
+              </div>
+            ) : (
+              <p 
+                className="text-muted-foreground cursor-pointer hover:text-foreground transition-colors flex items-center gap-1"
+                onClick={() => setIsChangingProduct(true)}
+              >
+                {product?.name}
+                <Edit className="w-3 h-3" />
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Status - Editable */}
+        <div className="p-3 rounded-lg bg-secondary/50 border border-border/50">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">Status atual:</span>
+            {isChangingStatus ? (
+              <div className="flex-1 ml-4 space-y-2">
+                <Select
+                  value={selectedStatus}
+                  onValueChange={(value) => setSelectedStatus(value as LeadStatus)}
+                >
+                  <SelectTrigger className="w-full h-8 text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {STATUSES.map(s => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Input
+                  placeholder="Motivo da alteração (opcional)"
+                  value={statusReason}
+                  onChange={(e) => setStatusReason(e.target.value)}
+                  className="h-8 text-sm"
+                />
+                <div className="flex justify-end gap-2">
+                  <Button size="sm" variant="outline" onClick={() => {
+                    setIsChangingStatus(false);
+                    setSelectedStatus(lead.status);
+                    setStatusReason('');
+                  }}>
+                    Cancelar
+                  </Button>
+                  <Button size="sm" onClick={handleStatusChange}>
+                    Salvar
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div 
+                className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
+                onClick={() => setIsChangingStatus(true)}
+              >
+                <Badge variant="outline" className="text-xs">
+                  {status?.name}
+                </Badge>
+                <Edit className="w-3 h-3 text-muted-foreground" />
+              </div>
+            )}
           </div>
         </div>
 
@@ -739,6 +890,14 @@ export function LeadsPage() {
             <LeadDetailDialog 
               lead={viewingLead} 
               onAddInteraction={addInteraction}
+              onUpdateLead={async (leadId, data) => {
+                await updateLead(leadId, data);
+                // Refresh the viewing lead with updated data
+                const updatedLead = leads.find(l => l.id === leadId);
+                if (updatedLead) {
+                  setViewingLead({ ...updatedLead, ...data } as Lead);
+                }
+              }}
             />
           )}
         </DialogContent>
