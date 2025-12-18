@@ -23,7 +23,7 @@ interface ExportImportLeadsProps {
 
 // Mapeamento inteligente de status Kiwify para CRM
 const kiwifyStatusMap: Record<string, LeadStatus> = {
-  // Vendas aprovadas
+  // Vendas aprovadas/pagas
   'aprovada': 'fechado-ganho',
   'pago': 'fechado-ganho',
   'aprovado': 'fechado-ganho',
@@ -33,13 +33,14 @@ const kiwifyStatusMap: Record<string, LeadStatus> = {
   'compra aprovada': 'fechado-ganho',
   'venda aprovada': 'fechado-ganho',
   
-  // Carrinho abandonado / PIX gerado
-  'abandonado': 'fechado-perdido',
-  'carrinho abandonado': 'fechado-perdido',
-  'abandoned': 'fechado-perdido',
+  // Carrinho abandonado / Aguardando pagamento (status 'novo' para permitir follow-up)
+  'abandonado': 'novo',
+  'carrinho abandonado': 'novo',
+  'abandoned': 'novo',
   'pix gerado': 'novo',
   'boleto gerado': 'novo',
   'aguardando pagamento': 'novo',
+  'waiting_payment': 'novo',
   'aguardando': 'novo',
   'pendente': 'novo',
   'pending': 'novo',
@@ -55,6 +56,7 @@ const kiwifyStatusMap: Record<string, LeadStatus> = {
   // Recusado/Cancelado
   'recusado': 'fechado-perdido',
   'recusada': 'fechado-perdido',
+  'refused': 'fechado-perdido',
   'cancelado': 'fechado-perdido',
   'cancelada': 'fechado-perdido',
   'declined': 'fechado-perdido',
@@ -72,6 +74,23 @@ const kiwifyStatusMap: Record<string, LeadStatus> = {
   'assinatura atrasada': 'negociacao',
   'assinatura renovada': 'fechado-ganho',
 };
+
+// Status que indicam carrinho abandonado (aguardando pagamento)
+const abandonedCartStatuses = [
+  'waiting_payment', 'aguardando pagamento', 'aguardando_pagamento',
+  'pix gerado', 'pix_gerado', 'boleto gerado', 'boleto_gerado',
+  'pendente', 'pending', 'aguardando', 'abandonado', 'abandoned', 'carrinho abandonado'
+];
+
+// Status que indicam reembolso
+const refundStatuses = [
+  'refunded', 'reembolsado', 'reembolso', 'refund', 'estornado', 'compra reembolsada'
+];
+
+// Status que indicam recusado
+const refusedStatuses = [
+  'refused', 'recusado', 'recusada', 'declined', 'cancelado', 'cancelada', 'canceled', 'cancelled'
+];
 
 // Mapeamento de produtos Kiwify para CRM
 const kiwifyProductMap: Record<string, ProductType> = {
@@ -504,28 +523,23 @@ export function ExportImportLeads({ leads, onImport }: ExportImportLeadsProps) {
             comData++;
           }
 
-          // Contabiliza estatísticas
-          const eventType = getEventType(row).toLowerCase();
+          // Contabiliza estatísticas baseado no status original da planilha
+          const eventType = getEventType(row).toLowerCase().trim();
           
-          // Verifica se é carrinho abandonado (PIX/boleto gerado sem pagamento, ou explicitamente abandonado)
-          const isAbandonedCart = 
-            eventType.includes('abandon') || 
-            eventType.includes('carrinho') ||
-            eventType.includes('pix gerado') ||
-            eventType.includes('pix_gerado') ||
-            eventType.includes('boleto gerado') ||
-            eventType.includes('boleto_gerado') ||
-            eventType.includes('aguardando pagamento') ||
-            eventType.includes('aguardando_pagamento') ||
-            eventType.includes('pendente') ||
-            eventType.includes('pending');
+          // Verifica se é carrinho abandonado (waiting_payment ou equivalente)
+          const isAbandonedCart = abandonedCartStatuses.some(s => 
+            eventType === s || eventType.includes(s)
+          );
           
           // Verifica se é reembolso
-          const isRefund = 
-            eventType.includes('reembolso') || 
-            eventType.includes('refund') ||
-            eventType.includes('estorno') ||
-            eventType.includes('reembolsado');
+          const isRefund = refundStatuses.some(s => 
+            eventType === s || eventType.includes(s)
+          );
+          
+          // Verifica se é recusado
+          const isRefused = refusedStatuses.some(s => 
+            eventType === s || eventType.includes(s)
+          );
           
           if (status === 'fechado-ganho') {
             vendas++;
@@ -534,6 +548,9 @@ export function ExportImportLeads({ leads, onImport }: ExportImportLeadsProps) {
             reembolsos++;
           } else if (isAbandonedCart) {
             abandonados++;
+          } else if (isRefused) {
+            // Recusados são contabilizados como pendentes (podem tentar novamente)
+            pendentes++;
           } else if (status === 'novo') {
             pendentes++;
           }
@@ -560,7 +577,52 @@ export function ExportImportLeads({ leads, onImport }: ExportImportLeadsProps) {
           });
         }
 
-        if (importedLeads.length === 0) {
+        // Consolida leads duplicados por email - se um lead foi recusado mas depois pagou, mantém como pago
+        const consolidatedLeads = new Map<string, ImportedLead>();
+        const statusPriority: Record<LeadStatus, number> = {
+          'fechado-ganho': 6, // Mais alta prioridade
+          'fechado-perdido': 1, // Mais baixa
+          'proposta-enviada': 4,
+          'negociacao': 3,
+          'contato-inicial': 2,
+          'novo': 5, // Carrinhos abandonados devem ter prioridade sobre recusados
+        };
+        
+        for (const lead of importedLeads) {
+          const key = lead.email.toLowerCase();
+          const existing = consolidatedLeads.get(key);
+          
+          if (!existing) {
+            consolidatedLeads.set(key, lead);
+          } else {
+            // Se o novo lead tem status com prioridade maior, substitui
+            if (statusPriority[lead.status] > statusPriority[existing.status]) {
+              consolidatedLeads.set(key, lead);
+            }
+          }
+        }
+        
+        const finalLeads = Array.from(consolidatedLeads.values());
+        
+        // Recalcula estatísticas após consolidação
+        let finalVendas = 0, finalAbandonados = 0, finalReembolsos = 0, finalPendentes = 0, finalValorTotal = 0;
+        
+        for (const lead of finalLeads) {
+          const eventNote = lead.notes?.toLowerCase() || '';
+          
+          if (lead.status === 'fechado-ganho') {
+            finalVendas++;
+            finalValorTotal += lead.value;
+          } else if (refundStatuses.some(s => eventNote.includes(s))) {
+            finalReembolsos++;
+          } else if (abandonedCartStatuses.some(s => eventNote.includes(s))) {
+            finalAbandonados++;
+          } else {
+            finalPendentes++;
+          }
+        }
+
+        if (finalLeads.length === 0) {
           // Mostra as colunas encontradas para ajudar na depuração
           const firstRow = jsonData[0] as Record<string, unknown> | undefined;
           const columnsFound = firstRow ? Object.keys(firstRow).slice(0, 10).join(', ') : 'Nenhuma';
@@ -577,14 +639,14 @@ export function ExportImportLeads({ leads, onImport }: ExportImportLeadsProps) {
 
         // Mostra preview antes de importar
         setPreviewData({
-          leads: importedLeads,
+          leads: finalLeads,
           summary: {
-            total: importedLeads.length,
-            vendas,
-            abandonados,
-            reembolsos,
-            pendentes,
-            valorTotal,
+            total: finalLeads.length,
+            vendas: finalVendas,
+            abandonados: finalAbandonados,
+            reembolsos: finalReembolsos,
+            pendentes: finalPendentes,
+            valorTotal: finalValorTotal,
             comData
           }
         });
