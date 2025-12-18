@@ -213,53 +213,56 @@ function detectKiwifyProduct(row: Record<string, unknown>): ProductType | null {
 }
 
 function detectKiwifyValue(row: Record<string, unknown>): number {
-  // Ordem de prioridade: Valor líquido é o que a Kiwify usa no dashboard
-  const valueColumns = [
-    // Valor líquido (prioridade máxima)
-    'Valor líquido', 'valor líquido', 'Valor liquido', 'valor liquido',
-    'Valor Líquido', 'Valor Liquido', 'Net Value', 'net_value',
-    // Total com acréscimo
-    'Total com acréscimo', 'total com acréscimo', 'Total com acrescimo', 'total com acrescimo',
-    // Preço base
-    'Preço base do produto', 'preço base do produto', 'Preco base do produto', 'preco base do produto',
-    'Preço base', 'preço base', 'Preco base', 'preco base',
-    // Valor da compra
-    'Valor da compra em moeda da conta', 'valor da compra em moeda da conta',
-    'Valor da Compra', 'valor da compra', 'Valor compra', 'valor compra',
-    // Genéricos
-    'Valor', 'valor', 'Value', 'value',
-    'Preço', 'preco', 'preço', 'Price', 'price',
-    'Total', 'total', 'Valor Total', 'valor total',
-    'Amount', 'amount', 'Montante', 'montante'
-  ];
+  // IMPORTANTE: Para Kiwify, SEMPRE priorizar "Valor líquido" que é o valor real que a Kiwify mostra
+  // Busca exata pela coluna "Valor líquido" primeiro
   
   const rowKeys = Object.keys(row);
   
-  // Busca exata primeiro (mais rápido)
-  for (const col of valueColumns) {
+  // 1. Busca EXATA por "Valor líquido" (com variações de case e acentuação)
+  const liquidoVariations = ['Valor líquido', 'Valor Líquido', 'valor líquido', 'VALOR LÍQUIDO', 
+                              'Valor liquido', 'Valor Liquido', 'valor liquido'];
+  
+  for (const col of liquidoVariations) {
     if (row[col] !== undefined && row[col] !== null && row[col] !== '') {
       const numValue = parseValue(row[col]);
       if (numValue > 0) return numValue;
     }
   }
   
-  // Busca case-insensitive
-  for (const col of valueColumns) {
-    const lowerCol = col.toLowerCase();
-    for (const rowKey of rowKeys) {
-      if (rowKey.toLowerCase() === lowerCol && row[rowKey] !== undefined && row[rowKey] !== null && row[rowKey] !== '') {
-        const numValue = parseValue(row[rowKey]);
+  // 2. Busca case-insensitive por "Valor líquido"
+  for (const key of rowKeys) {
+    const lowerKey = key.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (lowerKey === 'valor liquido') {
+      if (row[key] !== undefined && row[key] !== null && row[key] !== '') {
+        const numValue = parseValue(row[key]);
         if (numValue > 0) return numValue;
       }
     }
   }
   
-  // Busca parcial - se a coluna contém "valor" ou "líquido"
-  for (const rowKey of rowKeys) {
-    const lowerKey = rowKey.toLowerCase();
-    if ((lowerKey.includes('valor') || lowerKey.includes('liquido') || lowerKey.includes('líquido') || lowerKey.includes('total')) 
-        && row[rowKey] !== undefined && row[rowKey] !== null && row[rowKey] !== '') {
-      const numValue = parseValue(row[rowKey]);
+  // 3. Busca parcial - coluna que contém exatamente "líquido" (mas não outras colunas de valor)
+  for (const key of rowKeys) {
+    const lowerKey = key.toLowerCase();
+    if (lowerKey.includes('líquido') || lowerKey.includes('liquido')) {
+      if (row[key] !== undefined && row[key] !== null && row[key] !== '') {
+        const numValue = parseValue(row[key]);
+        if (numValue > 0) return numValue;
+      }
+    }
+  }
+  
+  // 4. Fallback para outras colunas de valor (menos prioritárias)
+  const fallbackColumns = [
+    'Total com acréscimo', 'total com acréscimo',
+    'Preço base do produto', 'preço base do produto',
+    'Valor da compra em moeda da conta',
+    'Valor', 'valor', 'Value', 'value',
+    'Total', 'total'
+  ];
+  
+  for (const col of fallbackColumns) {
+    if (row[col] !== undefined && row[col] !== null && row[col] !== '') {
+      const numValue = parseValue(row[col]);
       if (numValue > 0) return numValue;
     }
   }
@@ -303,13 +306,34 @@ function parseValue(value: unknown): number {
 }
 
 function getEventType(row: Record<string, unknown>): string {
-  const statusColumns = [
-    'Status', 'status', 'Status da Compra', 'status da compra',
+  // IMPORTANTE: Primeiro busca exatamente pela coluna "Status" da Kiwify
+  // Esta é a coluna que indica o estado atual da transação (paid, refunded, refused, waiting_payment)
+  // NÃO confundir com "Status do recebimento" que é outra coluna
+  
+  // Busca exata primeiro (prioridade máxima)
+  if (row['Status'] !== undefined && row['Status'] !== null && row['Status'] !== '') {
+    return String(row['Status']).trim();
+  }
+  
+  // Busca case-insensitive nas chaves do objeto
+  const rowKeys = Object.keys(row);
+  for (const key of rowKeys) {
+    // Busca apenas por "Status" exato (case-insensitive) para evitar pegar "Status do recebimento"
+    if (key.toLowerCase() === 'status') {
+      if (row[key] !== undefined && row[key] !== null && row[key] !== '') {
+        return String(row[key]).trim();
+      }
+    }
+  }
+  
+  // Fallback para outras colunas de status
+  const fallbackColumns = [
+    'status', 'Status da Compra', 'status da compra',
     'Situação', 'situação', 'Situacao', 'situacao'
   ];
   
-  for (const col of statusColumns) {
-    if (row[col]) {
+  for (const col of fallbackColumns) {
+    if (row[col] !== undefined && row[col] !== null && row[col] !== '') {
       return String(row[col]).trim();
     }
   }
@@ -596,11 +620,16 @@ export function ExportImportLeads({ leads, onImport }: ExportImportLeadsProps) {
           }
 
           // Contabiliza estatísticas baseado no status original da planilha
-          const eventType = getEventType(row).toLowerCase().trim();
+          const eventType = getEventType(row).toLowerCase().trim()
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, ''); // Remove acentos
           
           // IMPORTANTE: Verifica diretamente se o status original é "paid" para contabilizar valor
           // Isso garante que somamos TODOS os valores líquidos de transações pagas
-          const isPaidTransaction = eventType === 'paid' || eventType === 'aprovada' || eventType === 'aprovado';
+          const isPaidTransaction = eventType === 'paid' || 
+                                    eventType === 'aprovada' || 
+                                    eventType === 'aprovado' ||
+                                    eventType.startsWith('paid') ||
+                                    eventType === 'compra aprovada';
           
           // Verifica se é carrinho abandonado (waiting_payment ou equivalente)
           const isAbandonedCart = abandonedCartStatuses.some(s => 
