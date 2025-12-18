@@ -146,6 +146,33 @@ export function useLeads() {
     fetchLeads();
   }, [fetchLeads]);
 
+  const syncLeadToContact = async (phone: string, name: string) => {
+    if (!user || !phone) return;
+
+    try {
+      const normalizedPhone = phone.replace(/\D/g, "");
+      if (!normalizedPhone) return;
+
+      // Check if contact already exists
+      const { data: existingContact } = await supabase
+        .from("whatsapp_contacts")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("phone", normalizedPhone)
+        .maybeSingle();
+
+      if (!existingContact) {
+        await supabase.from("whatsapp_contacts").insert({
+          user_id: user.id,
+          phone: normalizedPhone,
+          name: name,
+        });
+      }
+    } catch (error) {
+      console.error("Error syncing lead to contact:", error);
+    }
+  };
+
   const addLead = async (leadData: Omit<Lead, 'id' | 'createdAt' | 'updatedAt' | 'interactions'>) => {
     if (!user) return;
 
@@ -168,6 +195,11 @@ export function useLeads() {
         .single();
 
       if (error) throw error;
+
+      // Auto-sync lead to WhatsApp contacts
+      if (leadData.phone) {
+        await syncLeadToContact(leadData.phone, leadData.name);
+      }
 
       const newLead = mapDbLeadToLead(data);
       setLeads(prev => [newLead, ...prev]);
@@ -324,6 +356,12 @@ export function useLeads() {
         .select();
 
       if (error) throw error;
+
+      // Auto-sync imported leads with phone numbers to WhatsApp contacts
+      const leadsWithPhones = leadsToImport.filter(lead => lead.phone);
+      for (const lead of leadsWithPhones) {
+        await syncLeadToContact(lead.phone!, lead.name);
+      }
 
       const newLeads = (data || []).map(lead => mapDbLeadToLead(lead));
       setLeads(prev => [...newLeads, ...prev]);
