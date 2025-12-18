@@ -213,84 +213,66 @@ function detectKiwifyProduct(row: Record<string, unknown>): ProductType | null {
 }
 
 function detectKiwifyValue(row: Record<string, unknown>): number {
-  // IMPORTANTE: Para Kiwify, SEMPRE priorizar "Valor líquido" que é o valor real que a Kiwify mostra
+  // IMPORTANTE: Para Kiwify, SEMPRE priorizar "Valor líquido"
   const rowKeys = Object.keys(row);
   
-  // 1. Busca por QUALQUER coluna que contenha "valor" E "liquido" (com ou sem acento)
+  // Função auxiliar para normalizar nome de coluna
+  const normalizeKey = (key: string): string => {
+    return key.toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '') // Remove acentos
+      .replace(/[^a-z0-9]/g, ''); // Remove caracteres especiais
+  };
+  
+  // 1. Busca DIRETA por coluna "Valor líquido" ou variações
   for (const key of rowKeys) {
-    const normalizedKey = key.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    // Verifica se contém "valor" e "liquido" na mesma chave
-    if (normalizedKey.includes('valor') && normalizedKey.includes('liquido')) {
+    const normalized = normalizeKey(key);
+    // Busca "valorliquido" (sem espaços/acentos)
+    if (normalized === 'valorliquido' || normalized.includes('valorliquido')) {
       const rawValue = row[key];
       if (rawValue !== undefined && rawValue !== null && rawValue !== '') {
         const numValue = parseValue(rawValue);
-        if (numValue > 0) {
-          return numValue;
+        if (numValue > 0) return numValue;
+      }
+    }
+  }
+  
+  // 2. Busca parcial por "liquido" 
+  for (const key of rowKeys) {
+    const normalized = normalizeKey(key);
+    if (normalized.includes('liquido')) {
+      const rawValue = row[key];
+      if (rawValue !== undefined && rawValue !== null && rawValue !== '') {
+        const numValue = parseValue(rawValue);
+        if (numValue > 0) return numValue;
+      }
+    }
+  }
+  
+  // 3. Para AFILIADOS: busca por "comissão do afiliado"
+  for (const key of rowKeys) {
+    const normalized = normalizeKey(key);
+    if (normalized.includes('comissao') && normalized.includes('afiliado')) {
+      const rawValue = row[key];
+      if (rawValue !== undefined && rawValue !== null && rawValue !== '') {
+        const numValue = parseValue(rawValue);
+        if (numValue > 0) return numValue;
+      }
+    }
+  }
+  
+  // 4. Fallback: busca por outras colunas de valor
+  const fallbackPatterns = ['totalcomacrescimo', 'precobasedoproduto', 'valordacompra', 'valor', 'total', 'value'];
+  for (const pattern of fallbackPatterns) {
+    for (const key of rowKeys) {
+      const normalized = normalizeKey(key);
+      if (normalized.includes(pattern)) {
+        const rawValue = row[key];
+        if (rawValue !== undefined && rawValue !== null && rawValue !== '') {
+          const numValue = parseValue(rawValue);
+          if (numValue > 0) return numValue;
         }
       }
-    }
-  }
-  
-  // 2. Busca EXATA por "Valor líquido" (com variações de case e acentuação)
-  const liquidoVariations = ['Valor líquido', 'Valor Líquido', 'valor líquido', 'VALOR LÍQUIDO', 
-                              'Valor liquido', 'Valor Liquido', 'valor liquido'];
-  
-  for (const col of liquidoVariations) {
-    if (row[col] !== undefined && row[col] !== null && row[col] !== '') {
-      const numValue = parseValue(row[col]);
-      if (numValue > 0) return numValue;
-    }
-  }
-  
-  // 3. Busca parcial - coluna que contém "líquido" ou "liquido"
-  for (const key of rowKeys) {
-    const lowerKey = key.toLowerCase();
-    if (lowerKey.includes('líquido') || lowerKey.includes('liquido')) {
-      if (row[key] !== undefined && row[key] !== null && row[key] !== '') {
-        const numValue = parseValue(row[key]);
-        if (numValue > 0) return numValue;
-      }
-    }
-  }
-  
-  // 4. IMPORTANTE: Para transações de AFILIADO, o valor está na coluna "Comissão do afiliado"
-  // (o "Valor líquido" está vazio para afiliados)
-  const affiliateCommissionColumns = [
-    'Comissão do afiliado', 'comissão do afiliado', 'Comissao do afiliado',
-    'Affiliate Commission', 'affiliate_commission'
-  ];
-  
-  for (const col of affiliateCommissionColumns) {
-    if (row[col] !== undefined && row[col] !== null && row[col] !== '') {
-      const numValue = parseValue(row[col]);
-      if (numValue > 0) return numValue;
-    }
-  }
-  
-  // 5. Busca parcial por "comissão" ou "comissao" + "afiliado"
-  for (const key of rowKeys) {
-    const normalizedKey = key.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    if (normalizedKey.includes('comissao') && normalizedKey.includes('afiliado')) {
-      if (row[key] !== undefined && row[key] !== null && row[key] !== '') {
-        const numValue = parseValue(row[key]);
-        if (numValue > 0) return numValue;
-      }
-    }
-  }
-  
-  // 6. Fallback para outras colunas de valor (menos prioritárias)
-  const fallbackColumns = [
-    'Total com acréscimo', 'total com acréscimo',
-    'Preço base do produto', 'preço base do produto',
-    'Valor da compra em moeda da conta',
-    'Valor', 'valor', 'Value', 'value',
-    'Total', 'total'
-  ];
-  
-  for (const col of fallbackColumns) {
-    if (row[col] !== undefined && row[col] !== null && row[col] !== '') {
-      const numValue = parseValue(row[col]);
-      if (numValue > 0) return numValue;
     }
   }
   
@@ -304,32 +286,50 @@ function parseValue(value: unknown): number {
   }
   
   if (typeof value === 'string') {
-    let cleaned = value.replace(/[R$\s]/g, '').trim();
+    // Remove QUALQUER caractere que não seja dígito, vírgula, ponto ou sinal de menos
+    // Isso inclui espaços invisíveis, símbolos de moeda, etc.
+    let cleaned = value.replace(/[^\d,.+-]/g, '').trim();
     
     // Se vazio ou zero, retorna 0
-    if (!cleaned || cleaned === '0') return 0;
+    if (!cleaned || cleaned === '0' || cleaned === '0,00' || cleaned === '0.00') return 0;
     
-    // Detecta o formato: brasileiro (1.234,56) vs americano (1,234.56)
-    // Brasileiro: vírgula seguida de 1-2 dígitos no final
-    // Americano: ponto seguido de 1-2 dígitos no final
-    const brazilianFormat = /,\d{1,2}$/.test(cleaned);
-    const americanFormat = /\.\d{1,2}$/.test(cleaned);
+    // Conta separadores
+    const commas = (cleaned.match(/,/g) || []).length;
+    const dots = (cleaned.match(/\./g) || []).length;
     
-    // Verifica também se há ponto como separador de milhar (brasileiro)
-    // Padrão brasileiro típico: 1.234,56 (ponto como milhar, vírgula como decimal)
-    const hasBrazilianThousands = /\d{1,3}\.\d{3}/.test(cleaned) && brazilianFormat;
+    // Lógica de detecção de formato:
+    // 1. Se tem vírgula seguida de 1-2 dígitos no final = brasileiro (ex: 1.234,56 ou 1234,56)
+    // 2. Se tem ponto seguido de 1-2 dígitos no final = americano (ex: 1,234.56 ou 1234.56)
+    // 3. Casos especiais
     
-    if (brazilianFormat || hasBrazilianThousands) {
-      // Formato brasileiro: remove pontos de milhar, converte vírgula em ponto
+    const endsWithCommaDecimals = /,\d{1,2}$/.test(cleaned);
+    const endsWithDotDecimals = /\.\d{1,2}$/.test(cleaned);
+    
+    if (endsWithCommaDecimals) {
+      // Formato brasileiro: vírgula como decimal
+      // Remove pontos (separador de milhar) e converte vírgula para ponto
       cleaned = cleaned.replace(/\./g, '').replace(',', '.');
-    } else if (americanFormat) {
-      // Formato americano: remove vírgulas de milhar, mantém ponto decimal
+    } else if (endsWithDotDecimals) {
+      // Formato americano: ponto como decimal
+      // Remove vírgulas (separador de milhar)
       cleaned = cleaned.replace(/,/g, '');
+    } else if (commas === 1 && dots === 0) {
+      // Só uma vírgula, pode ser decimal brasileiro sem milhar (ex: "99,99")
+      cleaned = cleaned.replace(',', '.');
+    } else if (dots === 1 && commas === 0) {
+      // Só um ponto, pode ser decimal americano sem milhar (ex: "99.99") - já está OK
+    } else {
+      // Caso ambíguo: remove todos os separadores exceto o último
+      // Prioriza vírgula como decimal se existir
+      if (commas > 0) {
+        cleaned = cleaned.replace(/\./g, '').replace(/,/g, '.');
+      } else {
+        cleaned = cleaned.replace(/,/g, '');
+      }
     }
-    // Se não detectou formato, assume que é um número simples sem separadores
     
     const numValue = parseFloat(cleaned);
-    if (!isNaN(numValue)) {
+    if (!isNaN(numValue) && isFinite(numValue)) {
       // Arredonda para 2 casas decimais para evitar problemas de precisão
       return Math.round(numValue * 100) / 100;
     }
