@@ -256,6 +256,26 @@ function LeadDetailDialog({
             <span className="text-muted-foreground">Origem:</span>
             <p className="font-medium">{lead.source || '-'}</p>
           </div>
+          <div>
+            <span className="text-muted-foreground">Data de Aquisição:</span>
+            <p className="font-medium">
+              {new Date(lead.createdAt).toLocaleDateString('pt-BR', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric'
+              })}
+            </p>
+          </div>
+          <div>
+            <span className="text-muted-foreground">Última Atualização:</span>
+            <p className="font-medium">
+              {new Date(lead.updatedAt).toLocaleDateString('pt-BR', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric'
+              })}
+            </p>
+          </div>
         </div>
 
         {lead.notes && (
