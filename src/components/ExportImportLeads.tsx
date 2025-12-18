@@ -623,20 +623,26 @@ export function ExportImportLeads({ leads, onImport }: ExportImportLeadsProps) {
           const eventType = getEventType(row).toLowerCase().trim()
             .normalize('NFD').replace(/[\u0300-\u036f]/g, ''); // Remove acentos
           
+          // DEBUG: Log para verificar cada transação
+          console.log(`[IMPORT DEBUG] Row: ${finalName}, Status: "${eventType}", Value: ${value}`);
+          
           // IMPORTANTE: Verifica diretamente se o status original é "paid" para contabilizar valor
-          // Isso garante que somamos TODOS os valores líquidos de transações pagas
+          // Inclui verificações mais abrangentes para garantir que nenhuma venda seja perdida
           const isPaidTransaction = eventType === 'paid' || 
                                     eventType === 'aprovada' || 
                                     eventType === 'aprovado' ||
                                     eventType.startsWith('paid') ||
-                                    eventType === 'compra aprovada';
+                                    eventType === 'compra aprovada' ||
+                                    eventType.includes('paid') ||
+                                    eventType === 'aprovado' ||
+                                    eventType === 'aprovação';
           
           // Verifica se é carrinho abandonado (waiting_payment ou equivalente)
           const isAbandonedCart = abandonedCartStatuses.some(s => 
             eventType === s || eventType.includes(s)
           );
           
-          // Verifica se é reembolso
+          // Verifica se é reembolso (NÃO contabiliza valor - estes foram estornados)
           const isRefund = refundStatuses.some(s => 
             eventType === s || eventType.includes(s)
           );
@@ -650,8 +656,10 @@ export function ExportImportLeads({ leads, onImport }: ExportImportLeadsProps) {
           if (isPaidTransaction) {
             vendas++;
             valorTotal += value;
+            console.log(`[IMPORT DEBUG] ✓ PAID: ${finalName} - R$ ${value.toFixed(2)} - Total acumulado: R$ ${valorTotal.toFixed(2)}`);
           } else if (isRefund) {
             reembolsos++;
+            console.log(`[IMPORT DEBUG] ✗ REFUND: ${finalName} - R$ ${value.toFixed(2)}`);
           } else if (isAbandonedCart) {
             abandonados++;
           } else if (isRefused) {
