@@ -559,6 +559,25 @@ export function ExportImportLeads({ leads, onImport }: ExportImportLeadsProps) {
         const importedLeads: ImportedLead[] = [];
         let vendas = 0, abandonados = 0, reembolsos = 0, pendentes = 0, valorTotal = 0, comData = 0;
 
+        // PASSO 1: Encontrar as colunas exatas de Status e Valor líquido na primeira linha
+        const firstRow = jsonData[0] as Record<string, unknown>;
+        const allColumns = Object.keys(firstRow);
+        
+        // Encontra coluna de Status (busca exata primeiro, depois variações)
+        let statusColumnKey = allColumns.find(col => col === 'Status') 
+          || allColumns.find(col => col.toLowerCase() === 'status')
+          || allColumns.find(col => col.toLowerCase().includes('status') && !col.toLowerCase().includes('recebimento'));
+        
+        // Encontra coluna de Valor líquido (busca exata primeiro, depois variações)
+        let valorColumnKey = allColumns.find(col => col === 'Valor líquido')
+          || allColumns.find(col => col.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes('valor liquido'))
+          || allColumns.find(col => col.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes('liquido'));
+        
+        console.log('=== ANÁLISE DE COLUNAS ===');
+        console.log('Todas as colunas:', allColumns);
+        console.log('Coluna Status encontrada:', statusColumnKey);
+        console.log('Coluna Valor encontrada:', valorColumnKey);
+
         for (const row of jsonData as Record<string, unknown>[]) {
           // Função auxiliar para buscar valor em múltiplas colunas possíveis
           const findValue = (keys: string[]): string => {
@@ -599,94 +618,100 @@ export function ExportImportLeads({ leads, onImport }: ExportImportLeadsProps) {
             'Email do Comprador', 'email do comprador',
             'E-mail do Comprador', 'e-mail do comprador',
             'Buyer Email', 'buyer_email', 'customer_email',
-            'Email do Aluno', 'email do aluno',
-            'E-mail do Aluno', 'e-mail do aluno'
+            'E-mail do Aluno', 'e-mail do aluno',
+            'Email do Aluno', 'email do aluno'
           ]);
 
-          // Detecta telefone - suporta MUITOS formatos Kiwify
-          const phone = findValue([
-            'Telefone', 'phone', 'Tel', 'tel',
-            'Celular', 'celular', 'WhatsApp', 'whatsapp',
-            'Telefone do Cliente', 'telefone do cliente',
-            'Telefone do Comprador', 'telefone do comprador',
-            'Phone', 'Mobile', 'mobile',
-            'Número', 'numero', 'Número de Telefone',
-            'Telefone do Aluno', 'telefone do aluno',
-            'Cel', 'cel', 'Fone', 'fone'
-          ]);
-
-          // Se não tem nome E não tem email, pula
+          // SIMPLIFICADO: Pega Status direto da coluna encontrada
+          const rawStatus = statusColumnKey ? String(row[statusColumnKey] || '').toLowerCase().trim() : '';
+          
+          // SIMPLIFICADO: Pega Valor direto da coluna encontrada
+          let rawValue = 0;
+          if (valorColumnKey && row[valorColumnKey] !== undefined && row[valorColumnKey] !== null && row[valorColumnKey] !== '') {
+            const valStr = row[valorColumnKey];
+            if (typeof valStr === 'number') {
+              rawValue = Math.round(valStr * 100) / 100;
+            } else {
+              // Parse simples: remove tudo exceto dígitos, vírgula e ponto
+              let cleaned = String(valStr).replace(/[^\d,.]/g, '').trim();
+              // Se termina com vírgula + 2 dígitos, é formato brasileiro
+              if (/,\d{1,2}$/.test(cleaned)) {
+                cleaned = cleaned.replace(/\./g, '').replace(',', '.');
+              } else if (/\.\d{1,2}$/.test(cleaned)) {
+                cleaned = cleaned.replace(/,/g, '');
+              }
+              const parsed = parseFloat(cleaned);
+              if (!isNaN(parsed)) {
+                rawValue = Math.round(parsed * 100) / 100;
+              }
+            }
+          }
+          
+          // Verifica se está faltando dados obrigatórios
           if (!name && !email) continue;
 
-          // Usa email como nome se nome vazio, ou vice-versa
-          const finalName = name || email.split('@')[0] || 'Lead Importado';
-          const finalEmail = email || `${name.toLowerCase().replace(/\s+/g, '.')}@importado.com`;
+          // Detecta telefone
+          const phone = findValue([
+            'Telefone', 'telefone', 'Phone', 'phone',
+            'Celular', 'celular', 'Mobile', 'mobile',
+            'WhatsApp', 'whatsapp', 'Contato', 'contato',
+            'Número', 'numero', 'Fone', 'fone'
+          ]);
 
-          // Detecta status automaticamente (Kiwify)
-          let status: LeadStatus = 'novo';
-          const kiwifyStatus = detectKiwifyStatus(row);
-          if (kiwifyStatus) {
-            status = kiwifyStatus;
-          } else {
-            // Fallback para mapeamento tradicional
-            const statusKey = findValue(['Status', 'status', 'Situação', 'situacao']).toLowerCase();
-            status = statusNameMap[statusKey] || 'novo';
-          }
-
-          // Detecta produto automaticamente (Kiwify)
+          // Detecta produto
           let product: ProductType = 'consultoria';
           const kiwifyProduct = detectKiwifyProduct(row);
           if (kiwifyProduct) {
             product = kiwifyProduct;
           } else {
-            const productKey = findValue(['Produto', 'product', 'Nome do Produto', 'Oferta']).toLowerCase();
-            product = productNameMap[productKey] || 'consultoria';
+            const rawProduct = findValue(['Produto', 'product', 'Oferta', 'oferta', 'Item'])?.toLowerCase();
+            if (rawProduct && productNameMap[rawProduct]) {
+              product = productNameMap[rawProduct];
+            }
           }
 
-          // Detecta valor
-          const value = detectKiwifyValue(row);
+          // Detecta status do CRM baseado no status Kiwify
+          let status: LeadStatus = 'novo';
+          const kiwifyStatus = detectKiwifyStatus(row);
+          if (kiwifyStatus) {
+            status = kiwifyStatus;
+          } else {
+            const rawStatusForCRM = findValue(['Status', 'status'])?.toLowerCase();
+            if (rawStatusForCRM && statusNameMap[rawStatusForCRM]) {
+              status = statusNameMap[rawStatusForCRM];
+            }
+          }
 
-          // Detecta data da transação
+          // Usa o valor detectado (ou busca em outras colunas como fallback)
+          const value = rawValue > 0 ? rawValue : detectKiwifyValue(row);
+
+          // Nome final (com fallback)
+          let finalName = name;
+          if (!finalName) {
+            const emailPart = email.split('@')[0];
+            finalName = emailPart.replace(/[._]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+          }
+          
+          // Email final (com fallback)
+          const finalEmail = email || `${name.toLowerCase().replace(/\s+/g, '.')}@importado.com`;
+
+          // Detecta data
           const transactionDate = detectKiwifyDate(row);
           if (transactionDate) {
             comData++;
           }
 
-          // Contabiliza estatísticas baseado no status original da planilha
-          const eventType = getEventType(row).toLowerCase().trim()
-            .normalize('NFD').replace(/[\u0300-\u036f]/g, ''); // Remove acentos
+          // CONTABILIZA APENAS SE STATUS É "PAID"
+          const isPaidTransaction = rawStatus === 'paid';
+          const isAbandonedCart = rawStatus === 'waiting_payment' || rawStatus.includes('waiting') || rawStatus.includes('aguardando');
+          const isRefund = rawStatus === 'refunded' || rawStatus.includes('reembolso') || rawStatus.includes('reembolsado');
+          const isRefused = rawStatus === 'refused' || rawStatus.includes('recusado');
           
-          // IMPORTANTE: Verifica diretamente se o status original é "paid" para contabilizar valor
-          // Inclui verificações mais abrangentes para garantir que nenhuma venda seja perdida
-          const isPaidTransaction = eventType === 'paid' || 
-                                    eventType === 'aprovada' || 
-                                    eventType === 'aprovado' ||
-                                    eventType.startsWith('paid') ||
-                                    eventType === 'compra aprovada' ||
-                                    eventType.includes('paid') ||
-                                    eventType === 'aprovacao';
-          
-          // Verifica se é carrinho abandonado (waiting_payment ou equivalente)
-          const isAbandonedCart = abandonedCartStatuses.some(s => 
-            eventType === s || eventType.includes(s)
-          );
-          
-          // Verifica se é reembolso (NÃO contabiliza valor - estes foram estornados)
-          const isRefund = refundStatuses.some(s => 
-            eventType === s || eventType.includes(s)
-          );
-          
-          // Verifica se é recusado
-          const isRefused = refusedStatuses.some(s => 
-            eventType === s || eventType.includes(s)
-          );
-          
-          // Contabiliza APENAS transações com status "paid" original
-          // Usa arredondamento para evitar erros de precisão de ponto flutuante
+          // Soma APENAS transações com status "paid"
           if (isPaidTransaction) {
             vendas++;
-            // Arredonda a soma para 2 casas decimais
             valorTotal = Math.round((valorTotal + value) * 100) / 100;
+            console.log(`[PAID] ${finalName}: R$ ${value.toFixed(2)} | Total acumulado: R$ ${valorTotal.toFixed(2)}`);
           } else if (isRefund) {
             reembolsos++;
           } else if (isAbandonedCart) {
