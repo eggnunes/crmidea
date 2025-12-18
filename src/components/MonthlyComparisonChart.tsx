@@ -13,6 +13,7 @@ import {
 } from "recharts";
 import { format, subMonths, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 
 interface MonthlyComparisonChartProps {
   leads: Lead[];
@@ -64,6 +65,45 @@ export function MonthlyComparisonChart({ leads }: MonthlyComparisonChartProps) {
     return months;
   }, [leads]);
 
+  const trends = useMemo(() => {
+    if (chartData.length < 2) return null;
+    
+    const current = chartData[chartData.length - 1];
+    const previous = chartData[chartData.length - 2];
+    
+    const calcTrend = (curr: number, prev: number) => {
+      if (prev === 0) return curr > 0 ? 100 : 0;
+      return ((curr - prev) / prev) * 100;
+    };
+    
+    return {
+      vendas: calcTrend(current.vendas, previous.vendas),
+      reembolsos: calcTrend(current.reembolsos, previous.reembolsos),
+      abandonos: calcTrend(current.abandonos, previous.abandonos)
+    };
+  }, [chartData]);
+
+  const TrendIndicator = ({ value, label, color, inverse = false }: { value: number; label: string; color: string; inverse?: boolean }) => {
+    const isPositive = inverse ? value < 0 : value > 0;
+    const isNeutral = value === 0;
+    
+    return (
+      <div className="flex items-center gap-2 text-sm">
+        <span className="text-muted-foreground">{label}:</span>
+        <div className={`flex items-center gap-1 font-medium ${isNeutral ? 'text-muted-foreground' : isPositive ? 'text-green-500' : 'text-red-500'}`}>
+          {isNeutral ? (
+            <Minus className="h-4 w-4" />
+          ) : isPositive ? (
+            <TrendingUp className="h-4 w-4" />
+          ) : (
+            <TrendingDown className="h-4 w-4" />
+          )}
+          <span>{Math.abs(value).toFixed(0)}%</span>
+        </div>
+      </div>
+    );
+  };
+
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
@@ -83,9 +123,16 @@ export function MonthlyComparisonChart({ leads }: MonthlyComparisonChartProps) {
 
   return (
     <Card className="glass border-border/50">
-      <CardHeader>
+      <CardHeader className="pb-2">
         <CardTitle className="text-lg">Vendas vs Reembolsos vs Abandonos</CardTitle>
         <p className="text-sm text-muted-foreground">Comparativo dos últimos 6 meses</p>
+        {trends && (
+          <div className="flex flex-wrap gap-4 pt-2 border-t border-border/30 mt-2">
+            <TrendIndicator value={trends.vendas} label="Vendas" color="success" />
+            <TrendIndicator value={trends.reembolsos} label="Reembolsos" color="destructive" inverse />
+            <TrendIndicator value={trends.abandonos} label="Abandonos" color="warning" inverse />
+          </div>
+        )}
       </CardHeader>
       <CardContent>
         <div className="h-[300px]">
