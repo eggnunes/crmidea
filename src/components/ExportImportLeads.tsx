@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import * as XLSX from 'xlsx';
 import { Button } from '@/components/ui/button';
-import { Download, Upload, FileSpreadsheet } from 'lucide-react';
+import { Download, Upload, FileSpreadsheet, Settings2 } from 'lucide-react';
 import { Lead, ProductType, LeadStatus, PRODUCTS, STATUSES } from '@/types/crm';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -11,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { ColumnMapper, ColumnMapping } from './ColumnMapper';
 
 interface ImportedLead extends Omit<Lead, 'id' | 'createdAt' | 'updatedAt' | 'interactions'> {
   importedCreatedAt?: string;
@@ -324,6 +325,9 @@ export function ExportImportLeads({ leads, onImport }: ExportImportLeadsProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const [showPreview, setShowPreview] = useState(false);
+  const [showMapper, setShowMapper] = useState(false);
+  const [rawExcelData, setRawExcelData] = useState<Record<string, unknown>[]>([]);
+  const [excelColumns, setExcelColumns] = useState<string[]>([]);
   const [previewData, setPreviewData] = useState<{
     leads: ImportedLead[];
     summary: {
@@ -411,7 +415,13 @@ export function ExportImportLeads({ leads, onImport }: ExportImportLeadsProps) {
         const workbook = XLSX.read(data, { type: 'binary' });
         const sheetName = workbook.SheetNames[0];
         const sheet = workbook.Sheets[sheetName];
-        const jsonData = XLSX.utils.sheet_to_json(sheet);
+        const jsonData = XLSX.utils.sheet_to_json(sheet) as Record<string, unknown>[];
+        
+        // Salva dados brutos para mapeamento manual
+        setRawExcelData(jsonData);
+        if (jsonData.length > 0) {
+          setExcelColumns(Object.keys(jsonData[0]));
+        }
 
         // Map para produtos e status CRM
         const productNameMap: Record<string, ProductType> = {};
@@ -676,6 +686,187 @@ export function ExportImportLeads({ leads, onImport }: ExportImportLeadsProps) {
     setPreviewData(null);
   };
 
+  // Processa os dados usando o mapeamento manual
+  const processWithMapping = (mapping: ColumnMapping) => {
+    const productNameMap: Record<string, ProductType> = {};
+    PRODUCTS.forEach(p => {
+      productNameMap[p.name.toLowerCase()] = p.id;
+      productNameMap[p.shortName.toLowerCase()] = p.id;
+      productNameMap[p.id] = p.id;
+    });
+    
+    // Adiciona mapeamentos Kiwify
+    Object.entries(kiwifyProductMap).forEach(([key, value]) => {
+      productNameMap[key] = value;
+    });
+
+    const importedLeads: ImportedLead[] = [];
+    let vendas = 0, abandonados = 0, reembolsos = 0, pendentes = 0, valorTotal = 0, comData = 0;
+
+    for (const row of rawExcelData) {
+      const getValue = (field: keyof ColumnMapping): string => {
+        const column = mapping[field];
+        if (!column || !row[column]) return '';
+        return String(row[column]).trim();
+      };
+
+      const name = getValue('name');
+      const email = getValue('email');
+      const phone = getValue('phone');
+      const statusRaw = getValue('status').toLowerCase();
+      const productRaw = getValue('product').toLowerCase();
+      const valueRaw = getValue('value');
+      const source = getValue('source') || 'Kiwify';
+      const notes = getValue('notes');
+      const dateRaw = getValue('date');
+
+      // Se não tem nome E não tem email, pula
+      if (!name && !email) continue;
+
+      const finalName = name || email.split('@')[0] || 'Lead Importado';
+      const finalEmail = email || `${name.toLowerCase().replace(/\s+/g, '.')}@importado.com`;
+
+      // Detecta status
+      let status: LeadStatus = 'novo';
+      if (kiwifyStatusMap[statusRaw]) {
+        status = kiwifyStatusMap[statusRaw];
+      }
+
+      // Detecta produto
+      let product: ProductType = 'consultoria';
+      if (productNameMap[productRaw]) {
+        product = productNameMap[productRaw];
+      } else {
+        for (const [key, val] of Object.entries(productNameMap)) {
+          if (productRaw.includes(key)) {
+            product = val;
+            break;
+          }
+        }
+      }
+
+      // Detecta valor
+      let value = 0;
+      if (valueRaw) {
+        const cleanValue = valueRaw.replace(/[R$\s.]/g, '').replace(',', '.');
+        const numValue = parseFloat(cleanValue);
+        if (!isNaN(numValue) && numValue > 0) {
+          value = numValue;
+        }
+      }
+
+      // Detecta data
+      let transactionDate: string | null = null;
+      if (dateRaw) {
+        const parsed = new Date(dateRaw);
+        if (!isNaN(parsed.getTime())) {
+          transactionDate = parsed.toISOString();
+          comData++;
+        }
+      }
+
+      // Contabiliza estatísticas
+      const isAbandonedCart = abandonedCartStatuses.some(s => statusRaw === s || statusRaw.includes(s));
+      const isRefund = refundStatuses.some(s => statusRaw === s || statusRaw.includes(s));
+
+      if (status === 'fechado-ganho') {
+        vendas++;
+        valorTotal += value;
+      } else if (isRefund) {
+        reembolsos++;
+      } else if (isAbandonedCart) {
+        abandonados++;
+      } else {
+        pendentes++;
+      }
+
+      importedLeads.push({
+        name: finalName,
+        email: finalEmail,
+        phone,
+        product,
+        status,
+        value,
+        source,
+        notes: statusRaw ? `Importado: ${statusRaw}` : notes,
+        importedCreatedAt: transactionDate || undefined
+      });
+    }
+
+    // Consolida duplicatas
+    const consolidatedLeads = new Map<string, ImportedLead>();
+    const statusPriority: Record<LeadStatus, number> = {
+      'fechado-ganho': 6,
+      'fechado-perdido': 1,
+      'proposta-enviada': 4,
+      'negociacao': 3,
+      'contato-inicial': 2,
+      'novo': 5,
+    };
+
+    for (const lead of importedLeads) {
+      const key = lead.email.toLowerCase();
+      const existing = consolidatedLeads.get(key);
+      if (!existing || statusPriority[lead.status] > statusPriority[existing.status]) {
+        consolidatedLeads.set(key, lead);
+      }
+    }
+
+    const finalLeads = Array.from(consolidatedLeads.values());
+
+    // Recalcula estatísticas
+    let finalVendas = 0, finalAbandonados = 0, finalReembolsos = 0, finalPendentes = 0, finalValorTotal = 0;
+    for (const lead of finalLeads) {
+      const eventNote = lead.notes?.toLowerCase() || '';
+      if (lead.status === 'fechado-ganho') {
+        finalVendas++;
+        finalValorTotal += lead.value;
+      } else if (refundStatuses.some(s => eventNote.includes(s))) {
+        finalReembolsos++;
+      } else if (abandonedCartStatuses.some(s => eventNote.includes(s))) {
+        finalAbandonados++;
+      } else {
+        finalPendentes++;
+      }
+    }
+
+    if (finalLeads.length === 0) {
+      toast({
+        title: "Nenhum lead encontrado",
+        description: "Verifique o mapeamento das colunas",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setShowMapper(false);
+    setPreviewData({
+      leads: finalLeads,
+      summary: {
+        total: finalLeads.length,
+        vendas: finalVendas,
+        abandonados: finalAbandonados,
+        reembolsos: finalReembolsos,
+        pendentes: finalPendentes,
+        valorTotal: finalValorTotal,
+        comData
+      }
+    });
+    setShowPreview(true);
+  };
+
+  const openColumnMapper = () => {
+    if (rawExcelData.length === 0) {
+      toast({
+        title: "Nenhum arquivo carregado",
+        description: "Importe um arquivo Excel primeiro",
+        variant: "destructive",
+      });
+      return;
+    }
+    setShowMapper(true);
+  };
+
 
   return (
     <>
@@ -698,6 +889,17 @@ export function ExportImportLeads({ leads, onImport }: ExportImportLeadsProps) {
           Importar Kiwify
         </Button>
 
+        {rawExcelData.length > 0 && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={openColumnMapper}
+            className="gap-2"
+          >
+            <Settings2 className="w-4 h-4" />
+            Mapear Colunas
+          </Button>
+        )}
 
         <Button variant="outline" size="sm" onClick={exportToExcel} className="gap-2">
           <Download className="w-4 h-4" />
@@ -710,6 +912,26 @@ export function ExportImportLeads({ leads, onImport }: ExportImportLeadsProps) {
         </Button>
       </div>
 
+      {/* Dialog do Mapeador de Colunas */}
+      <Dialog open={showMapper} onOpenChange={setShowMapper}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Mapeamento Manual de Colunas</DialogTitle>
+            <DialogDescription>
+              Associe as colunas do Excel aos campos do CRM para importação personalizada
+            </DialogDescription>
+          </DialogHeader>
+          
+          <ColumnMapper
+            excelColumns={excelColumns}
+            sampleData={rawExcelData}
+            onConfirm={processWithMapping}
+            onCancel={() => setShowMapper(false)}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de Preview */}
       <Dialog open={showPreview} onOpenChange={setShowPreview}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
