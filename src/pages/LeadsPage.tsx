@@ -43,6 +43,8 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { ExportImportLeads } from "@/components/ExportImportLeads";
 import { LeadAssignees } from "@/components/LeadAssignees";
+import { DateRangeFilter } from "@/components/DateRangeFilter";
+import { isWithinInterval, startOfDay, endOfDay } from "date-fns";
 
 function LeadForm({ 
   onSubmit, 
@@ -320,6 +322,8 @@ export function LeadsPage() {
   const [search, setSearch] = useState('');
   const [filterProduct, setFilterProduct] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [startDate, setStartDate] = useState<Date | undefined>(undefined);
+  const [endDate, setEndDate] = useState<Date | undefined>(undefined);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
   const [viewingLead, setViewingLead] = useState<Lead | null>(null);
@@ -337,8 +341,30 @@ export function LeadsPage() {
       lead.email.toLowerCase().includes(search.toLowerCase());
     const matchesProduct = filterProduct === 'all' || lead.product === filterProduct;
     const matchesStatus = filterStatus === 'all' || lead.status === filterStatus;
-    return matchesSearch && matchesProduct && matchesStatus;
+    
+    // Date filter
+    let matchesDate = true;
+    if (startDate || endDate) {
+      const leadDate = new Date(lead.createdAt);
+      if (startDate && endDate) {
+        matchesDate = isWithinInterval(leadDate, { 
+          start: startOfDay(startDate), 
+          end: endOfDay(endDate) 
+        });
+      } else if (startDate) {
+        matchesDate = leadDate >= startOfDay(startDate);
+      } else if (endDate) {
+        matchesDate = leadDate <= endOfDay(endDate);
+      }
+    }
+    
+    return matchesSearch && matchesProduct && matchesStatus && matchesDate;
   });
+
+  const handleDateChange = (start: Date | undefined, end: Date | undefined) => {
+    setStartDate(start);
+    setEndDate(end);
+  };
 
   const statusColors: Record<string, string> = {
     info: "bg-info/10 text-info border-info/20",
@@ -401,7 +427,7 @@ export function LeadsPage() {
       {/* Filters */}
       <Card className="glass border-border/50">
         <CardContent className="p-4">
-          <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex flex-col lg:flex-row gap-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
@@ -411,20 +437,26 @@ export function LeadsPage() {
                 className="pl-10"
               />
             </div>
-            <Select value={filterProduct} onValueChange={setFilterProduct}>
-              <SelectTrigger className="w-full sm:w-48">
-                <Filter className="w-4 h-4 mr-2" />
-                <SelectValue placeholder="Produto" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos os produtos</SelectItem>
-                {PRODUCTS.map(product => (
-                  <SelectItem key={product.id} value={product.id}>
-                    {product.shortName}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="flex flex-wrap gap-2">
+              <DateRangeFilter
+                startDate={startDate}
+                endDate={endDate}
+                onDateChange={handleDateChange}
+              />
+              <Select value={filterProduct} onValueChange={setFilterProduct}>
+                <SelectTrigger className="w-full sm:w-48">
+                  <Filter className="w-4 h-4 mr-2" />
+                  <SelectValue placeholder="Produto" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os produtos</SelectItem>
+                  {PRODUCTS.map(product => (
+                    <SelectItem key={product.id} value={product.id}>
+                      {product.shortName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             <Select value={filterStatus} onValueChange={setFilterStatus}>
               <SelectTrigger className="w-full sm:w-48">
                 <SelectValue placeholder="Status" />
@@ -438,6 +470,7 @@ export function LeadsPage() {
                 ))}
               </SelectContent>
             </Select>
+            </div>
           </div>
         </CardContent>
       </Card>
