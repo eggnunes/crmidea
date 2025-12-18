@@ -5,7 +5,15 @@ export type ProductType =
   | 'curso-idea'
   | 'guia-ia'
   | 'codigo-prompts'
-  | 'combo-ebooks';
+  | 'combo-ebooks'
+  | 'ebook-unitario'
+  | 'imersao-idea'
+  | 'fraternidade-safe-black'
+  | 'clube-mqp'
+  | 'fraternidade-safe-pro'
+  | 'safe-skills'
+  | 'safe-experience'
+  | 'mentoria-marcello-safe';
 
 export type LeadStatus = 
   | 'novo'
@@ -80,20 +88,12 @@ export const PRODUCTS: Product[] = [
     description: '11 módulos e 70+ aulas sobre IA na advocacia'
   },
   {
-    id: 'guia-ia',
-    name: 'Guia de IA para Advogados',
-    shortName: 'Guia IA',
+    id: 'ebook-unitario',
+    name: 'E-book Unitário',
+    shortName: 'E-book',
     price: 'R$ 99',
     color: 'ebook',
-    description: 'E-book com fundamentos de IA'
-  },
-  {
-    id: 'codigo-prompts',
-    name: 'Código dos Prompts',
-    shortName: 'Prompts',
-    price: 'R$ 99',
-    color: 'ebook',
-    description: 'E-book com método P.R.O.M.P.T.'
+    description: 'E-book individual (Guia de IA ou Código dos Prompts)'
   },
   {
     id: 'combo-ebooks',
@@ -102,6 +102,79 @@ export const PRODUCTS: Product[] = [
     price: 'R$ 149',
     color: 'ebook',
     description: '2 e-books + bônus ferramentas de IA'
+  },
+  {
+    id: 'imersao-idea',
+    name: 'Imersão IDEA',
+    shortName: 'Imersão',
+    price: 'Médio Ticket',
+    color: 'curso',
+    description: 'Evento imersivo sobre IA na advocacia'
+  },
+  {
+    id: 'fraternidade-safe-black',
+    name: 'Fraternidade Safe Black',
+    shortName: 'Safe Black',
+    price: 'Alto Ticket',
+    color: 'mentoria',
+    description: 'Fraternidade Safe Black'
+  },
+  {
+    id: 'clube-mqp',
+    name: 'Clube MQP',
+    shortName: 'Clube MQP',
+    price: 'Médio Ticket',
+    color: 'curso',
+    description: 'Clube MQP'
+  },
+  {
+    id: 'fraternidade-safe-pro',
+    name: 'Fraternidade Safe Pró',
+    shortName: 'Safe Pró',
+    price: 'Médio-Alto Ticket',
+    color: 'mentoria',
+    description: 'Fraternidade Safe Pró'
+  },
+  {
+    id: 'safe-skills',
+    name: 'Safe Skills',
+    shortName: 'Safe Skills',
+    price: 'Médio Ticket',
+    color: 'curso',
+    description: 'Safe Skills'
+  },
+  {
+    id: 'safe-experience',
+    name: 'Safe Experience',
+    shortName: 'Safe Exp.',
+    price: 'Médio Ticket',
+    color: 'curso',
+    description: 'Safe Experience'
+  },
+  {
+    id: 'mentoria-marcello-safe',
+    name: 'Mentoria Marcello Safe',
+    shortName: 'Mentoria Safe',
+    price: 'Alto Ticket',
+    color: 'mentoria',
+    description: 'Mentoria com Marcello Safe'
+  },
+  // Produtos legados para compatibilidade
+  {
+    id: 'guia-ia',
+    name: 'Guia de IA para Advogados',
+    shortName: 'Guia IA',
+    price: 'R$ 99',
+    color: 'ebook',
+    description: 'E-book com fundamentos de IA (legado)'
+  },
+  {
+    id: 'codigo-prompts',
+    name: 'Código dos Prompts',
+    shortName: 'Prompts',
+    price: 'R$ 99',
+    color: 'ebook',
+    description: 'E-book com método P.R.O.M.P.T. (legado)'
   }
 ];
 

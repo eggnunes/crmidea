@@ -37,7 +37,15 @@ const productMap: Record<DbProductType, ProductType> = {
   'curso_idea': 'curso-idea',
   'guia_ia': 'guia-ia',
   'codigo_prompts': 'codigo-prompts',
-  'combo_ebooks': 'combo-ebooks'
+  'combo_ebooks': 'combo-ebooks',
+  'ebook_unitario': 'ebook-unitario',
+  'imersao_idea': 'imersao-idea',
+  'fraternidade_safe_black': 'fraternidade-safe-black',
+  'clube_mqp': 'clube-mqp',
+  'fraternidade_safe_pro': 'fraternidade-safe-pro',
+  'safe_skills': 'safe-skills',
+  'safe_experience': 'safe-experience',
+  'mentoria_marcello_safe': 'mentoria-marcello-safe'
 };
 
 const reverseProductMap: Record<ProductType, DbProductType> = {
@@ -47,7 +55,15 @@ const reverseProductMap: Record<ProductType, DbProductType> = {
   'curso-idea': 'curso_idea',
   'guia-ia': 'guia_ia',
   'codigo-prompts': 'codigo_prompts',
-  'combo-ebooks': 'combo_ebooks'
+  'combo-ebooks': 'combo_ebooks',
+  'ebook-unitario': 'ebook_unitario',
+  'imersao-idea': 'imersao_idea',
+  'fraternidade-safe-black': 'fraternidade_safe_black',
+  'clube-mqp': 'clube_mqp',
+  'fraternidade-safe-pro': 'fraternidade_safe_pro',
+  'safe-skills': 'safe_skills',
+  'safe-experience': 'safe_experience',
+  'mentoria-marcello-safe': 'mentoria_marcello_safe'
 };
 
 function mapDbLeadToLead(dbLead: DbLead, interactions: DbInteraction[] = []): Lead {
