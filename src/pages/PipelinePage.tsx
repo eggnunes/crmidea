@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { STATUSES, Lead, LeadStatus, PRODUCTS, Interaction } from "@/types/crm";
 import { useLeads } from "@/hooks/useLeads";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { Loader2, Phone, Mail } from "lucide-react";
+import { Loader2, Phone, Mail, Filter, ShoppingCart, RefreshCcw, XCircle, AlertTriangle, CheckCircle, X } from "lucide-react";
 import {
   DndContext,
   DragEndEvent,
@@ -39,8 +39,18 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { LeadAssignees } from "@/components/LeadAssignees";
 
+// Predefined reason types with their display info
+const REASON_OPTIONS = [
+  { id: 'carrinho_abandonado', label: 'Carrinho abandonado', color: 'bg-warning/20 text-warning border-warning/30', icon: ShoppingCart },
+  { id: 'reembolso', label: 'Reembolso', color: 'bg-destructive/20 text-destructive border-destructive/30', icon: RefreshCcw },
+  { id: 'pagamento_recusado', label: 'Pagamento recusado', color: 'bg-destructive/20 text-destructive border-destructive/30', icon: XCircle },
+  { id: 'chargeback', label: 'Chargeback', color: 'bg-destructive/20 text-destructive border-destructive/30', icon: AlertTriangle },
+  { id: 'compra_aprovada', label: 'Compra aprovada', color: 'bg-success/20 text-success border-success/30', icon: CheckCircle },
+  { id: 'cancelamento', label: 'Cancelamento', color: 'bg-muted text-muted-foreground border-muted-foreground/30', icon: X },
+] as const;
+
 // Helper function to get the reason/motivo for a lead's current status
-function getStatusReason(lead: Lead): string | null {
+function getStatusReason(lead: Lead): { id: string; label: string } | null {
   // Check the most recent interaction for context
   if (lead.interactions.length > 0) {
     const latestInteraction = lead.interactions[lead.interactions.length - 1];
@@ -48,40 +58,47 @@ function getStatusReason(lead: Lead): string | null {
     
     // Map common interaction descriptions to readable reasons
     if (desc.includes('carrinho abandonado') || desc.includes('pix gerado') || desc.includes('boleto gerado')) {
-      return 'Carrinho abandonado';
+      return { id: 'carrinho_abandonado', label: 'Carrinho abandonado' };
     }
     if (desc.includes('reembolso') || desc.includes('reembolsado')) {
-      return 'Reembolso';
+      return { id: 'reembolso', label: 'Reembolso' };
     }
     if (desc.includes('recusad') || desc.includes('recusa')) {
-      return 'Pagamento recusado';
+      return { id: 'pagamento_recusado', label: 'Pagamento recusado' };
     }
     if (desc.includes('chargeback')) {
-      return 'Chargeback';
+      return { id: 'chargeback', label: 'Chargeback' };
     }
     if (desc.includes('compra aprovada') || desc.includes('pagamento confirmado')) {
-      return 'Compra aprovada';
+      return { id: 'compra_aprovada', label: 'Compra aprovada' };
     }
     if (desc.includes('cancelad')) {
-      return 'Cancelamento';
+      return { id: 'cancelamento', label: 'Cancelamento' };
     }
     
-    // Return the description itself if it's short enough
+    // Return a generic "other" reason with the description
     if (latestInteraction.description.length <= 30) {
-      return latestInteraction.description;
+      return { id: 'outro', label: latestInteraction.description };
     }
   }
   
   // Check notes for reason
   if (lead.notes) {
     const notes = lead.notes.toLowerCase();
-    if (notes.includes('carrinho abandonado')) return 'Carrinho abandonado';
-    if (notes.includes('reembolso')) return 'Reembolso';
-    if (notes.includes('recusad')) return 'Pagamento recusado';
-    if (notes.includes('chargeback')) return 'Chargeback';
+    if (notes.includes('carrinho abandonado')) return { id: 'carrinho_abandonado', label: 'Carrinho abandonado' };
+    if (notes.includes('reembolso')) return { id: 'reembolso', label: 'Reembolso' };
+    if (notes.includes('recusad')) return { id: 'pagamento_recusado', label: 'Pagamento recusado' };
+    if (notes.includes('chargeback')) return { id: 'chargeback', label: 'Chargeback' };
   }
   
   return null;
+}
+
+// Get reason display info
+function getReasonDisplayInfo(reasonId: string) {
+  const option = REASON_OPTIONS.find(r => r.id === reasonId);
+  if (option) return option;
+  return { id: 'outro', label: reasonId, color: 'bg-muted text-muted-foreground border-muted-foreground/30', icon: null };
 }
 
 function LeadDetailDialog({ 
@@ -141,7 +158,7 @@ function LeadDetailDialog({
             {reason && (
               <div className="text-right">
                 <span className="text-sm text-muted-foreground">Motivo:</span>
-                <p className="font-medium text-warning">{reason}</p>
+                <p className="font-medium text-warning">{reason.label}</p>
               </div>
             )}
           </div>
@@ -259,6 +276,7 @@ function LeadDetailDialog({
 function LeadCard({ lead, isDragging = false, onClick }: { lead: Lead; isDragging?: boolean; onClick?: () => void }) {
   const product = PRODUCTS.find(p => p.id === lead.product);
   const reason = getStatusReason(lead);
+  const reasonDisplay = reason ? getReasonDisplayInfo(reason.id) : null;
   
   const productColors: Record<string, string> = {
     consultoria: "border-l-consultoria",
@@ -283,6 +301,18 @@ function LeadCard({ lead, isDragging = false, onClick }: { lead: Lead; isDraggin
           R$ {lead.value.toLocaleString('pt-BR')}
         </span>
       </div>
+      
+      {/* Show reason/motivo prominently */}
+      {reason && reasonDisplay && (
+        <div className={cn(
+          "flex items-center gap-1.5 mb-2 px-2 py-1 rounded-md border text-xs font-medium",
+          reasonDisplay.color
+        )}>
+          {reasonDisplay.icon && <reasonDisplay.icon className="w-3 h-3" />}
+          <span>{reason.label}</span>
+        </div>
+      )}
+      
       <div className="flex items-center justify-between">
         <Badge variant="secondary" className="text-xs">
           {product?.shortName}
@@ -291,12 +321,6 @@ function LeadCard({ lead, isDragging = false, onClick }: { lead: Lead; isDraggin
           {lead.interactions.length} interações
         </span>
       </div>
-      {/* Show reason/motivo */}
-      {reason && (
-        <div className="mt-2 pt-2 border-t border-border/50">
-          <span className="text-xs text-warning">{reason}</span>
-        </div>
-      )}
     </div>
   );
 }
@@ -393,6 +417,7 @@ export function PipelinePage() {
   const { leads, loading, updateLeadStatus, addInteraction } = useLeads();
   const [activeId, setActiveId] = useState<string | null>(null);
   const [viewingLead, setViewingLead] = useState<Lead | null>(null);
+  const [filterReason, setFilterReason] = useState<string>('all');
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -401,6 +426,28 @@ export function PipelinePage() {
       },
     })
   );
+
+  // Filter leads by reason
+  const filteredLeads = useMemo(() => {
+    if (filterReason === 'all') return leads;
+    
+    return leads.filter(lead => {
+      const reason = getStatusReason(lead);
+      if (!reason) return filterReason === 'sem_motivo';
+      return reason.id === filterReason;
+    });
+  }, [leads, filterReason]);
+
+  // Get count of leads per reason for filter badges
+  const reasonCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    leads.forEach(lead => {
+      const reason = getStatusReason(lead);
+      const reasonId = reason?.id || 'sem_motivo';
+      counts[reasonId] = (counts[reasonId] || 0) + 1;
+    });
+    return counts;
+  }, [leads]);
 
   if (loading) {
     return (
@@ -443,18 +490,61 @@ export function PipelinePage() {
     setViewingLead(lead);
   };
 
-  // Group leads by status
+  // Group filtered leads by status
   const leadsByStatus = STATUSES.reduce((acc, status) => {
-    acc[status.id] = leads.filter(l => l.status === status.id);
+    acc[status.id] = filteredLeads.filter(l => l.status === status.id);
     return acc;
   }, {} as Record<string, Lead[]>);
 
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">Pipeline</h1>
-        <p className="text-muted-foreground mt-1">Visualize e gerencie seu funil de vendas</p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">Pipeline</h1>
+          <p className="text-muted-foreground mt-1">Visualize e gerencie seu funil de vendas</p>
+        </div>
+        
+        {/* Filter by Reason */}
+        <div className="flex items-center gap-2">
+          <Filter className="w-4 h-4 text-muted-foreground" />
+          <Select value={filterReason} onValueChange={setFilterReason}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Filtrar por motivo" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">
+                Todos os motivos ({leads.length})
+              </SelectItem>
+              {REASON_OPTIONS.map(option => (
+                <SelectItem key={option.id} value={option.id}>
+                  <div className="flex items-center gap-2">
+                    <option.icon className="w-4 h-4" />
+                    <span>{option.label}</span>
+                    {reasonCounts[option.id] && (
+                      <Badge variant="secondary" className="ml-1 text-xs">
+                        {reasonCounts[option.id]}
+                      </Badge>
+                    )}
+                  </div>
+                </SelectItem>
+              ))}
+              <SelectItem value="sem_motivo">
+                Sem motivo ({reasonCounts['sem_motivo'] || 0})
+              </SelectItem>
+            </SelectContent>
+          </Select>
+          {filterReason !== 'all' && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => setFilterReason('all')}
+              className="text-muted-foreground"
+            >
+              Limpar
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Pipeline Board */}
