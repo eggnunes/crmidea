@@ -108,20 +108,42 @@ const kiwifyProductMap: Record<string, ProductType> = {
 };
 
 function detectKiwifyStatus(row: Record<string, unknown>): LeadStatus | null {
-  // Procura por colunas de status típicas da Kiwify
+  // Procura por colunas de status típicas da Kiwify (case-insensitive)
   const statusColumns = [
     'Status', 'status', 'Status da Compra', 'status da compra',
     'Situação', 'situação', 'Situacao', 'situacao',
     'Status do Pedido', 'status do pedido',
-    'Estado', 'estado'
+    'Estado', 'estado', 'Status da Venda', 'status da venda',
+    'Tipo', 'tipo', 'Event', 'event', 'Evento', 'evento',
+    'Status do Pagamento', 'status do pagamento'
   ];
   
-  for (const col of statusColumns) {
-    if (row[col]) {
-      const statusValue = String(row[col]).toLowerCase().trim();
-      if (kiwifyStatusMap[statusValue]) {
-        return kiwifyStatusMap[statusValue];
+  // Busca case-insensitive
+  const findColumn = (keys: string[]): string | null => {
+    for (const key of keys) {
+      if (row[key]) return String(row[key]).toLowerCase().trim();
+      const lowerKey = key.toLowerCase();
+      for (const rowKey of Object.keys(row)) {
+        if (rowKey.toLowerCase() === lowerKey && row[rowKey]) {
+          return String(row[rowKey]).toLowerCase().trim();
+        }
       }
+    }
+    return null;
+  };
+  
+  const statusValue = findColumn(statusColumns);
+  if (!statusValue) return null;
+  
+  // Busca exata primeiro
+  if (kiwifyStatusMap[statusValue]) {
+    return kiwifyStatusMap[statusValue];
+  }
+  
+  // Busca parcial
+  for (const [key, value] of Object.entries(kiwifyStatusMap)) {
+    if (statusValue.includes(key) || key.includes(statusValue)) {
+      return value;
     }
   }
   
@@ -132,24 +154,38 @@ function detectKiwifyProduct(row: Record<string, unknown>): ProductType | null {
   const productColumns = [
     'Produto', 'produto', 'Product', 'product',
     'Nome do Produto', 'nome do produto',
-    'Oferta', 'oferta', 'Item', 'item'
+    'Oferta', 'oferta', 'Item', 'item',
+    'Nome da Oferta', 'nome da oferta',
+    'Título', 'titulo', 'Title', 'title',
+    'Curso', 'curso', 'Produto Adquirido', 'produto adquirido'
   ];
   
-  for (const col of productColumns) {
-    if (row[col]) {
-      const productValue = String(row[col]).toLowerCase().trim();
-      
-      // Busca exata primeiro
-      if (kiwifyProductMap[productValue]) {
-        return kiwifyProductMap[productValue];
-      }
-      
-      // Busca parcial
-      for (const [key, value] of Object.entries(kiwifyProductMap)) {
-        if (productValue.includes(key) || key.includes(productValue)) {
-          return value;
+  // Busca case-insensitive
+  const findColumn = (keys: string[]): string | null => {
+    for (const key of keys) {
+      if (row[key]) return String(row[key]).toLowerCase().trim();
+      const lowerKey = key.toLowerCase();
+      for (const rowKey of Object.keys(row)) {
+        if (rowKey.toLowerCase() === lowerKey && row[rowKey]) {
+          return String(row[rowKey]).toLowerCase().trim();
         }
       }
+    }
+    return null;
+  };
+  
+  const productValue = findColumn(productColumns);
+  if (!productValue) return null;
+  
+  // Busca exata primeiro
+  if (kiwifyProductMap[productValue]) {
+    return kiwifyProductMap[productValue];
+  }
+  
+  // Busca parcial
+  for (const [key, value] of Object.entries(kiwifyProductMap)) {
+    if (productValue.includes(key) || key.includes(productValue)) {
+      return value;
     }
   }
   
@@ -376,20 +412,67 @@ export function ExportImportLeads({ leads, onImport }: ExportImportLeadsProps) {
         let vendas = 0, abandonados = 0, reembolsos = 0, pendentes = 0, valorTotal = 0, comData = 0;
 
         for (const row of jsonData as Record<string, unknown>[]) {
-          // Detecta nome - suporta vários formatos
-          const name = String(
-            row['Nome'] || row['name'] || row['Nome do Cliente'] || 
-            row['nome do cliente'] || row['Cliente'] || row['cliente'] ||
-            row['Comprador'] || row['comprador'] || ''
-          ).trim();
-          
-          // Detecta email
-          const email = String(
-            row['Email'] || row['email'] || row['E-mail'] || row['e-mail'] ||
-            row['Email do Cliente'] || row['email do cliente'] || ''
-          ).trim();
+          // Função auxiliar para buscar valor em múltiplas colunas possíveis
+          const findValue = (keys: string[]): string => {
+            for (const key of keys) {
+              // Busca exata
+              if (row[key] !== undefined && row[key] !== null && row[key] !== '') {
+                return String(row[key]).trim();
+              }
+              // Busca case-insensitive
+              const lowerKey = key.toLowerCase();
+              for (const rowKey of Object.keys(row)) {
+                if (rowKey.toLowerCase() === lowerKey && row[rowKey] !== undefined && row[rowKey] !== null && row[rowKey] !== '') {
+                  return String(row[rowKey]).trim();
+                }
+              }
+            }
+            return '';
+          };
 
-          if (!name || !email) continue;
+          // Detecta nome - suporta MUITOS formatos Kiwify
+          const name = findValue([
+            'Nome', 'name', 'Nome do Cliente', 'nome do cliente',
+            'Cliente', 'cliente', 'Comprador', 'comprador',
+            'Nome do Comprador', 'nome do comprador',
+            'Nome Completo', 'nome completo',
+            'Nome do Usuário', 'nome do usuário',
+            'Buyer Name', 'buyer_name', 'customer_name',
+            'Full Name', 'full_name',
+            'Nome do Aluno', 'nome do aluno',
+            'Aluno', 'aluno'
+          ]);
+          
+          // Detecta email - suporta MUITOS formatos Kiwify
+          const email = findValue([
+            'Email', 'email', 'E-mail', 'e-mail',
+            'Email do Cliente', 'email do cliente',
+            'E-mail do Cliente', 'e-mail do cliente',
+            'Email do Comprador', 'email do comprador',
+            'E-mail do Comprador', 'e-mail do comprador',
+            'Buyer Email', 'buyer_email', 'customer_email',
+            'Email do Aluno', 'email do aluno',
+            'E-mail do Aluno', 'e-mail do aluno'
+          ]);
+
+          // Detecta telefone - suporta MUITOS formatos Kiwify
+          const phone = findValue([
+            'Telefone', 'phone', 'Tel', 'tel',
+            'Celular', 'celular', 'WhatsApp', 'whatsapp',
+            'Telefone do Cliente', 'telefone do cliente',
+            'Telefone do Comprador', 'telefone do comprador',
+            'Phone', 'Mobile', 'mobile',
+            'Número', 'numero', 'Número de Telefone',
+            'Telefone do Aluno', 'telefone do aluno',
+            'Cel', 'cel', 'Fone', 'fone'
+          ]);
+
+          // Se não tem nome E não tem email, pula
+          if (!name && !email) continue;
+
+          // Usa email como nome se nome vazio, ou vice-versa
+          const finalName = name || email.split('@')[0] || 'Lead Importado';
+          const finalEmail = email || `${name.toLowerCase().replace(/\s+/g, '.')}@importado.com`;
 
           // Detecta status automaticamente (Kiwify)
           let status: LeadStatus = 'novo';
@@ -398,7 +481,7 @@ export function ExportImportLeads({ leads, onImport }: ExportImportLeadsProps) {
             status = kiwifyStatus;
           } else {
             // Fallback para mapeamento tradicional
-            const statusKey = String(row['Status'] || row['status'] || 'novo').toLowerCase();
+            const statusKey = findValue(['Status', 'status', 'Situação', 'situacao']).toLowerCase();
             status = statusNameMap[statusKey] || 'novo';
           }
 
@@ -408,7 +491,7 @@ export function ExportImportLeads({ leads, onImport }: ExportImportLeadsProps) {
           if (kiwifyProduct) {
             product = kiwifyProduct;
           } else {
-            const productKey = String(row['Produto'] || row['product'] || 'consultoria').toLowerCase();
+            const productKey = findValue(['Produto', 'product', 'Nome do Produto', 'Oferta']).toLowerCase();
             product = productNameMap[productKey] || 'consultoria';
           }
 
@@ -434,35 +517,38 @@ export function ExportImportLeads({ leads, onImport }: ExportImportLeadsProps) {
             pendentes++;
           }
 
-          // Detecta telefone
-          const phone = String(
-            row['Telefone'] || row['phone'] || row['Tel'] || row['tel'] ||
-            row['Celular'] || row['celular'] || row['WhatsApp'] || row['whatsapp'] || ''
-          ).trim();
-
           // Gera nota com tipo do evento original
           const originalEvent = getEventType(row);
           const notes = originalEvent !== 'Desconhecido' 
             ? `Importado Kiwify: ${originalEvent}` 
-            : String(row['Observações'] || row['notes'] || '');
+            : findValue(['Observações', 'notes', 'Notas', 'Obs']);
+
+          // Detecta origem
+          const source = findValue(['Origem', 'source', 'Source', 'Canal', 'canal']) || 'Kiwify';
 
           importedLeads.push({
-            name,
-            email,
+            name: finalName,
+            email: finalEmail,
             phone,
             product,
             status,
             value,
-            source: String(row['Origem'] || row['source'] || 'Kiwify'),
+            source,
             notes,
             importedCreatedAt: transactionDate || undefined
           });
         }
 
         if (importedLeads.length === 0) {
+          // Mostra as colunas encontradas para ajudar na depuração
+          const firstRow = jsonData[0] as Record<string, unknown> | undefined;
+          const columnsFound = firstRow ? Object.keys(firstRow).slice(0, 10).join(', ') : 'Nenhuma';
+          console.log('Colunas encontradas no arquivo:', firstRow ? Object.keys(firstRow) : []);
+          console.log('Primeira linha:', firstRow);
+          
           toast({
             title: "Nenhum lead encontrado",
-            description: "Verifique se o arquivo tem as colunas corretas (Nome, Email, etc.)",
+            description: `Colunas detectadas: ${columnsFound}${Object.keys(firstRow || {}).length > 10 ? '...' : ''}. Verifique se há colunas de Nome/Email.`,
             variant: "destructive",
           });
           return;
