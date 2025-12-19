@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { DashboardPage } from "./pages/Dashboard";
 import { LeadsPage } from "./pages/LeadsPage";
+import { ClientsPage } from "./pages/ClientsPage";
 import { PipelinePage } from "./pages/PipelinePage";
 import { ProductsPage } from "./pages/ProductsPage";
 import { SettingsPage } from "./pages/SettingsPage";
@@ -52,6 +53,7 @@ function AppRoutes() {
               <Routes>
                 <Route path="/" element={<DashboardPage />} />
                 <Route path="/leads" element={<LeadsPage />} />
+                <Route path="/clientes" element={<ClientsPage />} />
                 <Route path="/pipeline" element={<PipelinePage />} />
                 <Route path="/produtos" element={<ProductsPage />} />
                 <Route path="/integracoes" element={<IntegrationsDashboardPage />} />
