@@ -230,6 +230,290 @@ export type Database = {
         }
         Relationships: []
       }
+      client_form_fields: {
+        Row: {
+          created_at: string
+          field_label: string
+          field_name: string
+          field_options: Json | null
+          field_type: string | null
+          id: string
+          is_required: boolean | null
+          order_index: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          field_label: string
+          field_name: string
+          field_options?: Json | null
+          field_type?: string | null
+          id?: string
+          is_required?: boolean | null
+          order_index?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          field_label?: string
+          field_name?: string
+          field_options?: Json | null
+          field_type?: string | null
+          id?: string
+          is_required?: boolean | null
+          order_index?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      client_milestones: {
+        Row: {
+          category: string | null
+          client_id: string
+          completed_at: string | null
+          created_at: string
+          description: string | null
+          due_date: string | null
+          id: string
+          is_completed: boolean | null
+          order_index: number | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category?: string | null
+          client_id: string
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          is_completed?: boolean | null
+          order_index?: number | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: string | null
+          client_id?: string
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          is_completed?: boolean | null
+          order_index?: number | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_milestones_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_sessions: {
+        Row: {
+          client_id: string
+          created_at: string
+          duration_minutes: number | null
+          id: string
+          next_steps: string | null
+          notes: string | null
+          session_date: string
+          session_type: string | null
+          status: string | null
+          summary: string | null
+          title: string
+          topics: string[] | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          duration_minutes?: number | null
+          id?: string
+          next_steps?: string | null
+          notes?: string | null
+          session_date: string
+          session_type?: string | null
+          status?: string | null
+          summary?: string | null
+          title: string
+          topics?: string[] | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          duration_minutes?: number | null
+          id?: string
+          next_steps?: string | null
+          notes?: string | null
+          session_date?: string
+          session_type?: string | null
+          status?: string | null
+          summary?: string | null
+          title?: string
+          topics?: string[] | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_sessions_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_timeline: {
+        Row: {
+          client_id: string
+          created_at: string
+          description: string | null
+          event_date: string
+          event_type: string
+          id: string
+          reference_id: string | null
+          reference_type: string | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          description?: string | null
+          event_date?: string
+          event_type: string
+          id?: string
+          reference_id?: string | null
+          reference_type?: string | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          description?: string | null
+          event_date?: string
+          event_type?: string
+          id?: string
+          reference_id?: string | null
+          reference_type?: string | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_timeline_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      clients: {
+        Row: {
+          ai_knowledge_level: string | null
+          area_atuacao: string | null
+          challenges: string | null
+          cidade: string | null
+          contract_end_date: string | null
+          contract_start_date: string
+          contract_value: number | null
+          created_at: string
+          email: string | null
+          escritorio: string | null
+          estado: string | null
+          form_data: Json | null
+          id: string
+          lead_id: string | null
+          name: string
+          oab_number: string | null
+          objectives: string | null
+          payment_status: string | null
+          phone: string | null
+          product_type: string
+          status: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ai_knowledge_level?: string | null
+          area_atuacao?: string | null
+          challenges?: string | null
+          cidade?: string | null
+          contract_end_date?: string | null
+          contract_start_date?: string
+          contract_value?: number | null
+          created_at?: string
+          email?: string | null
+          escritorio?: string | null
+          estado?: string | null
+          form_data?: Json | null
+          id?: string
+          lead_id?: string | null
+          name: string
+          oab_number?: string | null
+          objectives?: string | null
+          payment_status?: string | null
+          phone?: string | null
+          product_type: string
+          status?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ai_knowledge_level?: string | null
+          area_atuacao?: string | null
+          challenges?: string | null
+          cidade?: string | null
+          contract_end_date?: string | null
+          contract_start_date?: string
+          contract_value?: number | null
+          created_at?: string
+          email?: string | null
+          escritorio?: string | null
+          estado?: string | null
+          form_data?: Json | null
+          id?: string
+          lead_id?: string | null
+          name?: string
+          oab_number?: string | null
+          objectives?: string | null
+          payment_status?: string | null
+          phone?: string | null
+          product_type?: string
+          status?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clients_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       column_mappings: {
         Row: {
           created_at: string
