@@ -696,6 +696,7 @@ export function LeadsPage() {
   const [search, setSearch] = useState('');
   const [filterProduct, setFilterProduct] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [filterConversation, setFilterConversation] = useState<string>('all');
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -770,6 +771,14 @@ export function LeadsPage() {
     const matchesProduct = filterProduct === 'all' || lead.product === filterProduct;
     const matchesStatus = filterStatus === 'all' || lead.status === filterStatus;
     
+    // Conversation filter
+    let matchesConversation = true;
+    if (filterConversation === 'with_conversation') {
+      matchesConversation = hasActiveConversation(lead.phone);
+    } else if (filterConversation === 'without_conversation') {
+      matchesConversation = !hasActiveConversation(lead.phone);
+    }
+    
     // Date filter
     let matchesDate = true;
     if (startDate || endDate) {
@@ -786,7 +795,7 @@ export function LeadsPage() {
       }
     }
     
-    return matchesSearch && matchesProduct && matchesStatus && matchesDate;
+    return matchesSearch && matchesProduct && matchesStatus && matchesDate && matchesConversation;
   });
 
   const handleDateChange = (start: Date | undefined, end: Date | undefined) => {
@@ -944,6 +953,17 @@ export function LeadsPage() {
                     {status.name}
                   </SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+            <Select value={filterConversation} onValueChange={setFilterConversation}>
+              <SelectTrigger className="w-full sm:w-48">
+                <MessageCircle className="w-4 h-4 mr-2" />
+                <SelectValue placeholder="Conversa" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas as conversas</SelectItem>
+                <SelectItem value="with_conversation">Com conversa ativa</SelectItem>
+                <SelectItem value="without_conversation">Sem conversa</SelectItem>
               </SelectContent>
             </Select>
             </div>
