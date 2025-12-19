@@ -82,6 +82,47 @@ export function useClients() {
     fetchClients();
   }, [user]);
 
+  // Milestone templates based on product type
+  const getMilestoneTemplates = (productType: string): { title: string; description: string; category: string; order_index: number }[] => {
+    if (productType === 'consultoria') {
+      return [
+        { title: 'Onboarding', description: 'Reunião inicial de alinhamento e levantamento de necessidades', category: 'onboarding', order_index: 0 },
+        { title: 'Diagnóstico', description: 'Análise da situação atual do escritório e identificação de oportunidades', category: 'onboarding', order_index: 1 },
+        { title: 'Plano de Implementação', description: 'Definição do roadmap de implementação de IA', category: 'implementacao', order_index: 2 },
+        { title: 'Setup de Ferramentas', description: 'Configuração das ferramentas de IA escolhidas', category: 'implementacao', order_index: 3 },
+        { title: 'Treinamento Equipe', description: 'Capacitação da equipe nas ferramentas implementadas', category: 'implementacao', order_index: 4 },
+        { title: 'Criação de Prompts', description: 'Desenvolvimento de prompts personalizados para o escritório', category: 'implementacao', order_index: 5 },
+        { title: 'Automações', description: 'Implementação de automações nos fluxos de trabalho', category: 'implementacao', order_index: 6 },
+        { title: 'Revisão 30 dias', description: 'Acompanhamento e ajustes após primeiro mês', category: 'revisao', order_index: 7 },
+        { title: 'Revisão 60 dias', description: 'Avaliação de resultados e otimizações', category: 'revisao', order_index: 8 },
+        { title: 'Entrega Final', description: 'Documentação e encerramento da consultoria', category: 'entrega', order_index: 9 },
+      ];
+    } else if (productType === 'mentoria-individual' || productType === 'mentoria_individual') {
+      return [
+        { title: 'Onboarding', description: 'Primeira sessão: conhecendo o mentorado e definindo objetivos', category: 'onboarding', order_index: 0 },
+        { title: 'Análise de Perfil', description: 'Entender nível de conhecimento e desafios específicos', category: 'onboarding', order_index: 1 },
+        { title: 'Módulo 1: Fundamentos de IA', description: 'Conceitos básicos e principais ferramentas', category: 'conteudo', order_index: 2 },
+        { title: 'Módulo 2: ChatGPT Avançado', description: 'Técnicas avançadas de prompts e casos de uso', category: 'conteudo', order_index: 3 },
+        { title: 'Módulo 3: Automações', description: 'Integração de IA nos fluxos de trabalho', category: 'conteudo', order_index: 4 },
+        { title: 'Módulo 4: Criação de Conteúdo', description: 'IA para marketing jurídico', category: 'conteudo', order_index: 5 },
+        { title: 'Projeto Prático', description: 'Implementação supervisionada no escritório', category: 'pratica', order_index: 6 },
+        { title: 'Sessão de Dúvidas', description: 'Esclarecimento de dúvidas e casos específicos', category: 'revisao', order_index: 7 },
+        { title: 'Encerramento', description: 'Avaliação final e próximos passos', category: 'entrega', order_index: 8 },
+      ];
+    } else if (productType === 'mentoria-coletiva' || productType === 'mentoria_coletiva') {
+      return [
+        { title: 'Boas-vindas', description: 'Acesso ao grupo e materiais iniciais', category: 'onboarding', order_index: 0 },
+        { title: 'Aula 1: Introdução à IA', description: 'Fundamentos e visão geral', category: 'conteudo', order_index: 1 },
+        { title: 'Aula 2: ChatGPT na Prática', description: 'Uso prático do ChatGPT', category: 'conteudo', order_index: 2 },
+        { title: 'Aula 3: Prompts Jurídicos', description: 'Criação de prompts para advocacia', category: 'conteudo', order_index: 3 },
+        { title: 'Aula 4: Automações', description: 'Ferramentas de automação', category: 'conteudo', order_index: 4 },
+        { title: 'Encontro ao Vivo', description: 'Sessão de Q&A em grupo', category: 'pratica', order_index: 5 },
+        { title: 'Encerramento', description: 'Certificado e acesso contínuo', category: 'entrega', order_index: 6 },
+      ];
+    }
+    return [];
+  };
+
   const addClient = async (client: ClientInsert) => {
     if (!user) return null;
 
@@ -106,6 +147,22 @@ export function useClients() {
         description: `Cliente ${data.name} iniciou ${data.product_type}`,
         event_date: new Date().toISOString(),
       });
+
+      // Add default milestones based on product type
+      const milestoneTemplates = getMilestoneTemplates(data.product_type);
+      if (milestoneTemplates.length > 0) {
+        const milestonesToInsert = milestoneTemplates.map(template => ({
+          client_id: data.id,
+          user_id: user.id,
+          title: template.title,
+          description: template.description,
+          category: template.category,
+          order_index: template.order_index,
+          is_completed: false,
+        }));
+
+        await supabase.from('client_milestones').insert(milestonesToInsert);
+      }
 
       setClients(prev => [data, ...prev]);
       toast.success('Cliente cadastrado com sucesso!');

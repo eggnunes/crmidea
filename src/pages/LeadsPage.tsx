@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { PRODUCTS, STATUSES, Lead, ProductType, LeadStatus, Interaction } from "@/types/crm";
 import { useLeads } from "@/hooks/useLeads";
 import { useLeadProducts } from "@/hooks/useLeadProducts";
 import { useClients } from "@/hooks/useClients";
+import { supabase } from "@/integrations/supabase/client";
 import { 
   Plus, 
   Search, 
@@ -703,6 +704,28 @@ export function LeadsPage() {
   const [selectedLeads, setSelectedLeads] = useState<Set<string>>(new Set());
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [conversationPhones, setConversationPhones] = useState<Set<string>>(new Set());
+
+  // Fetch phones that have active conversations
+  useEffect(() => {
+    const fetchConversationPhones = async () => {
+      const { data } = await supabase
+        .from('whatsapp_conversations')
+        .select('contact_phone');
+      
+      if (data) {
+        const phones = new Set(data.map(c => c.contact_phone.replace(/\D/g, '')));
+        setConversationPhones(phones);
+      }
+    };
+    fetchConversationPhones();
+  }, []);
+
+  const hasActiveConversation = (phone: string | null) => {
+    if (!phone) return false;
+    const cleanPhone = phone.replace(/\D/g, '');
+    return conversationPhones.has(cleanPhone);
+  };
 
   const handleConversationStarted = (conversationId: string) => {
     navigate(`/whatsapp?conversation=${conversationId}`);
@@ -979,13 +1002,30 @@ export function LeadsPage() {
                       </td>
                       <td className="p-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center">
-                            <span className="text-sm font-semibold">
-                              {lead.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                            </span>
+                          <div className="relative">
+                            <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center">
+                              <span className="text-sm font-semibold">
+                                {lead.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                              </span>
+                            </div>
+                            {hasActiveConversation(lead.phone) && (
+                              <div 
+                                className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-success flex items-center justify-center border-2 border-background"
+                                title="Conversa ativa no WhatsApp"
+                              >
+                                <MessageCircle className="w-3 h-3 text-success-foreground" />
+                              </div>
+                            )}
                           </div>
                           <div>
-                            <p className="font-medium">{lead.name}</p>
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium">{lead.name}</p>
+                              {hasActiveConversation(lead.phone) && (
+                                <Badge variant="outline" className="text-xs bg-success/10 text-success border-success/20">
+                                  WhatsApp
+                                </Badge>
+                              )}
+                            </div>
                             <p className="text-sm text-muted-foreground">{lead.source}</p>
                           </div>
                         </div>
