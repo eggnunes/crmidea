@@ -188,6 +188,51 @@ export type Database = {
         }
         Relationships: []
       }
+      calendar_availability: {
+        Row: {
+          booked_by_email: string | null
+          booked_by_name: string | null
+          booked_by_phone: string | null
+          booking_notes: string | null
+          calendar_id: string | null
+          created_at: string
+          end_time: string
+          id: string
+          is_booked: boolean
+          start_time: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          booked_by_email?: string | null
+          booked_by_name?: string | null
+          booked_by_phone?: string | null
+          booking_notes?: string | null
+          calendar_id?: string | null
+          created_at?: string
+          end_time: string
+          id?: string
+          is_booked?: boolean
+          start_time: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          booked_by_email?: string | null
+          booked_by_name?: string | null
+          booked_by_phone?: string | null
+          booking_notes?: string | null
+          calendar_id?: string | null
+          created_at?: string
+          end_time?: string
+          id?: string
+          is_booked?: boolean
+          start_time?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       channel_configs: {
         Row: {
           access_token: string | null

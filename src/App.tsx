@@ -14,6 +14,8 @@ import { SettingsPage } from "./pages/SettingsPage";
 import { IntegrationsDashboardPage } from "./pages/IntegrationsDashboardPage";
 import { WhatsAppPage } from "./pages/WhatsAppPage";
 import { AlertsCenterPage } from "./pages/AlertsCenterPage";
+import { CalendarPage } from "./pages/CalendarPage";
+import { PublicBookingPage } from "./pages/PublicBookingPage";
 import AdminUsersPage from "./pages/AdminUsersPage";
 import { AuthPage } from "./pages/AuthPage";
 import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
@@ -45,6 +47,7 @@ function AppRoutes() {
     <Routes>
       <Route path="/auth" element={<AuthPage />} />
       <Route path="/privacidade" element={<PrivacyPolicyPage />} />
+      <Route path="/agendar" element={<PublicBookingPage />} />
       <Route
         path="/*"
         element={
@@ -59,6 +62,7 @@ function AppRoutes() {
                 <Route path="/integracoes" element={<IntegrationsDashboardPage />} />
                 <Route path="/whatsapp" element={<WhatsAppPage />} />
                 <Route path="/alertas" element={<AlertsCenterPage />} />
+                <Route path="/calendario" element={<CalendarPage />} />
                 <Route path="/configuracoes" element={<SettingsPage />} />
                 <Route path="/admin/usuarios" element={<AdminUsersPage />} />
                 <Route path="*" element={<NotFound />} />

@@ -1,4 +1,3 @@
-import { Helmet } from "react-helmet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { GoogleCalendarConnect } from "@/components/GoogleCalendarConnect";
@@ -23,13 +22,7 @@ export function CalendarPage() {
   };
 
   return (
-    <>
-      <Helmet>
-        <title>Calendário | CRM IDEA</title>
-        <meta name="description" content="Gerencie seu calendário, agende reuniões e controle sua disponibilidade" />
-      </Helmet>
-
-      <div className="space-y-6">
+    <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-foreground">Calendário</h1>
@@ -95,9 +88,8 @@ export function CalendarPage() {
                 Para usar todas as funcionalidades de agendamento, conecte sua conta do Google Calendar acima.
               </CardDescription>
             </CardHeader>
-          </Card>
-        )}
-      </div>
-    </>
+      </Card>
+    )}
+  </div>
   );
 }

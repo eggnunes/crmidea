@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { Helmet } from "react-helmet";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -61,14 +60,14 @@ export function PublicBookingPage() {
   const fetchAllSlots = async () => {
     try {
       const { data, error } = await supabase
-        .from("calendar_availability")
-        .select("*")
+        .from("calendar_availability" as any)
+        .select("id, start_time, end_time, is_booked, user_id")
         .eq("is_booked", false)
         .gte("start_time", new Date().toISOString())
         .order("start_time", { ascending: true });
 
       if (error) throw error;
-      setAllSlots(data || []);
+      setAllSlots((data as unknown as AvailabilitySlot[]) || []);
     } catch (error) {
       console.error("Error fetching slots:", error);
     } finally {
@@ -95,14 +94,14 @@ export function PublicBookingPage() {
     try {
       // Mark slot as booked
       const { error: updateError } = await supabase
-        .from("calendar_availability")
+        .from("calendar_availability" as any)
         .update({ 
           is_booked: true,
           booked_by_name: form.name,
           booked_by_email: form.email,
           booked_by_phone: form.phone,
           booking_notes: form.notes
-        })
+        } as any)
         .eq("id", selectedSlot.id);
 
       if (updateError) throw updateError;
@@ -153,13 +152,7 @@ export function PublicBookingPage() {
   }
 
   return (
-    <>
-      <Helmet>
-        <title>Agendar Sessão | CRM IDEA</title>
-        <meta name="description" content="Agende sua sessão de mentoria ou consultoria" />
-      </Helmet>
-
-      <div className="min-h-screen bg-gradient-to-br from-background to-muted">
+    <div className="min-h-screen bg-gradient-to-br from-background to-muted">
         {/* Header */}
         <header className="border-b border-border bg-background/80 backdrop-blur-sm sticky top-0 z-10">
           <div className="container mx-auto px-4 py-4">
@@ -363,6 +356,5 @@ export function PublicBookingPage() {
           </div>
         </main>
       </div>
-    </>
   );
 }
