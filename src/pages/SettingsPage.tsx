@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Settings, Bell, User, Palette, Database, Shield, Send, Loader2, Link2, CheckCircle, XCircle, RefreshCw, Sparkles } from "lucide-react";
+import { Settings, Bell, User, Palette, Database, Shield, Send, Loader2, Link2, CheckCircle, XCircle, RefreshCw, Sparkles, BarChart3 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
@@ -16,6 +16,8 @@ import { FollowUpLogsCard } from "@/components/FollowUpLogsCard";
 import { Badge } from "@/components/ui/badge";
 import { WelcomeTemplatesManager } from "@/components/WelcomeTemplatesManager";
 import { PersonalWhatsAppConfig } from "@/components/PersonalWhatsAppConfig";
+import { FollowUpTemplatesManager } from "@/components/FollowUpTemplatesManager";
+import { FollowUpDashboard } from "@/components/FollowUpDashboard";
 
 export function SettingsPage() {
   const { user } = useAuth();
@@ -251,6 +253,10 @@ export function SettingsPage() {
             <Sparkles className="w-4 h-4" />
             <span className="hidden sm:inline">Templates</span>
           </TabsTrigger>
+          <TabsTrigger value="followup" className="gap-2">
+            <BarChart3 className="w-4 h-4" />
+            <span className="hidden sm:inline">Follow-up</span>
+          </TabsTrigger>
           <TabsTrigger value="integrations" className="gap-2">
             <Link2 className="w-4 h-4" />
             <span className="hidden sm:inline">Integrações</span>
@@ -384,6 +390,12 @@ export function SettingsPage() {
         <TabsContent value="templates" className="space-y-6">
           <WelcomeTemplatesManager />
           <PersonalWhatsAppConfig />
+        </TabsContent>
+
+        {/* Follow-up Tab */}
+        <TabsContent value="followup" className="space-y-6">
+          <FollowUpDashboard />
+          <FollowUpTemplatesManager />
         </TabsContent>
 
         {/* Integrations Tab */}
