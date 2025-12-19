@@ -45,11 +45,17 @@ export function useGoogleCalendar() {
     checkConnection();
   }, [checkConnection]);
 
+  // Always use the published domain for Google OAuth to avoid redirect_uri mismatch
+  const getRedirectUri = () => {
+    const publishedDomain = 'https://ngzodolcmriqlcccpicz.lovable.app';
+    return `${publishedDomain}/configuracoes?google_callback=true`;
+  };
+
   const getAuthUrl = async () => {
     if (!user) return null;
 
     try {
-      const redirectUri = `${window.location.origin}/configuracoes?google_callback=true`;
+      const redirectUri = getRedirectUri();
       
       const { data, error } = await supabase.functions.invoke('google-calendar-auth', {
         body: {
@@ -80,7 +86,7 @@ export function useGoogleCalendar() {
 
     try {
       setLoading(true);
-      const redirectUri = `${window.location.origin}/configuracoes?google_callback=true`;
+      const redirectUri = getRedirectUri();
 
       const { data, error } = await supabase.functions.invoke('google-calendar-auth', {
         body: {
