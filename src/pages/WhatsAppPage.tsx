@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { MessageSquare, Bot, Users, Settings2, Radio, BarChart3, Wifi, WifiOff } from "lucide-react";
@@ -25,6 +25,18 @@ export function WhatsAppPage() {
   const { user } = useAuth();
   const [zapiConnected, setZapiConnected] = useState<boolean | null>(null);
   const [checkingStatus, setCheckingStatus] = useState(false);
+  const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
+
+  // Handle starting a conversation from contacts
+  const handleStartConversation = useCallback((conversationId: string) => {
+    setSelectedConversationId(conversationId);
+    setActiveTab("conversas");
+  }, []);
+
+  // Clear selected conversation when user manually navigates
+  const handleConversationSelected = useCallback(() => {
+    setSelectedConversationId(null);
+  }, []);
 
   // Check Z-API connection status by calling the Z-API status endpoint
   useEffect(() => {
@@ -116,7 +128,10 @@ export function WhatsAppPage() {
         </ScrollArea>
 
         <TabsContent value="conversas" className="space-y-4">
-          <WhatsAppConversations />
+          <WhatsAppConversations 
+            initialConversationId={selectedConversationId}
+            onConversationSelected={handleConversationSelected}
+          />
         </TabsContent>
 
         <TabsContent value="ia" className="space-y-6">
@@ -135,7 +150,7 @@ export function WhatsAppPage() {
         </TabsContent>
 
         <TabsContent value="contatos" className="space-y-4">
-          <ContactsManager />
+          <ContactsManager onStartConversation={handleStartConversation} />
         </TabsContent>
 
         <TabsContent value="analytics" className="space-y-4">

@@ -55,7 +55,12 @@ const getChannelColor = (channel?: ChannelType) => {
   }
 };
 
-export function WhatsAppConversations() {
+interface WhatsAppConversationsProps {
+  initialConversationId?: string | null;
+  onConversationSelected?: () => void;
+}
+
+export function WhatsAppConversations({ initialConversationId, onConversationSelected }: WhatsAppConversationsProps = {}) {
   const {
     conversations,
     allConversations,
@@ -93,6 +98,18 @@ export function WhatsAppConversations() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Handle initial conversation selection
+  useEffect(() => {
+    if (initialConversationId && allConversations.length > 0) {
+      const conversation = allConversations.find(c => c.id === initialConversationId);
+      if (conversation) {
+        setSelectedConversation(conversation);
+        setShowConversationList(false);
+        onConversationSelected?.();
+      }
+    }
+  }, [initialConversationId, allConversations, setSelectedConversation, onConversationSelected]);
 
   // Get unique assignees for filter
   const allAssignees = Object.values(assigneesMap).flat();
