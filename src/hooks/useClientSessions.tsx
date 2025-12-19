@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
+import { useGoogleCalendar } from './useGoogleCalendar';
 
 export interface ClientSession {
   id: string;
@@ -25,6 +26,7 @@ export type SessionUpdate = Partial<SessionInsert>;
 
 export function useClientSessions(clientId?: string) {
   const { user } = useAuth();
+  const { isConnected: googleCalendarConnected, createCalendarEvent } = useGoogleCalendar();
   const [sessions, setSessions] = useState<ClientSession[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -56,7 +58,7 @@ export function useClientSessions(clientId?: string) {
     fetchSessions();
   }, [user, clientId]);
 
-  const addSession = async (session: SessionInsert) => {
+  const addSession = async (session: SessionInsert, syncToCalendar: boolean = true) => {
     if (!user) return null;
 
     try {
@@ -83,8 +85,28 @@ export function useClientSessions(clientId?: string) {
         event_date: session.session_date,
       });
 
+      // Sync to Google Calendar if connected and enabled
+      if (syncToCalendar && googleCalendarConnected) {
+        try {
+          await createCalendarEvent({
+            title: session.title,
+            session_date: session.session_date,
+            duration_minutes: session.duration_minutes,
+            summary: session.summary || undefined,
+            notes: session.notes || undefined,
+            topics: session.topics,
+            next_steps: session.next_steps || undefined,
+          });
+          toast.success('Sessão registrada e sincronizada com Google Calendar!');
+        } catch (calError) {
+          console.error('Error syncing to calendar:', calError);
+          toast.success('Sessão registrada! (Falha ao sincronizar com calendário)');
+        }
+      } else {
+        toast.success('Sessão registrada!');
+      }
+
       setSessions(prev => [data, ...prev]);
-      toast.success('Sessão registrada!');
       return data;
     } catch (error) {
       console.error('Error adding session:', error);
@@ -154,5 +176,7 @@ export function useClientSessions(clientId?: string) {
     updateSession,
     deleteSession,
     refetch: fetchSessions,
+    googleCalendarConnected,
   };
 }
+
