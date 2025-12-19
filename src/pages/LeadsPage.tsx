@@ -2,6 +2,7 @@ import { useState } from "react";
 import { PRODUCTS, STATUSES, Lead, ProductType, LeadStatus, Interaction } from "@/types/crm";
 import { useLeads } from "@/hooks/useLeads";
 import { useLeadProducts } from "@/hooks/useLeadProducts";
+import { useClients } from "@/hooks/useClients";
 import { 
   Plus, 
   Search, 
@@ -16,7 +17,8 @@ import {
   Package,
   ChevronDown,
   ChevronUp,
-  MessageCircle
+  MessageCircle,
+  UserCheck
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -34,6 +36,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import {
   Dialog,
@@ -687,6 +690,7 @@ function LeadDetailDialog({
 
 export function LeadsPage() {
   const { leads, loading, addLead, updateLead, deleteLead, addInteraction, importLeads } = useLeads();
+  const { addClient } = useClients();
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [filterProduct, setFilterProduct] = useState<string>('all');
@@ -702,6 +706,31 @@ export function LeadsPage() {
 
   const handleConversationStarted = (conversationId: string) => {
     navigate(`/whatsapp?conversation=${conversationId}`);
+  };
+
+  const handleConvertToClient = async (lead: Lead) => {
+    try {
+      const client = await addClient({
+        lead_id: lead.id,
+        name: lead.name,
+        email: lead.email || null,
+        phone: lead.phone || null,
+        product_type: lead.product,
+        contract_start_date: new Date().toISOString().split('T')[0],
+        contract_value: lead.value || 0,
+        status: 'ativo',
+        payment_status: 'pendente',
+      });
+
+      if (client) {
+        // Update lead status to closed/won
+        await updateLead(lead.id, { status: 'fechado-ganho' });
+        toast.success('Lead convertido em cliente com sucesso!');
+        navigate('/clientes');
+      }
+    } catch (error) {
+      toast.error('Erro ao converter lead em cliente');
+    }
   };
 
   if (loading) {
@@ -1033,6 +1062,14 @@ export function LeadsPage() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
+                              <DropdownMenuItem 
+                                onClick={() => handleConvertToClient(lead)}
+                                className="text-success"
+                              >
+                                <UserCheck className="w-4 h-4 mr-2" />
+                                Converter em Cliente
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
                               <DropdownMenuItem 
                                 onClick={() => handleDeleteLead(lead.id)}
                                 className="text-destructive"

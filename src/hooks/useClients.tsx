@@ -30,7 +30,27 @@ export interface Client {
   updated_at: string;
 }
 
-export type ClientInsert = Omit<Client, 'id' | 'user_id' | 'created_at' | 'updated_at'>;
+export type ClientInsert = {
+  name: string;
+  product_type: string;
+  lead_id?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  area_atuacao?: string | null;
+  oab_number?: string | null;
+  escritorio?: string | null;
+  cidade?: string | null;
+  estado?: string | null;
+  contract_start_date?: string;
+  contract_end_date?: string | null;
+  contract_value?: number;
+  payment_status?: string;
+  objectives?: string | null;
+  challenges?: string | null;
+  ai_knowledge_level?: string;
+  form_data?: Json;
+  status?: string;
+};
 export type ClientUpdate = Partial<ClientInsert>;
 
 export function useClients() {
