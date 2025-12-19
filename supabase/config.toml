@@ -77,3 +77,6 @@ verify_jwt = true
 
 [functions.update-instagram-names]
 verify_jwt = false
+
+[functions.google-calendar-auth]
+verify_jwt = true

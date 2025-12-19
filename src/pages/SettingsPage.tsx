@@ -18,6 +18,7 @@ import { WelcomeTemplatesManager } from "@/components/WelcomeTemplatesManager";
 import { PersonalWhatsAppConfig } from "@/components/PersonalWhatsAppConfig";
 import { FollowUpTemplatesManager } from "@/components/FollowUpTemplatesManager";
 import { FollowUpDashboard } from "@/components/FollowUpDashboard";
+import { GoogleCalendarConnect } from "@/components/GoogleCalendarConnect";
 
 export function SettingsPage() {
   const { user } = useAuth();
@@ -544,6 +545,9 @@ export function SettingsPage() {
               )}
             </CardContent>
           </Card>
+
+          {/* Google Calendar Integration */}
+          <GoogleCalendarConnect />
 
           {/* Integration Info */}
           <Card>
