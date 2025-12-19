@@ -12,7 +12,10 @@ import {
   BarChart3,
   MessageCircle,
   Bell,
-  UserCheck
+  UserCheck,
+  Calendar,
+  TrendingUp,
+  Headphones
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NavLink } from "@/components/NavLink";
@@ -25,12 +28,19 @@ interface SidebarProps {
   onToggle: () => void;
 }
 
-const navItems = [
+const commercialItems = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard" },
   { to: "/leads", icon: Users, label: "Leads" },
-  { to: "/clientes", icon: UserCheck, label: "Clientes" },
   { to: "/pipeline", icon: Kanban, label: "Pipeline" },
   { to: "/produtos", icon: Package, label: "Produtos" },
+];
+
+const postSaleItems = [
+  { to: "/clientes", icon: UserCheck, label: "Clientes" },
+  { to: "/calendario", icon: Calendar, label: "Calendário" },
+];
+
+const operationalItems = [
   { to: "/integracoes", icon: BarChart3, label: "Integrações" },
   { to: "/whatsapp", icon: MessageCircle, label: "Central de Atendimento" },
   { to: "/alertas", icon: Bell, label: "Central de Alertas" },
@@ -44,6 +54,40 @@ const adminItems = [
 export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const { user, signOut } = useAuth();
   const { isAdmin } = useUserRoles();
+
+  const renderNavItems = (items: typeof commercialItems) => (
+    <ul className="space-y-1">
+      {items.map((item) => (
+        <li key={item.to}>
+          <NavLink
+            to={item.to}
+            end={item.to === "/"}
+            className={cn(
+              "flex items-center gap-3 px-3 py-2.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-sidebar-accent transition-colors",
+              collapsed && "justify-center px-2"
+            )}
+            activeClassName="bg-sidebar-accent text-foreground"
+          >
+            <item.icon className="w-5 h-5 flex-shrink-0" />
+            {!collapsed && <span className="font-medium">{item.label}</span>}
+          </NavLink>
+        </li>
+      ))}
+    </ul>
+  );
+
+  const renderSectionLabel = (label: string, icon: React.ElementType) => {
+    if (collapsed) return null;
+    const Icon = icon;
+    return (
+      <div className="flex items-center gap-2 px-3 mb-2">
+        <Icon className="w-4 h-4 text-muted-foreground" />
+        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+          {label}
+        </span>
+      </div>
+    );
+  };
 
   return (
     <aside 
@@ -73,36 +117,29 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 py-4 px-2">
-        <ul className="space-y-1">
-          {navItems.map((item) => (
-            <li key={item.to}>
-              <NavLink
-                to={item.to}
-                end={item.to === "/"}
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-sidebar-accent transition-colors",
-                  collapsed && "justify-center px-2"
-                )}
-                activeClassName="bg-sidebar-accent text-foreground"
-              >
-                <item.icon className="w-5 h-5 flex-shrink-0" />
-                {!collapsed && <span className="font-medium">{item.label}</span>}
-              </NavLink>
-            </li>
-          ))}
-        </ul>
+      <nav className="flex-1 py-4 px-2 overflow-y-auto">
+        {/* Comercial Section */}
+        <div className="mb-6">
+          {renderSectionLabel("Comercial", TrendingUp)}
+          {renderNavItems(commercialItems)}
+        </div>
+
+        {/* Pós-Venda Section */}
+        <div className="mb-6">
+          {renderSectionLabel("Pós-Venda", Headphones)}
+          {renderNavItems(postSaleItems)}
+        </div>
+
+        {/* Operacional Section */}
+        <div className="mb-6">
+          {renderSectionLabel("Operacional", Settings)}
+          {renderNavItems(operationalItems)}
+        </div>
 
         {/* Admin Section */}
         {isAdmin && (
-          <>
-            {!collapsed && (
-              <div className="mt-6 mb-2 px-3">
-                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                  Admin
-                </span>
-              </div>
-            )}
+          <div>
+            {renderSectionLabel("Admin", ShieldCheck)}
             <ul className="space-y-1">
               {adminItems.map((item) => (
                 <li key={item.to}>
@@ -120,7 +157,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
                 </li>
               ))}
             </ul>
-          </>
+          </div>
         )}
       </nav>
 
