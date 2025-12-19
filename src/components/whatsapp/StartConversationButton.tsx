@@ -66,8 +66,9 @@ export function StartConversationButton({
 
         conversationId = newConversation.id;
         toast({
-          title: "Conversa criada",
-          description: `Nova conversa com ${name || normalizedPhone} iniciada`,
+          title: "✅ Nova conversa criada!",
+          description: `Conversa com ${name || normalizedPhone} iniciada com sucesso`,
+          className: "bg-success/10 border-success/20 text-success",
         });
       }
 

@@ -15,7 +15,8 @@ import {
   MoreHorizontal,
   Package,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  MessageCircle
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -50,6 +51,8 @@ import { LeadAssignees } from "@/components/LeadAssignees";
 import { DateRangeFilter } from "@/components/DateRangeFilter";
 import { isWithinInterval, startOfDay, endOfDay } from "date-fns";
 import { Checkbox } from "@/components/ui/checkbox";
+import { StartConversationButton } from "@/components/whatsapp/StartConversationButton";
+import { useNavigate } from "react-router-dom";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -684,6 +687,7 @@ function LeadDetailDialog({
 
 export function LeadsPage() {
   const { leads, loading, addLead, updateLead, deleteLead, addInteraction, importLeads } = useLeads();
+  const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [filterProduct, setFilterProduct] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
@@ -695,6 +699,10 @@ export function LeadsPage() {
   const [selectedLeads, setSelectedLeads] = useState<Set<string>>(new Set());
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleConversationStarted = (conversationId: string) => {
+    navigate(`/whatsapp?conversation=${conversationId}`);
+  };
 
   if (loading) {
     return (
@@ -956,14 +964,21 @@ export function LeadsPage() {
                       <td className="p-4">
                         <div className="flex items-center gap-2">
                           {lead.phone && (
-                            <a 
-                              href={`https://wa.me/${lead.phone.replace(/\D/g, '')}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="p-1.5 rounded-md bg-success/10 text-success hover:bg-success/20 transition-colors"
-                            >
-                              <Phone className="w-4 h-4" />
-                            </a>
+                            <>
+                              <StartConversationButton 
+                                phone={lead.phone}
+                                name={lead.name}
+                                onConversationStarted={handleConversationStarted}
+                              />
+                              <a 
+                                href={`https://wa.me/${lead.phone.replace(/\D/g, '')}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="p-1.5 rounded-md bg-success/10 text-success hover:bg-success/20 transition-colors"
+                              >
+                                <Phone className="w-4 h-4" />
+                              </a>
+                            </>
                           )}
                           {lead.email && (
                             <a 
