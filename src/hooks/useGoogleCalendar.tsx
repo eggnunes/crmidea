@@ -161,6 +161,73 @@ export function useGoogleCalendar() {
     }
   };
 
+  const createCalendarEvent = async (session: {
+    title: string;
+    session_date: string;
+    duration_minutes?: number;
+    summary?: string;
+    notes?: string;
+    topics?: string[];
+    next_steps?: string;
+  }) => {
+    if (!user) return null;
+
+    try {
+      const { data, error } = await supabase.functions.invoke('google-calendar-sync', {
+        body: {
+          action: 'create-event',
+          userId: user.id,
+          session,
+        },
+      });
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Error creating calendar event:', error);
+      toast.error('Erro ao criar evento no Google Calendar');
+      return null;
+    }
+  };
+
+  const listCalendars = async () => {
+    if (!user) return [];
+
+    try {
+      const { data, error } = await supabase.functions.invoke('google-calendar-sync', {
+        body: {
+          action: 'list-calendars',
+          userId: user.id,
+        },
+      });
+
+      if (error) throw error;
+      return data.calendars || [];
+    } catch (error) {
+      console.error('Error listing calendars:', error);
+      return [];
+    }
+  };
+
+  const listEvents = async () => {
+    if (!user) return [];
+
+    try {
+      const { data, error } = await supabase.functions.invoke('google-calendar-sync', {
+        body: {
+          action: 'list-events',
+          userId: user.id,
+        },
+      });
+
+      if (error) throw error;
+      return data.events || [];
+    } catch (error) {
+      console.error('Error listing events:', error);
+      return [];
+    }
+  };
+
   return {
     isConnected,
     loading,
@@ -169,5 +236,8 @@ export function useGoogleCalendar() {
     handleCallback,
     getValidAccessToken,
     checkConnection,
+    createCalendarEvent,
+    listCalendars,
+    listEvents,
   };
 }
