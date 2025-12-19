@@ -671,6 +671,54 @@ export type Database = {
         }
         Relationships: []
       }
+      follow_up_templates: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean | null
+          max_days: number
+          message_template: string
+          min_days: number
+          name: string
+          priority: number | null
+          product_filter: string[] | null
+          status_filter: string[] | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          max_days?: number
+          message_template: string
+          min_days?: number
+          name: string
+          priority?: number | null
+          product_filter?: string[] | null
+          status_filter?: string[] | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          max_days?: number
+          message_template?: string
+          min_days?: number
+          name?: string
+          priority?: number | null
+          product_filter?: string[] | null
+          status_filter?: string[] | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       interactions: {
         Row: {
           created_at: string
