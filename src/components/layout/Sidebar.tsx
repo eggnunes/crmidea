@@ -11,7 +11,8 @@ import {
   ShieldCheck,
   BarChart3,
   MessageCircle,
-  Bell
+  Bell,
+  UserCheck
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NavLink } from "@/components/NavLink";
@@ -27,6 +28,7 @@ interface SidebarProps {
 const navItems = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard" },
   { to: "/leads", icon: Users, label: "Leads" },
+  { to: "/clientes", icon: UserCheck, label: "Clientes" },
   { to: "/pipeline", icon: Kanban, label: "Pipeline" },
   { to: "/produtos", icon: Package, label: "Produtos" },
   { to: "/integracoes", icon: BarChart3, label: "Integrações" },
