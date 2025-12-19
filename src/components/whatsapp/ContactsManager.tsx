@@ -11,10 +11,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useWhatsAppContacts } from "@/hooks/useWhatsAppContacts";
 import { useLeads } from "@/hooks/useLeads";
 import { PRODUCTS } from "@/types/crm";
-import { Loader2, Plus, Search, UserPlus, Tag, Trash2, Edit, Bot, BotOff, Phone, UserCheck } from "lucide-react";
+import { Loader2, Plus, Search, UserPlus, Tag, Trash2, Edit, Bot, BotOff, Phone, UserCheck, MessageCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { StartConversationButton } from "./StartConversationButton";
 
-export function ContactsManager() {
+interface ContactsManagerProps {
+  onStartConversation?: (conversationId: string) => void;
+}
+
+export function ContactsManager({ onStartConversation }: ContactsManagerProps) {
   const { contacts, tags, loading, createContact, updateContact, deleteContact, toggleBotDisabled, createTag, deleteTag } = useWhatsAppContacts();
   const { addLead } = useLeads();
   const { toast } = useToast();
@@ -358,6 +363,11 @@ export function ContactsManager() {
                     <Switch
                       checked={!contact.bot_disabled}
                       onCheckedChange={(checked) => toggleBotDisabled(contact.id, !checked)}
+                    />
+                    <StartConversationButton 
+                      phone={contact.phone} 
+                      name={contact.name || undefined}
+                      onConversationStarted={onStartConversation}
                     />
                     <Button
                       variant="ghost"
