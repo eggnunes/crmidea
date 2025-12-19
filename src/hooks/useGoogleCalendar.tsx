@@ -47,7 +47,7 @@ export function useGoogleCalendar() {
 
   // Always use the published domain for Google OAuth to avoid redirect_uri mismatch
   const getRedirectUri = () => {
-    const publishedDomain = 'https://ngzodolcmriqlcccpicz.lovable.app';
+    const publishedDomain = 'https://advocate-ai-crm.lovable.app';
     return `${publishedDomain}/configuracoes?google_callback=true`;
   };
 
