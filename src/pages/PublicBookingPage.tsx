@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,8 +28,13 @@ interface BookingForm {
   notes: string;
 }
 
+interface BookingSettings {
+  title: string;
+  description: string;
+}
+
 export function PublicBookingPage() {
-  const [searchParams] = useSearchParams();
+  const { userId } = useParams<{ userId: string }>();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [availableSlots, setAvailableSlots] = useState<AvailabilitySlot[]>([]);
   const [allSlots, setAllSlots] = useState<AvailabilitySlot[]>([]);
@@ -37,6 +42,10 @@ export function PublicBookingPage() {
   const [loading, setLoading] = useState(true);
   const [booking, setBooking] = useState(false);
   const [booked, setBooked] = useState(false);
+  const [settings, setSettings] = useState<BookingSettings>({
+    title: "Mentoria & Consultoria IDEA",
+    description: "Transforme sua advocacia com inteligência artificial. Agende sua sessão exclusiva e descubra como a IA pode revolucionar seu escritório."
+  });
   const [form, setForm] = useState<BookingForm>({
     name: "",
     email: "",
@@ -44,14 +53,12 @@ export function PublicBookingPage() {
     notes: ""
   });
 
-  // Customization options from URL params
-  const title = searchParams.get("title") || "Mentoria & Consultoria IDEA";
-  const description = searchParams.get("desc") || "Transforme sua advocacia com inteligência artificial. Agende sua sessão exclusiva e descubra como a IA pode revolucionar seu escritório.";
-  const accentColor = searchParams.get("color") || "primary";
-
   useEffect(() => {
-    fetchAllSlots();
-  }, []);
+    if (userId) {
+      fetchSettings();
+      fetchAllSlots();
+    }
+  }, [userId]);
 
   useEffect(() => {
     if (selectedDate && allSlots.length > 0) {
@@ -64,11 +71,33 @@ export function PublicBookingPage() {
     }
   }, [selectedDate, allSlots]);
 
+  const fetchSettings = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("booking_page_settings" as any)
+        .select("title, description")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (error) throw error;
+      
+      if (data) {
+        setSettings({
+          title: (data as any).title || settings.title,
+          description: (data as any).description || settings.description
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching settings:", error);
+    }
+  };
+
   const fetchAllSlots = async () => {
     try {
       const { data, error } = await supabase
         .from("calendar_availability" as any)
         .select("id, start_time, end_time, is_booked, user_id")
+        .eq("user_id", userId)
         .eq("is_booked", false)
         .gte("start_time", new Date().toISOString())
         .order("start_time", { ascending: true });
@@ -197,11 +226,11 @@ export function PublicBookingPage() {
               </div>
               
               <h1 className="text-4xl md:text-5xl font-bold text-white mb-4 leading-tight">
-                {title}
+                {settings.title}
               </h1>
               
               <p className="text-lg text-purple-200 mb-8 leading-relaxed">
-                {description}
+                {settings.description}
               </p>
 
               <div className="flex flex-wrap justify-center gap-6 text-sm text-white/80">
