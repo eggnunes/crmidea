@@ -47,7 +47,7 @@ function AppRoutes() {
     <Routes>
       <Route path="/auth" element={<AuthPage />} />
       <Route path="/privacidade" element={<PrivacyPolicyPage />} />
-      <Route path="/agendar" element={<PublicBookingPage />} />
+      <Route path="/agendar/:userId" element={<PublicBookingPage />} />
       <Route
         path="/*"
         element={
