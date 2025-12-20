@@ -6,11 +6,12 @@ import {
   CreateMeetingDialog, 
   CalendarSelector,
   AvailabilityManager,
-  BookingPageSettings
+  BookingPageSettings,
+  BookingReminderTemplates
 } from "@/components/calendar";
 import { useGoogleCalendar } from "@/hooks/useGoogleCalendar";
 import { useAuth } from "@/hooks/useAuth";
-import { Calendar, CalendarPlus, Clock, Link2, Settings } from "lucide-react";
+import { Calendar, CalendarPlus, Clock, Link2, Settings, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
@@ -63,6 +64,10 @@ export function CalendarPage() {
               <Settings className="w-4 h-4" />
               Configurações
             </TabsTrigger>
+            <TabsTrigger value="lembretes" className="flex items-center gap-2">
+              <MessageSquare className="w-4 h-4" />
+              Lembretes WhatsApp
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="eventos">
@@ -89,6 +94,10 @@ export function CalendarPage() {
                 <CalendarSelector />
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="lembretes">
+            <BookingReminderTemplates />
           </TabsContent>
         </Tabs>
       ) : (
