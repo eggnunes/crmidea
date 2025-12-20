@@ -50,6 +50,39 @@ async function sendWhatsAppMessage(phone: string, message: string) {
   }
 }
 
+function replaceTemplateVariables(template: string, variables: Record<string, string>): string {
+  let result = template;
+  for (const [key, value] of Object.entries(variables)) {
+    result = result.replace(new RegExp(`{{${key}}}`, 'g'), value || '');
+  }
+  return result;
+}
+
+async function getTemplate(supabase: any, userId: string, templateType: string, defaultTemplate: string): Promise<{ template: string; isActive: boolean }> {
+  try {
+    const { data, error } = await supabase
+      .from('booking_reminder_templates')
+      .select('message_template, is_active')
+      .eq('user_id', userId)
+      .eq('template_type', templateType)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Error fetching template:', error);
+      return { template: defaultTemplate, isActive: true };
+    }
+
+    if (data) {
+      return { template: data.message_template, isActive: data.is_active };
+    }
+
+    return { template: defaultTemplate, isActive: true };
+  } catch (error) {
+    console.error('Error in getTemplate:', error);
+    return { template: defaultTemplate, isActive: true };
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -86,42 +119,65 @@ serve(async (req) => {
         minute: '2-digit'
       });
 
-      // Message for the client
-      const clientMessage = `✅ *Agendamento Confirmado!*
-
-Olá ${clientName}! Seu agendamento foi confirmado com sucesso.
-
-📅 *Data:* ${formattedDate}
-🕐 *Horário:* ${formattedTime}
-
-Você receberá um lembrete 30 minutos antes da sessão.
-
-Obrigado por agendar! Nos vemos em breve. 🚀`;
-
-      // Message for the owner
-      const ownerMessage = `📌 *Novo Agendamento!*
-
-Um novo agendamento foi realizado:
-
-👤 *Cliente:* ${clientName}
-📧 *Email:* ${bookingData.email}
-📱 *WhatsApp:* ${clientPhone || 'Não informado'}
-📅 *Data:* ${formattedDate}
-🕐 *Horário:* ${formattedTime}
-${bookingData.notes ? `📝 *Obs:* ${bookingData.notes}` : ''}`;
+      const variables = {
+        nome: clientName,
+        email: bookingData.email || '',
+        telefone: clientPhone || 'Não informado',
+        data: formattedDate,
+        horario: formattedTime,
+        observacoes: bookingData.notes ? `📝 *Obs:* ${bookingData.notes}` : '',
+      };
 
       const results = [];
 
-      // Send to client if phone provided
+      // Send confirmation to client if phone provided
       if (clientPhone) {
-        const clientSent = await sendWhatsAppMessage(clientPhone, clientMessage);
-        results.push({ recipient: 'client', sent: clientSent });
+        const { template: clientTemplate, isActive: clientActive } = await getTemplate(
+          supabase,
+          userId,
+          'booking_confirmation',
+          `✅ *Agendamento Confirmado!*
+
+Olá {{nome}}! Seu agendamento foi confirmado com sucesso.
+
+📅 *Data:* {{data}}
+🕐 *Horário:* {{horario}}
+
+Você receberá um lembrete 30 minutos antes da sessão.
+
+Obrigado por agendar! Nos vemos em breve. 🚀`
+        );
+
+        if (clientActive) {
+          const clientMessage = replaceTemplateVariables(clientTemplate, variables);
+          const clientSent = await sendWhatsAppMessage(clientPhone, clientMessage);
+          results.push({ recipient: 'client', sent: clientSent });
+        }
       }
 
-      // Send to owner
+      // Send notification to owner
       if (ownerPhone) {
-        const ownerSent = await sendWhatsAppMessage(ownerPhone, ownerMessage);
-        results.push({ recipient: 'owner', sent: ownerSent });
+        const { template: ownerTemplate, isActive: ownerActive } = await getTemplate(
+          supabase,
+          userId,
+          'owner_notification',
+          `📌 *Novo Agendamento!*
+
+Um novo agendamento foi realizado:
+
+👤 *Cliente:* {{nome}}
+📧 *Email:* {{email}}
+📱 *WhatsApp:* {{telefone}}
+📅 *Data:* {{data}}
+🕐 *Horário:* {{horario}}
+{{observacoes}}`
+        );
+
+        if (ownerActive) {
+          const ownerMessage = replaceTemplateVariables(ownerTemplate, variables);
+          const ownerSent = await sendWhatsAppMessage(ownerPhone, ownerMessage);
+          results.push({ recipient: 'owner', sent: ownerSent });
+        }
       }
 
       return new Response(JSON.stringify({ 
@@ -138,6 +194,8 @@ ${bookingData.notes ? `📝 *Obs:* ${bookingData.notes}` : ''}`;
       const now = new Date();
       const thirtyMinutesFromNow = new Date(now.getTime() + 30 * 60 * 1000);
       const thirtyFiveMinutesFromNow = new Date(now.getTime() + 35 * 60 * 1000);
+
+      console.log(`Checking for bookings between ${thirtyMinutesFromNow.toISOString()} and ${thirtyFiveMinutesFromNow.toISOString()}`);
 
       const { data: upcomingBookings, error } = await supabase
         .from('calendar_availability')
@@ -161,22 +219,46 @@ ${bookingData.notes ? `📝 *Obs:* ${bookingData.notes}` : ''}`;
           hour: '2-digit',
           minute: '2-digit'
         });
+        const formattedDate = startTime.toLocaleDateString('pt-BR', {
+          weekday: 'long',
+          day: '2-digit',
+          month: 'long',
+          year: 'numeric'
+        });
+
+        const variables = {
+          nome: booking.booked_by_name || '',
+          email: booking.booked_by_email || '',
+          telefone: booking.booked_by_phone || '',
+          data: formattedDate,
+          horario: formattedTime,
+          observacoes: booking.booking_notes ? `📝 *Obs:* ${booking.booking_notes}` : '',
+        };
 
         // Reminder for client
         if (booking.booked_by_phone) {
-          const reminderMessage = `⏰ *Lembrete de Sessão*
+          const { template: reminderTemplate, isActive: reminderActive } = await getTemplate(
+            supabase,
+            booking.user_id,
+            'reminder_30min',
+            `⏰ *Lembrete de Sessão*
 
-Olá ${booking.booked_by_name}! Sua sessão começa em 30 minutos.
+Olá {{nome}}! Sua sessão começa em 30 minutos.
 
-🕐 *Horário:* ${formattedTime}
+🕐 *Horário:* {{horario}}
 
-Prepare-se! Nos vemos em breve. 🚀`;
+Prepare-se! Nos vemos em breve. 🚀`
+          );
 
-          const sent = await sendWhatsAppMessage(booking.booked_by_phone, reminderMessage);
-          results.push({ bookingId: booking.id, recipient: 'client', sent });
+          if (reminderActive) {
+            const reminderMessage = replaceTemplateVariables(reminderTemplate, variables);
+            const sent = await sendWhatsAppMessage(booking.booked_by_phone, reminderMessage);
+            results.push({ bookingId: booking.id, recipient: 'client', sent });
+            console.log(`Reminder sent to ${booking.booked_by_phone}: ${sent}`);
+          }
         }
 
-        // Get owner's phone
+        // Get owner's phone and send reminder
         const { data: settings } = await supabase
           .from('follow_up_settings')
           .select('personal_whatsapp')
@@ -191,6 +273,7 @@ Prepare-se! Nos vemos em breve. 🚀`;
 
           const sent = await sendWhatsAppMessage(settings.personal_whatsapp, ownerReminderMessage);
           results.push({ bookingId: booking.id, recipient: 'owner', sent });
+          console.log(`Owner reminder sent: ${sent}`);
         }
       }
 
