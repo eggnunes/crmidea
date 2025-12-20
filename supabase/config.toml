@@ -83,3 +83,6 @@ verify_jwt = true
 
 [functions.google-calendar-sync]
 verify_jwt = true
+
+[functions.booking-notifications]
+verify_jwt = false
