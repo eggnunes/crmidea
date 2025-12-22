@@ -71,9 +71,10 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     let targetPhone = phone;
+    let targetLid: string | null = null;
     let conversation;
 
-    // Get conversation and phone if not provided
+    // Get conversation and phone/lid if not provided
     if (conversationId && !phone) {
       const { data: conv, error: convError } = await supabase
         .from('whatsapp_conversations')
@@ -84,18 +85,40 @@ serve(async (req) => {
       if (convError) throw convError;
       conversation = conv;
       targetPhone = conv.contact_phone;
+      targetLid = conv.contact_lid;
     }
 
-    if (!targetPhone) {
-      throw new Error('Phone number is required');
+    if (!targetPhone && !targetLid) {
+      throw new Error('Phone number or LID is required');
     }
 
-    // Format phone number for Z-API (should be: 5511999999999)
-    let formattedPhone = targetPhone.replace(/\D/g, '');
-    if (!formattedPhone.startsWith('55')) {
-      formattedPhone = '55' + formattedPhone;
-    }
+    // Helper to check if value is a LID
+    const isLid = (value: string | null) => value?.includes('@lid') ?? false;
 
+    // Determine what to use for sending: prefer LID if available, otherwise use phone
+    // Z-API accepts both phone number and LID in the 'phone' field
+    let formattedPhone: string;
+    
+    if (targetLid) {
+      // Use LID directly
+      formattedPhone = targetLid;
+      console.log('Using LID for sending:', formattedPhone);
+    } else if (targetPhone) {
+      if (isLid(targetPhone)) {
+        // Phone field contains LID
+        formattedPhone = targetPhone;
+        console.log('Phone is LID, using directly:', formattedPhone);
+      } else {
+        // Format phone number for Z-API (should be: 5511999999999)
+        formattedPhone = targetPhone.replace(/\D/g, '');
+        if (!formattedPhone.startsWith('55')) {
+          formattedPhone = '55' + formattedPhone;
+        }
+        console.log('Using formatted phone:', formattedPhone);
+      }
+    } else {
+      throw new Error('No valid phone or LID available');
+    }
 
     let zapiUrl: string;
     let body: Record<string, any>;

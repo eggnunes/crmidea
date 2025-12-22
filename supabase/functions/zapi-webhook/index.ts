@@ -37,7 +37,29 @@ serve(async (req) => {
         });
       }
       
-      const phone = payload.phone || payload.from?.replace('@c.us', '').replace('@s.whatsapp.net', '');
+      // === LID SUPPORT ===
+      // Z-API agora pode enviar LID ao invés do número de telefone
+      // O phone pode vir como número (ex: 5511999999999) ou como LID (ex: g1ff3a2d@lid)
+      // O chatLid pode vir separado e pode ser null
+      const rawPhone = payload.phone || payload.from?.replace('@c.us', '').replace('@s.whatsapp.net', '');
+      
+      // Detectar se é um LID ou número de telefone
+      const isLid = (value: string | null) => value?.includes('@lid') ?? false;
+      
+      // Extrair LID se disponível
+      const contactLid = payload.chatLid || (isLid(rawPhone) ? rawPhone : null) || 
+                         payload.contact?.lid || payload.senderLid || null;
+      
+      // Extrair phone - se rawPhone for um LID, procurar o número em outro campo
+      // Se não houver número disponível, usar o LID como identificador
+      let phone = rawPhone;
+      if (isLid(rawPhone)) {
+        // Tentar obter o número de outros campos
+        phone = payload.contact?.phone || payload.senderPhone || 
+                payload.number || rawPhone; // fallback para o LID se não houver número
+      }
+      
+      console.log('LID Support - Raw phone:', rawPhone, 'Resolved phone:', phone, 'Contact LID:', contactLid);
       
       // Capture profile picture URL from Z-API
       const profilePicUrl = payload.photo || payload.profilePicUrl || payload.senderPhoto || null;
@@ -76,7 +98,7 @@ serve(async (req) => {
         senderName = rawName;
       }
       
-      console.log('Name fields from Z-API:', { rawPushName, rawSenderName, rawContactName, rawName, resolvedName: senderName, profilePicUrl });
+      console.log('Name fields from Z-API:', { rawPushName, rawSenderName, rawContactName, rawName, resolvedName: senderName, profilePicUrl, contactLid });
       const zapiMessageId = payload.messageId || payload.id?.id;
       const isGroup = payload.isGroup || payload.chatId?.includes('@g.us') || false;
       
@@ -168,20 +190,35 @@ serve(async (req) => {
       const userId = adminRole.user_id;
 
       // Find or create conversation
-      let { data: conversation } = await supabase
-        .from('whatsapp_conversations')
-        .select('*')
-        .eq('user_id', userId)
-        .eq('contact_phone', phone)
-        .maybeSingle();
+      // Try to find by LID first (more stable), then by phone
+      let { data: conversation } = contactLid 
+        ? await supabase
+            .from('whatsapp_conversations')
+            .select('*')
+            .eq('user_id', userId)
+            .eq('contact_lid', contactLid)
+            .maybeSingle()
+        : { data: null };
+      
+      // If not found by LID, try by phone
+      if (!conversation) {
+        const { data: convByPhone } = await supabase
+          .from('whatsapp_conversations')
+          .select('*')
+          .eq('user_id', userId)
+          .eq('contact_phone', phone)
+          .maybeSingle();
+        conversation = convByPhone;
+      }
 
       if (!conversation) {
-        // Create new conversation
+        // Create new conversation with LID support
         const { data: newConv, error: convError } = await supabase
           .from('whatsapp_conversations')
           .insert({
             user_id: userId,
             contact_phone: phone,
+            contact_lid: contactLid,
             contact_name: senderName,
             profile_picture_url: profilePicUrl,
             last_message_at: new Date().toISOString(),
@@ -192,7 +229,7 @@ serve(async (req) => {
 
         if (convError) throw convError;
         conversation = newConv;
-        console.log('Created new conversation:', conversation.id, 'with name:', senderName, 'photo:', profilePicUrl);
+        console.log('Created new conversation:', conversation.id, 'with name:', senderName, 'LID:', contactLid);
       } else {
         // Update existing conversation
         // Update contact_name if:
@@ -208,6 +245,12 @@ serve(async (req) => {
         // Update photo if we have one and current is empty
         const shouldUpdatePhoto = profilePicUrl && !conversation.profile_picture_url;
         
+        // Update LID if we have one and current is empty
+        const shouldUpdateLid = contactLid && !conversation.contact_lid;
+        
+        // Update phone if we have a real number and current is a LID
+        const shouldUpdatePhone = !isLid(phone) && isLid(conversation.contact_phone);
+        
         const updateData: Record<string, unknown> = {
           last_message_at: new Date().toISOString(),
           unread_count: (conversation.unread_count || 0) + 1,
@@ -221,6 +264,16 @@ serve(async (req) => {
         if (shouldUpdatePhoto) {
           updateData.profile_picture_url = profilePicUrl;
           console.log(`Updating profile_picture_url to "${profilePicUrl}"`);
+        }
+        
+        if (shouldUpdateLid) {
+          updateData.contact_lid = contactLid;
+          console.log(`Updating contact_lid to "${contactLid}"`);
+        }
+        
+        if (shouldUpdatePhone) {
+          updateData.contact_phone = phone;
+          console.log(`Updating contact_phone from LID to real number: "${phone}"`);
         }
         
         await supabase
@@ -387,6 +440,7 @@ serve(async (req) => {
               conversationId: conversation.id,
               messageContent,
               contactPhone: phone,
+              contactLid: contactLid || conversation.contact_lid,
               userId,
               isAudioMessage,
               audioUrl,

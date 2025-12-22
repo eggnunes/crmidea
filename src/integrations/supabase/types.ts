@@ -1275,6 +1275,7 @@ export type Database = {
           bot_disabled: boolean | null
           created_at: string
           id: string
+          lid: string | null
           name: string | null
           notes: string | null
           phone: string
@@ -1285,6 +1286,7 @@ export type Database = {
           bot_disabled?: boolean | null
           created_at?: string
           id?: string
+          lid?: string | null
           name?: string | null
           notes?: string | null
           phone: string
@@ -1295,6 +1297,7 @@ export type Database = {
           bot_disabled?: boolean | null
           created_at?: string
           id?: string
+          lid?: string | null
           name?: string | null
           notes?: string | null
           phone?: string
@@ -1308,6 +1311,7 @@ export type Database = {
           channel: Database["public"]["Enums"]["channel_type"]
           channel_page_id: string | null
           channel_user_id: string | null
+          contact_lid: string | null
           contact_name: string | null
           contact_phone: string
           created_at: string
@@ -1324,6 +1328,7 @@ export type Database = {
           channel?: Database["public"]["Enums"]["channel_type"]
           channel_page_id?: string | null
           channel_user_id?: string | null
+          contact_lid?: string | null
           contact_name?: string | null
           contact_phone: string
           created_at?: string
@@ -1340,6 +1345,7 @@ export type Database = {
           channel?: Database["public"]["Enums"]["channel_type"]
           channel_page_id?: string | null
           channel_user_id?: string | null
+          contact_lid?: string | null
           contact_name?: string | null
           contact_phone?: string
           created_at?: string

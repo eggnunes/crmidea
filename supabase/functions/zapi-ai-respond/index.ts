@@ -74,9 +74,9 @@ serve(async (req) => {
   }
 
   try {
-    const { conversationId, messageContent, contactPhone, userId, isAudioMessage, audioUrl } = await req.json();
+    const { conversationId, messageContent, contactPhone, contactLid, userId, isAudioMessage, audioUrl } = await req.json();
 
-    console.log(`Processing AI response for conversation ${conversationId}, isAudio: ${isAudioMessage}`);
+    console.log(`Processing AI response for conversation ${conversationId}, isAudio: ${isAudioMessage}, LID: ${contactLid}`);
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -88,6 +88,9 @@ serve(async (req) => {
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    
+    // Helper to check if value is a LID
+    const isLid = (value: string | null) => value?.includes('@lid') ?? false;
 
     // Transcribe audio if it's an audio message
     let processedContent = messageContent;
@@ -250,9 +253,20 @@ ${knowledgeBase}
       zapiHeaders['Client-Token'] = zapiClientToken;
     }
 
-    let formattedPhone = contactPhone.replace(/\D/g, '');
-    if (!formattedPhone.startsWith('55')) {
-      formattedPhone = '55' + formattedPhone;
+    // LID Support: Use LID if available, otherwise format phone number
+    let formattedPhone: string;
+    if (contactLid) {
+      formattedPhone = contactLid;
+      console.log('Using LID for sending:', formattedPhone);
+    } else if (isLid(contactPhone)) {
+      formattedPhone = contactPhone;
+      console.log('Contact phone is LID, using directly:', formattedPhone);
+    } else {
+      formattedPhone = contactPhone.replace(/\D/g, '');
+      if (!formattedPhone.startsWith('55')) {
+        formattedPhone = '55' + formattedPhone;
+      }
+      console.log('Using formatted phone:', formattedPhone);
     }
 
     // Check if we should respond with audio (using ElevenLabs)
