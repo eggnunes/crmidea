@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Loader2, Search, Send, MessageSquare, User, Bot, Mic, Square, Play, Trash2, MessageCircle, Instagram, Facebook, PanelRightClose, PanelRightOpen, Paperclip, SearchIcon, Users, ChevronDown, ChevronUp, Circle, Star, StarOff, Tag, Plus, X, FileText, Image, File, ArrowLeft } from "lucide-react";
+import { Loader2, Search, Send, MessageSquare, User, Bot, Mic, Square, Play, Trash2, MessageCircle, Instagram, Facebook, PanelRightClose, PanelRightOpen, Paperclip, SearchIcon, Users, ChevronDown, ChevronUp, Circle, Star, StarOff, Tag, Plus, X, FileText, Image, File, ArrowLeft, Link2 } from "lucide-react";
 import { useWhatsAppConversations, ChannelType } from "@/hooks/useWhatsAppConversations";
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
 import { useGlobalMessageSearch } from "@/hooks/useGlobalMessageSearch";
@@ -499,6 +499,12 @@ export function WhatsAppConversations({ initialConversationId, onConversationSel
                             {favorites.has(conv.id) && (
                               <Star className="w-3 h-3 text-yellow-500 fill-yellow-500 flex-shrink-0" />
                             )}
+                            {/* LID indicator - shows when contact uses LID instead of phone */}
+                            {conv.contact_lid && (
+                              <span title="Contato usa LID (identificador privado)">
+                                <Link2 className="w-3 h-3 text-blue-500 flex-shrink-0" />
+                              </span>
+                            )}
                             <span className="font-medium truncate text-sm">
                               {conv.contact_name || formatPhone(conv.contact_phone)}
                             </span>
@@ -573,6 +579,12 @@ export function WhatsAppConversations({ initialConversationId, onConversationSel
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
+                    {/* LID indicator in header */}
+                    {selectedConversation.contact_lid && (
+                      <span title="Contato usa LID (identificador privado do WhatsApp)">
+                        <Link2 className="w-4 h-4 text-blue-500 flex-shrink-0" />
+                      </span>
+                    )}
                     <h2 className="text-base font-semibold truncate">
                       {selectedConversation.contact_name || formatPhone(selectedConversation.contact_phone)}
                     </h2>
