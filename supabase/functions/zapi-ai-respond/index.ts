@@ -225,12 +225,14 @@ ${knowledgeBase}
     }
 
     systemPrompt += `
-## REGRAS OBRIGATÓRIAS
-1. RESPOSTAS CURTAS: Máximo 2-3 frases. Seja direto e objetivo.
-2. Responda SEMPRE em português brasileiro.
-3. Use APENAS informações da base de conhecimento. NUNCA invente!
-4. Se não souber, diga que não tem a informação.
-5. Vá direto ao ponto, sem introduções longas.`;
+## REGRAS OBRIGATÓRIAS (MUITO IMPORTANTE!)
+1. RESPOSTAS ULTRA-CURTAS: Máximo 1-2 frases! Seja extremamente direto.
+2. NUNCA faça listas longas. Se precisar listar, máximo 3 itens em uma frase.
+3. Responda SEMPRE em português brasileiro.
+4. Use APENAS informações da base de conhecimento. NUNCA invente!
+5. Se não souber, diga apenas: "Não tenho essa informação."
+6. PROIBIDO: introduções longas, explicações detalhadas, múltiplos parágrafos.
+7. OBJETIVO: Resposta em NO MÁXIMO 50 palavras.`;
 
     const zapiInstanceId = Deno.env.get('ZAPI_INSTANCE_ID');
     const zapiToken = Deno.env.get('ZAPI_TOKEN');
@@ -306,7 +308,8 @@ ${knowledgeBase}
           ...conversationHistory,
           { role: 'user', content: processedContent },
         ],
-        max_tokens: 300, // Limitar para respostas mais curtas
+        max_tokens: 150, // Limitar para respostas bem mais curtas
+        temperature: 0.7, // Reduzir criatividade para respostas mais focadas
       }),
     });
 
@@ -384,13 +387,15 @@ ${knowledgeBase}
         console.log('Z-API audio send response:', sendData);
 
         // Save AI message to database
+        // Nota: O áudio foi enviado via base64, não temos URL para reproduzir no CRM
+        // Salvamos o texto como referência do que foi falado
         await supabase
           .from('whatsapp_messages')
           .insert({
             conversation_id: conversationId,
             user_id: userId,
             message_type: 'audio',
-            content: aiMessage,
+            content: `🔊 *Áudio enviado pela IA:*\n\n${aiMessage}`,
             is_from_contact: false,
             is_ai_response: true,
             zapi_message_id: sendData.messageId || sendData.zapiMessageId,

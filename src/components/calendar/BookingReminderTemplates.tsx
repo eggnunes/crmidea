@@ -7,7 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { Save, MessageSquare, Info } from "lucide-react";
+import { Save, MessageSquare, Info, Wand2 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface ReminderTemplate {
@@ -63,6 +63,7 @@ export function BookingReminderTemplates() {
   const [templates, setTemplates] = useState<Record<string, ReminderTemplate>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [creatingAll, setCreatingAll] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -97,6 +98,47 @@ export function BookingReminderTemplates() {
       console.error('Error fetching templates:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCreateAllTemplates = async () => {
+    if (!user) return;
+
+    setCreatingAll(true);
+    try {
+      const templateTypes = Object.keys(defaultTemplates);
+      
+      for (const templateType of templateTypes) {
+        const template = templates[templateType];
+        
+        // Se já existe, pula
+        if (template.id) continue;
+
+        await supabase
+          .from('booking_reminder_templates')
+          .insert({
+            user_id: user.id,
+            template_type: templateType,
+            message_template: defaultTemplates[templateType].message_template,
+            is_active: true,
+          });
+      }
+
+      toast({
+        title: "Templates criados!",
+        description: "Todos os templates foram criados com as mensagens padrão.",
+      });
+      
+      fetchTemplates();
+    } catch (error) {
+      console.error('Error creating templates:', error);
+      toast({
+        title: "Erro ao criar",
+        description: "Não foi possível criar os templates.",
+        variant: "destructive",
+      });
+    } finally {
+      setCreatingAll(false);
     }
   };
 
@@ -176,6 +218,11 @@ export function BookingReminderTemplates() {
     },
   };
 
+  // Verificar se todos os templates já foram criados
+  const allTemplatesExist = Object.keys(defaultTemplates).every(
+    type => templates[type]?.id
+  );
+
   if (loading) {
     return (
       <Card>
@@ -188,19 +235,51 @@ export function BookingReminderTemplates() {
 
   return (
     <div className="space-y-6">
-      <Alert>
-        <Info className="h-4 w-4" />
-        <AlertDescription>
-          Use as variáveis abaixo nos seus templates:
-          <br />
-          <code className="text-xs">{"{{nome}}"}</code> - Nome do cliente |{" "}
-          <code className="text-xs">{"{{email}}"}</code> - Email |{" "}
-          <code className="text-xs">{"{{telefone}}"}</code> - Telefone |{" "}
-          <code className="text-xs">{"{{data}}"}</code> - Data |{" "}
-          <code className="text-xs">{"{{horario}}"}</code> - Horário |{" "}
-          <code className="text-xs">{"{{observacoes}}"}</code> - Observações
+      <Alert className="bg-primary/5 border-primary/20">
+        <Info className="h-4 w-4 text-primary" />
+        <AlertDescription className="space-y-2">
+          <p className="font-medium">Variáveis disponíveis para usar nos templates:</p>
+          <div className="flex flex-wrap gap-2 mt-2">
+            <code className="px-2 py-1 bg-muted rounded text-xs">{"{{nome}}"}</code>
+            <span className="text-xs text-muted-foreground">Nome do cliente</span>
+            <code className="px-2 py-1 bg-muted rounded text-xs">{"{{email}}"}</code>
+            <span className="text-xs text-muted-foreground">Email</span>
+            <code className="px-2 py-1 bg-muted rounded text-xs">{"{{telefone}}"}</code>
+            <span className="text-xs text-muted-foreground">Telefone</span>
+            <code className="px-2 py-1 bg-muted rounded text-xs">{"{{data}}"}</code>
+            <span className="text-xs text-muted-foreground">Data</span>
+            <code className="px-2 py-1 bg-muted rounded text-xs">{"{{horario}}"}</code>
+            <span className="text-xs text-muted-foreground">Horário</span>
+            <code className="px-2 py-1 bg-muted rounded text-xs">{"{{observacoes}}"}</code>
+            <span className="text-xs text-muted-foreground">Observações</span>
+          </div>
         </AlertDescription>
       </Alert>
+
+      {!allTemplatesExist && (
+        <Card className="border-dashed border-2 border-primary/30 bg-primary/5">
+          <CardContent className="pt-6">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div>
+                <h3 className="font-semibold flex items-center gap-2">
+                  <Wand2 className="h-5 w-5 text-primary" />
+                  Criar todos os templates automaticamente
+                </h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Cria os 3 templates (confirmação, lembrete e notificação) com mensagens padrão prontas para uso.
+                </p>
+              </div>
+              <Button 
+                onClick={handleCreateAllTemplates} 
+                disabled={creatingAll}
+                className="shrink-0"
+              >
+                {creatingAll ? "Criando..." : "Criar Templates"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {Object.entries(templateLabels).map(([type, label]) => (
         <Card key={type}>
@@ -210,6 +289,9 @@ export function BookingReminderTemplates() {
                 <CardTitle className="flex items-center gap-2">
                   <MessageSquare className="h-5 w-5" />
                   {label.title}
+                  {templates[type]?.id && (
+                    <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">Salvo</span>
+                  )}
                 </CardTitle>
                 <CardDescription>{label.description}</CardDescription>
               </div>
