@@ -371,10 +371,33 @@ ${knowledgeBase}
         const audioBuffer = await elevenLabsResponse.arrayBuffer();
         const audioBase64 = base64Encode(audioBuffer);
 
-        // Send audio via Z-API
-        const audioUrl = `https://api.z-api.io/instances/${zapiInstanceId}/token/${zapiToken}/send-audio`;
+        // Upload audio to storage for playback in CRM
+        const audioFileName = `ai-audio-${conversationId}-${Date.now()}.mp3`;
+        console.log('Uploading audio to storage:', audioFileName);
         
-        const sendResponse = await fetch(audioUrl, {
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('ai-audio')
+          .upload(audioFileName, audioBuffer, {
+            contentType: 'audio/mpeg',
+            cacheControl: '3600',
+            upsert: false,
+          });
+
+        let audioStorageUrl = '';
+        if (uploadError) {
+          console.error('Error uploading audio to storage:', uploadError);
+        } else {
+          const { data: publicUrlData } = supabase.storage
+            .from('ai-audio')
+            .getPublicUrl(audioFileName);
+          audioStorageUrl = publicUrlData.publicUrl;
+          console.log('Audio uploaded, public URL:', audioStorageUrl);
+        }
+
+        // Send audio via Z-API
+        const zapiAudioUrl = `https://api.z-api.io/instances/${zapiInstanceId}/token/${zapiToken}/send-audio`;
+        
+        const sendResponse = await fetch(zapiAudioUrl, {
           method: 'POST',
           headers: zapiHeaders,
           body: JSON.stringify({
@@ -386,16 +409,18 @@ ${knowledgeBase}
         const sendData = await sendResponse.json();
         console.log('Z-API audio send response:', sendData);
 
-        // Save AI message to database
-        // Nota: O áudio foi enviado via base64, não temos URL para reproduzir no CRM
-        // Salvamos o texto como referência do que foi falado
+        // Save AI message to database with audio URL for CRM playback
+        const messageContent = audioStorageUrl 
+          ? `🔊 *Áudio enviado pela IA:*\n\n${aiMessage}\n\n[Áudio: ${audioStorageUrl}]`
+          : `🔊 *Áudio enviado pela IA:*\n\n${aiMessage}`;
+        
         await supabase
           .from('whatsapp_messages')
           .insert({
             conversation_id: conversationId,
             user_id: userId,
             message_type: 'audio',
-            content: `🔊 *Áudio enviado pela IA:*\n\n${aiMessage}`,
+            content: messageContent,
             is_from_contact: false,
             is_ai_response: true,
             zapi_message_id: sendData.messageId || sendData.zapiMessageId,
@@ -412,6 +437,7 @@ ${knowledgeBase}
           success: true,
           messagesSent: 1,
           type: 'audio',
+          audioUrl: audioStorageUrl || null,
         }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
