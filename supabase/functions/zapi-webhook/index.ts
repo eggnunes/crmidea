@@ -280,6 +280,53 @@ serve(async (req) => {
           .from('whatsapp_conversations')
           .update(updateData)
           .eq('id', conversation.id);
+        
+        // === RECONCILIATION ROUTINE ===
+        // If we now have BOTH phone and LID, try to reconcile old conversations
+        // that only have the phone number with this LID
+        const hasRealPhone = phone && !isLid(phone);
+        const hasLid = contactLid || conversation.contact_lid;
+        const actualLid = contactLid || conversation.contact_lid;
+        
+        if (hasRealPhone && hasLid && actualLid) {
+          // Find other conversations from same user with same phone but no LID
+          const { data: orphanConvs } = await supabase
+            .from('whatsapp_conversations')
+            .select('id, contact_phone')
+            .eq('user_id', userId)
+            .eq('contact_phone', phone)
+            .is('contact_lid', null)
+            .neq('id', conversation.id);
+          
+          if (orphanConvs && orphanConvs.length > 0) {
+            console.log(`Reconciling ${orphanConvs.length} old conversations with LID: ${actualLid}`);
+            
+            // Update all orphan conversations with the LID
+            for (const orphan of orphanConvs) {
+              await supabase
+                .from('whatsapp_conversations')
+                .update({ contact_lid: actualLid })
+                .eq('id', orphan.id);
+              console.log(`Reconciled conversation ${orphan.id} with LID ${actualLid}`);
+            }
+          }
+          
+          // Also update whatsapp_contacts table if exists
+          const { data: contact } = await supabase
+            .from('whatsapp_contacts')
+            .select('id, lid')
+            .eq('user_id', userId)
+            .eq('phone', phone)
+            .maybeSingle();
+          
+          if (contact && !contact.lid) {
+            await supabase
+              .from('whatsapp_contacts')
+              .update({ lid: actualLid })
+              .eq('id', contact.id);
+            console.log(`Updated whatsapp_contact ${contact.id} with LID ${actualLid}`);
+          }
+        }
       }
 
       // Save the message

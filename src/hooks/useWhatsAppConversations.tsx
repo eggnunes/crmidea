@@ -25,6 +25,7 @@ export interface WhatsAppConversation {
   user_id: string;
   contact_phone: string;
   contact_name: string | null;
+  contact_lid: string | null;
   last_message_at: string | null;
   unread_count: number;
   lead_id: string | null;
