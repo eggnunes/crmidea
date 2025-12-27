@@ -5,20 +5,25 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-kiwify-webhook-token',
 };
 
+// The webhook can come in two formats:
+// 1. Direct format: { order_id, Customer, product_name, ... }
+// 2. Nested format: { order: { order_id, Customer, Product: { product_name }, ... } }
 interface KiwifyWebhookPayload {
-  order_id: string;
-  order_ref: string;
-  order_status: string;
-  product_id: string;
-  product_name: string;
-  Customer: {
+  // Direct fields (old format)
+  order_id?: string;
+  order_ref?: string;
+  order_status?: string;
+  product_id?: string;
+  product_name?: string;
+  Customer?: {
     full_name: string;
+    first_name?: string;
     email: string;
     mobile?: string;
     CPF?: string;
   };
-  created_at: string;
-  updated_at: string;
+  created_at?: string;
+  updated_at?: string;
   approved_date?: string;
   refunded_at?: string;
   Commissions?: {
@@ -29,7 +34,40 @@ interface KiwifyWebhookPayload {
     id: string;
     status: string;
   };
-  webhook_event_type: string;
+  webhook_event_type?: string;
+  
+  // Nested format (new format from Kiwify)
+  order?: {
+    order_id: string;
+    order_ref: string;
+    order_status: string;
+    webhook_event_type: string;
+    Product?: {
+      product_id: string;
+      product_name: string;
+      product_offer_id?: string;
+      product_offer_name?: string;
+    };
+    Customer?: {
+      full_name: string;
+      first_name?: string;
+      email: string;
+      mobile?: string;
+      CPF?: string;
+    };
+    Commissions?: {
+      charge_amount: number;
+      product_base_price: number;
+    };
+    Subscription?: {
+      id: string;
+      status: string;
+    };
+    created_at: string;
+    updated_at: string;
+    approved_date?: string;
+    refunded_at?: string;
+  };
 }
 
 // Map Kiwify product names to CRM product types
@@ -255,15 +293,49 @@ Deno.serve(async (req) => {
     const webhookToken = req.headers.get('x-kiwify-webhook-token');
     console.log('Received Kiwify webhook. Token present:', !!webhookToken);
 
-    const payload: KiwifyWebhookPayload = await req.json();
-    console.log('Webhook event type:', payload.webhook_event_type);
-    console.log('Customer:', payload.Customer?.full_name, payload.Customer?.email);
-    console.log('Product:', payload.product_name);
+    const rawPayload: KiwifyWebhookPayload = await req.json();
+    
+    // Normalize payload - handle both direct and nested (order) formats
+    // Kiwify sends nested format: { order: { Customer, Product, ... } }
+    const isNestedFormat = !!rawPayload.order;
+    console.log('Payload format:', isNestedFormat ? 'nested (order object)' : 'direct');
+    
+    // Extract normalized data from either format
+    const customer = isNestedFormat ? rawPayload.order?.Customer : rawPayload.Customer;
+    const productName = isNestedFormat 
+      ? rawPayload.order?.Product?.product_name 
+      : rawPayload.product_name;
+    const eventType = isNestedFormat 
+      ? rawPayload.order?.webhook_event_type 
+      : rawPayload.webhook_event_type;
+    const commissions = isNestedFormat 
+      ? rawPayload.order?.Commissions 
+      : rawPayload.Commissions;
+    
+    console.log('Webhook event type:', eventType);
+    console.log('Customer:', customer?.full_name, customer?.email);
+    console.log('Product:', productName);
 
-    if (!payload.Customer?.email) {
+    if (!customer?.email) {
       console.log('No customer email in payload');
       return new Response(
         JSON.stringify({ success: false, error: 'No customer email' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
+    }
+
+    if (!eventType) {
+      console.log('No event type in payload');
+      return new Response(
+        JSON.stringify({ success: false, error: 'No event type' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
+    }
+
+    if (!productName) {
+      console.log('No product name in payload');
+      return new Response(
+        JSON.stringify({ success: false, error: 'No product name' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
       );
     }
@@ -296,7 +368,7 @@ Deno.serve(async (req) => {
     const { data: existingLead, error: findError } = await supabase
       .from('leads')
       .select('*')
-      .eq('email', payload.Customer.email)
+      .eq('email', customer.email)
       .eq('user_id', userId)
       .maybeSingle();
 
@@ -304,10 +376,10 @@ Deno.serve(async (req) => {
       console.error('Error finding lead:', findError);
     }
 
-    const newStatus = mapEventToStatus(payload.webhook_event_type);
-    const productType = mapProductName(payload.product_name);
+    const newStatus = mapEventToStatus(eventType);
+    const productType = mapProductName(productName);
     // Convert from centavos to reais (Kiwify sends values in centavos)
-    const valueInCentavos = payload.Commissions?.charge_amount || payload.Commissions?.product_base_price || null;
+    const valueInCentavos = commissions?.charge_amount || commissions?.product_base_price || null;
     const value = valueInCentavos ? valueInCentavos / 100 : null;
 
     let leadId: string;
@@ -323,7 +395,7 @@ Deno.serve(async (req) => {
           status: newStatus,
           product: productType,
           value: value,
-          notes: `${existingLead.notes || ''}\n\n[Kiwify ${new Date().toISOString()}] ${payload.webhook_event_type}: ${payload.product_name}`.trim(),
+          notes: `${existingLead.notes || ''}\n\n[Kiwify ${new Date().toISOString()}] ${eventType}: ${productName}`.trim(),
           updated_at: new Date().toISOString(),
         })
         .eq('id', existingLead.id);
@@ -337,20 +409,20 @@ Deno.serve(async (req) => {
       leadAction = 'updated';
     } else {
       // Create new lead
-      console.log('Creating new lead for:', payload.Customer.email);
+      console.log('Creating new lead for:', customer.email);
       
       const { data: newLead, error: insertError } = await supabase
         .from('leads')
         .insert({
           user_id: userId,
-          name: payload.Customer.full_name,
-          email: payload.Customer.email,
-          phone: payload.Customer.mobile || null,
+          name: customer.full_name,
+          email: customer.email,
+          phone: customer.mobile || null,
           status: newStatus,
           product: productType,
           value: value,
           source: 'Kiwify',
-          notes: `[Kiwify ${new Date().toISOString()}] ${payload.webhook_event_type}: ${payload.product_name}`,
+          notes: `[Kiwify ${new Date().toISOString()}] ${eventType}: ${productName}`,
         })
         .select()
         .single();
@@ -365,8 +437,8 @@ Deno.serve(async (req) => {
     }
 
     // Add interaction for this event
-    const interactionType = mapEventToInteractionType(payload.webhook_event_type);
-    const interactionDescription = `Evento Kiwify: ${payload.webhook_event_type} - Produto: ${payload.product_name}${value ? ` - Valor: R$ ${(value / 100).toFixed(2)}` : ''}`;
+    const interactionType = mapEventToInteractionType(eventType);
+    const interactionDescription = `Evento Kiwify: ${eventType} - Produto: ${productName}${value ? ` - Valor: R$ ${value.toFixed(2)}` : ''}`;
 
     const { error: interactionError } = await supabase
       .from('interactions')
@@ -383,9 +455,9 @@ Deno.serve(async (req) => {
 
     // Create notification for ALL events
     const notificationDetails = getNotificationDetails(
-      payload.webhook_event_type, 
-      payload.Customer.full_name, 
-      payload.product_name
+      eventType, 
+      customer.full_name, 
+      productName
     );
 
     if (notificationDetails) {
@@ -405,8 +477,8 @@ Deno.serve(async (req) => {
     }
 
     // For abandoned carts, schedule WhatsApp recovery message (within 30 minutes)
-    if (payload.webhook_event_type.toLowerCase() === 'carrinho_abandonado' && payload.Customer.mobile) {
-      console.log('Triggering abandoned cart WhatsApp alert for:', payload.Customer.full_name);
+    if (eventType.toLowerCase() === 'carrinho_abandonado' && customer.mobile) {
+      console.log('Triggering abandoned cart WhatsApp alert for:', customer.full_name);
       
       try {
         const alertResponse = await fetch(`${supabaseUrl}/functions/v1/abandoned-cart-alert`, {
@@ -417,9 +489,9 @@ Deno.serve(async (req) => {
           },
           body: JSON.stringify({
             leadId: leadId,
-            leadName: payload.Customer.full_name,
-            productName: payload.product_name,
-            phone: payload.Customer.mobile,
+            leadName: customer.full_name,
+            productName: productName,
+            phone: customer.mobile,
           }),
         });
         
@@ -431,9 +503,10 @@ Deno.serve(async (req) => {
     }
 
     // For successful purchases, send welcome message via WhatsApp
-    if ((payload.webhook_event_type.toLowerCase() === 'compra_aprovada' || 
-         payload.webhook_event_type.toLowerCase() === 'assinatura_renovada') && payload.Customer.mobile) {
-      console.log('Sending welcome message for purchase:', payload.Customer.full_name);
+    if ((eventType.toLowerCase() === 'compra_aprovada' || 
+         eventType.toLowerCase() === 'assinatura_renovada' ||
+         eventType.toLowerCase() === 'order_approved') && customer.mobile) {
+      console.log('Sending welcome message for purchase:', customer.full_name);
       
       try {
         const zapiInstanceId = Deno.env.get('ZAPI_INSTANCE_ID');
@@ -441,15 +514,15 @@ Deno.serve(async (req) => {
         const zapiClientToken = Deno.env.get('ZAPI_CLIENT_TOKEN');
         
         if (zapiInstanceId && zapiToken && zapiClientToken) {
-          const phone = payload.Customer.mobile.replace(/\D/g, '');
+          const phone = customer.mobile.replace(/\D/g, '');
           const formattedPhone = phone.startsWith('55') ? phone : `55${phone}`;
           
           // Get product-specific welcome message
           const welcomeMessage = getProductWelcomeMessage(
-            payload.Customer.full_name.split(' ')[0],
-            payload.product_name,
+            customer.first_name || customer.full_name.split(' ')[0],
+            productName,
             productType,
-            payload.webhook_event_type.toLowerCase() === 'assinatura_renovada'
+            eventType.toLowerCase() === 'assinatura_renovada'
           );
           
           const zapiResponse = await fetch(
@@ -476,7 +549,7 @@ Deno.serve(async (req) => {
             .upsert({
               user_id: userId,
               contact_phone: formattedPhone,
-              contact_name: payload.Customer.full_name,
+              contact_name: customer.full_name,
               channel: 'whatsapp',
               last_message_at: new Date().toISOString(),
               lead_id: leadId,
@@ -512,9 +585,9 @@ Deno.serve(async (req) => {
     // Trigger ManyChat sync if applicable
     try {
       const manychatApiKey = Deno.env.get('MANYCHAT_API_KEY');
-      if (manychatApiKey && payload.Customer.mobile) {
+      if (manychatApiKey && customer.mobile) {
         // Try to find subscriber by phone and update tags
-        const phone = payload.Customer.mobile.replace(/\D/g, '');
+        const phone = customer.mobile.replace(/\D/g, '');
         
         const findResponse = await fetch(`https://api.manychat.com/fb/subscriber/findBySystemField`, {
           method: 'POST',
@@ -535,7 +608,7 @@ Deno.serve(async (req) => {
           const subscriberId = findData.data.id;
           
           // Add tag based on event
-          const tagName = `kiwify_${payload.webhook_event_type}`;
+          const tagName = `kiwify_${eventType}`;
           await fetch(`https://api.manychat.com/fb/subscriber/addTagByName`, {
             method: 'POST',
             headers: {
