@@ -4,7 +4,7 @@ import { useLeads } from "@/hooks/useLeads";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { Loader2, Phone, Mail, Filter, ShoppingCart, RefreshCcw, XCircle, AlertTriangle, CheckCircle, X } from "lucide-react";
+import { Loader2, Phone, Mail, Filter, ShoppingCart, RefreshCcw, XCircle, AlertTriangle, CheckCircle, X, LayoutGrid, List, Calendar, DollarSign } from "lucide-react";
 import {
   DndContext,
   DragEndEvent,
@@ -38,6 +38,15 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { LeadAssignees } from "@/components/LeadAssignees";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 // Predefined reason types with their display info
 const REASON_OPTIONS = [
@@ -413,11 +422,104 @@ function PipelineColumn({
   );
 }
 
+// List view for sales/abandoned carts
+function LeadListView({ 
+  leads, 
+  title,
+  onCardClick 
+}: { 
+  leads: Lead[];
+  title: string;
+  onCardClick: (lead: Lead) => void;
+}) {
+  if (leads.length === 0) {
+    return (
+      <Card className="glass border-border/50">
+        <CardContent className="p-8 text-center text-muted-foreground">
+          Nenhum registro encontrado
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="glass border-border/50">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-lg flex items-center gap-2">
+          {title}
+          <Badge variant="secondary">{leads.length}</Badge>
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Nome</TableHead>
+              <TableHead>Produto</TableHead>
+              <TableHead>Valor</TableHead>
+              <TableHead>Data</TableHead>
+              <TableHead>Motivo</TableHead>
+              <TableHead>Origem</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {leads.map(lead => {
+              const product = PRODUCTS.find(p => p.id === lead.product);
+              const reason = getStatusReason(lead);
+              const reasonDisplay = reason ? getReasonDisplayInfo(reason.id) : null;
+              
+              return (
+                <TableRow 
+                  key={lead.id} 
+                  className="cursor-pointer hover:bg-secondary/50"
+                  onClick={() => onCardClick(lead)}
+                >
+                  <TableCell className="font-medium">{lead.name}</TableCell>
+                  <TableCell>
+                    <Badge variant="secondary" className="text-xs">
+                      {product?.shortName || lead.product}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-accent font-semibold">
+                    R$ {lead.value.toLocaleString('pt-BR')}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {new Date(lead.updatedAt).toLocaleDateString('pt-BR', {
+                      day: '2-digit',
+                      month: '2-digit',
+                      year: '2-digit'
+                    })}
+                  </TableCell>
+                  <TableCell>
+                    {reasonDisplay && (
+                      <div className={cn(
+                        "inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-xs font-medium",
+                        reasonDisplay.color
+                      )}>
+                        {reasonDisplay.icon && <reasonDisplay.icon className="w-3 h-3" />}
+                        <span>{reason?.label}</span>
+                      </div>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground text-sm">
+                    {lead.source || '-'}
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
+}
+
 export function PipelinePage() {
   const { leads, loading, updateLeadStatus, addInteraction } = useLeads();
   const [activeId, setActiveId] = useState<string | null>(null);
   const [viewingLead, setViewingLead] = useState<Lead | null>(null);
   const [filterReason, setFilterReason] = useState<string>('all');
+  const [viewMode, setViewMode] = useState<'kanban' | 'lista'>('kanban');
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -438,6 +540,24 @@ export function PipelinePage() {
     });
   }, [leads, filterReason]);
 
+  // Get recent sales (fechado-ganho) sorted by date
+  const recentSales = useMemo(() => {
+    return leads
+      .filter(l => l.status === 'fechado-ganho')
+      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+      .slice(0, 50);
+  }, [leads]);
+
+  // Get abandoned carts
+  const abandonedCarts = useMemo(() => {
+    return leads
+      .filter(l => {
+        const reason = getStatusReason(l);
+        return reason?.id === 'carrinho_abandonado';
+      })
+      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+  }, [leads]);
+
   // Get count of leads per reason for filter badges
   const reasonCounts = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -448,6 +568,12 @@ export function PipelinePage() {
     });
     return counts;
   }, [leads]);
+
+  // Group filtered leads by status
+  const leadsByStatus = STATUSES.reduce((acc, status) => {
+    acc[status.id] = filteredLeads.filter(l => l.status === status.id);
+    return acc;
+  }, {} as Record<string, Lead[]>);
 
   if (loading) {
     return (
@@ -490,12 +616,6 @@ export function PipelinePage() {
     setViewingLead(lead);
   };
 
-  // Group filtered leads by status
-  const leadsByStatus = STATUSES.reduce((acc, status) => {
-    acc[status.id] = filteredLeads.filter(l => l.status === status.id);
-    return acc;
-  }, {} as Record<string, Lead[]>);
-
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
@@ -505,73 +625,133 @@ export function PipelinePage() {
           <p className="text-muted-foreground mt-1">Visualize e gerencie seu funil de vendas</p>
         </div>
         
-        {/* Filter by Reason */}
-        <div className="flex items-center gap-2">
-          <Filter className="w-4 h-4 text-muted-foreground" />
-          <Select value={filterReason} onValueChange={setFilterReason}>
-            <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="Filtrar por motivo" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">
-                Todos os motivos ({leads.length})
-              </SelectItem>
-              {REASON_OPTIONS.map(option => (
-                <SelectItem key={option.id} value={option.id}>
-                  <div className="flex items-center gap-2">
-                    <option.icon className="w-4 h-4" />
-                    <span>{option.label}</span>
-                    {reasonCounts[option.id] && (
-                      <Badge variant="secondary" className="ml-1 text-xs">
-                        {reasonCounts[option.id]}
-                      </Badge>
-                    )}
-                  </div>
-                </SelectItem>
-              ))}
-              <SelectItem value="sem_motivo">
-                Sem motivo ({reasonCounts['sem_motivo'] || 0})
-              </SelectItem>
-            </SelectContent>
-          </Select>
-          {filterReason !== 'all' && (
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={() => setFilterReason('all')}
-              className="text-muted-foreground"
+        <div className="flex items-center gap-3">
+          {/* View Mode Toggle */}
+          <div className="flex items-center gap-1 bg-secondary rounded-lg p-1">
+            <Button
+              variant={viewMode === 'kanban' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('kanban')}
+              className="gap-1"
             >
-              Limpar
+              <LayoutGrid className="w-4 h-4" />
+              Kanban
             </Button>
-          )}
+            <Button
+              variant={viewMode === 'lista' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('lista')}
+              className="gap-1"
+            >
+              <List className="w-4 h-4" />
+              Lista
+            </Button>
+          </div>
+
+          {/* Filter by Reason */}
+          <div className="flex items-center gap-2">
+            <Filter className="w-4 h-4 text-muted-foreground" />
+            <Select value={filterReason} onValueChange={setFilterReason}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Filtrar por motivo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">
+                  Todos os motivos ({leads.length})
+                </SelectItem>
+                {REASON_OPTIONS.map(option => (
+                  <SelectItem key={option.id} value={option.id}>
+                    <div className="flex items-center gap-2">
+                      <option.icon className="w-4 h-4" />
+                      <span>{option.label}</span>
+                      {reasonCounts[option.id] && (
+                        <Badge variant="secondary" className="ml-1 text-xs">
+                          {reasonCounts[option.id]}
+                        </Badge>
+                      )}
+                    </div>
+                  </SelectItem>
+                ))}
+                <SelectItem value="sem_motivo">
+                  Sem motivo ({reasonCounts['sem_motivo'] || 0})
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            {filterReason !== 'all' && (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => setFilterReason('all')}
+                className="text-muted-foreground"
+              >
+                Limpar
+              </Button>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Pipeline Board */}
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCorners}
-        onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
-      >
-        <div className="flex gap-4 overflow-x-auto pb-4">
-          {STATUSES.map(status => (
-            <PipelineColumn
-              key={status.id}
-              status={status}
-              leads={leadsByStatus[status.id] || []}
-              totalValue={
-                (leadsByStatus[status.id] || []).reduce((acc, l) => acc + l.value, 0)
-              }
+      {viewMode === 'kanban' ? (
+        <>
+          {/* Pipeline Board - Kanban View */}
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCorners}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+          >
+            <div className="flex gap-4 overflow-x-auto pb-4">
+              {STATUSES.map(status => (
+                <PipelineColumn
+                  key={status.id}
+                  status={status}
+                  leads={leadsByStatus[status.id] || []}
+                  totalValue={
+                    (leadsByStatus[status.id] || []).reduce((acc, l) => acc + l.value, 0)
+                  }
+                  onCardClick={handleCardClick}
+                />
+              ))}
+            </div>
+
+            <DragOverlay>
+              {activeLead && <LeadCard lead={activeLead} isDragging />}
+            </DragOverlay>
+          </DndContext>
+        </>
+      ) : (
+        /* List View */
+        <Tabs defaultValue="vendas" className="w-full">
+          <TabsList className="mb-4">
+            <TabsTrigger value="vendas" className="gap-2">
+              <CheckCircle className="w-4 h-4" />
+              Vendas Recentes
+              <Badge variant="secondary" className="ml-1">{recentSales.length}</Badge>
+            </TabsTrigger>
+            <TabsTrigger value="abandonados" className="gap-2">
+              <ShoppingCart className="w-4 h-4" />
+              Carrinhos Abandonados
+              <Badge variant="secondary" className="ml-1">{abandonedCarts.length}</Badge>
+            </TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="vendas">
+            <LeadListView 
+              leads={recentSales} 
+              title="Vendas Recentes (Negócios Fechados)" 
               onCardClick={handleCardClick}
             />
-          ))}
-        </div>
-
-        <DragOverlay>
-          {activeLead && <LeadCard lead={activeLead} isDragging />}
-        </DragOverlay>
-      </DndContext>
+          </TabsContent>
+          
+          <TabsContent value="abandonados">
+            <LeadListView 
+              leads={abandonedCarts} 
+              title="Carrinhos Abandonados" 
+              onCardClick={handleCardClick}
+            />
+          </TabsContent>
+        </Tabs>
+      )}
 
       {/* Lead Detail Dialog */}
       <Dialog open={!!viewingLead} onOpenChange={(open) => !open && setViewingLead(null)}>
