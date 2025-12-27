@@ -293,28 +293,37 @@ Deno.serve(async (req) => {
     const webhookToken = req.headers.get('x-kiwify-webhook-token');
     console.log('Received Kiwify webhook. Token present:', !!webhookToken);
 
-    const rawPayload: KiwifyWebhookPayload = await req.json();
+    const rawPayload = await req.json();
+    
+    console.log('Raw payload keys:', Object.keys(rawPayload));
     
     // Normalize payload - handle both direct and nested (order) formats
-    // Kiwify sends nested format: { order: { Customer, Product, ... } }
-    const isNestedFormat = !!rawPayload.order;
+    // Kiwify sends: { url, signature, order: { Customer, Product, ... } }
+    // Check if order object exists and has Customer inside it
+    const orderData = rawPayload.order;
+    const isNestedFormat = !!(orderData && (orderData.Customer || orderData.Product));
     console.log('Payload format:', isNestedFormat ? 'nested (order object)' : 'direct');
+    console.log('Order data present:', !!orderData);
     
     // Extract normalized data from either format
-    const customer = isNestedFormat ? rawPayload.order?.Customer : rawPayload.Customer;
-    const productName = isNestedFormat 
-      ? rawPayload.order?.Product?.product_name 
-      : rawPayload.product_name;
-    const eventType = isNestedFormat 
-      ? rawPayload.order?.webhook_event_type 
-      : rawPayload.webhook_event_type;
-    const commissions = isNestedFormat 
-      ? rawPayload.order?.Commissions 
-      : rawPayload.Commissions;
+    let customer, productName, eventType, commissions;
+    
+    if (isNestedFormat && orderData) {
+      customer = orderData.Customer;
+      productName = orderData.Product?.product_name;
+      eventType = orderData.webhook_event_type;
+      commissions = orderData.Commissions;
+      console.log('Extracted from nested format - Product object:', orderData.Product);
+    } else {
+      customer = rawPayload.Customer;
+      productName = rawPayload.product_name;
+      eventType = rawPayload.webhook_event_type;
+      commissions = rawPayload.Commissions;
+    }
     
     console.log('Webhook event type:', eventType);
     console.log('Customer:', customer?.full_name, customer?.email);
-    console.log('Product:', productName);
+    console.log('Product name:', productName);
 
     if (!customer?.email) {
       console.log('No customer email in payload');
@@ -333,7 +342,7 @@ Deno.serve(async (req) => {
     }
 
     if (!productName) {
-      console.log('No product name in payload');
+      console.log('No product name in payload - full order data:', JSON.stringify(orderData));
       return new Response(
         JSON.stringify({ success: false, error: 'No product name' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
