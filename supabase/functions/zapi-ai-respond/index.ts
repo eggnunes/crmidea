@@ -118,6 +118,29 @@ serve(async (req) => {
       });
     }
 
+    // RATE LIMITING: Check if we already responded recently (within 5 seconds)
+    // This prevents multiple responses when Z-API sends duplicate webhooks
+    const { data: recentAIMessages } = await supabase
+      .from('whatsapp_messages')
+      .select('id, created_at')
+      .eq('conversation_id', conversationId)
+      .eq('is_ai_response', true)
+      .order('created_at', { ascending: false })
+      .limit(1);
+    
+    if (recentAIMessages && recentAIMessages.length > 0) {
+      const lastAIMessage = recentAIMessages[0];
+      const timeSinceLastAI = Date.now() - new Date(lastAIMessage.created_at).getTime();
+      const cooldownMs = 5000; // 5 second cooldown between AI responses
+      
+      if (timeSinceLastAI < cooldownMs) {
+        console.log(`AI cooldown active: last response was ${timeSinceLastAI}ms ago, need ${cooldownMs}ms. Skipping.`);
+        return new Response(JSON.stringify({ status: 'skipped', reason: 'cooldown' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
     // Check if bot is disabled for this contact
     const { data: contact } = await supabase
       .from('whatsapp_contacts')
@@ -462,13 +485,13 @@ ${knowledgeBase}
       }
     }
 
-    // Split message if needed
+    // Split message if needed - BUT limit to maximum 2 messages to avoid spam
     let messagesToSend = [aiMessage];
     if (aiConfig.split_long_messages && aiMessage.length > 1000) {
       // Split by paragraphs or sentences
       const paragraphs = aiMessage.split('\n\n').filter((p: string) => p.trim());
       if (paragraphs.length > 1) {
-        messagesToSend = paragraphs;
+        messagesToSend = paragraphs.slice(0, 2); // Max 2 messages
       } else {
         // Split by sentences
         const sentences = aiMessage.match(/[^.!?]+[.!?]+/g) || [aiMessage];
@@ -483,7 +506,16 @@ ${knowledgeBase}
           }
         }
         if (currentChunk) messagesToSend.push(currentChunk.trim());
+        // Limit to max 2 messages
+        messagesToSend = messagesToSend.slice(0, 2);
       }
+    }
+    
+    console.log(`Will send ${messagesToSend.length} message(s) (limited to max 2)`);
+    
+    // If we had to truncate, log warning
+    if (aiMessage.length > 2000) {
+      console.warn('Response was very long, truncated to 2 messages to avoid spam');
     }
 
     // Send messages via Z-API
