@@ -485,38 +485,10 @@ ${knowledgeBase}
       }
     }
 
-    // Split message if needed - BUT limit to maximum 2 messages to avoid spam
-    let messagesToSend = [aiMessage];
-    if (aiConfig.split_long_messages && aiMessage.length > 1000) {
-      // Split by paragraphs or sentences
-      const paragraphs = aiMessage.split('\n\n').filter((p: string) => p.trim());
-      if (paragraphs.length > 1) {
-        messagesToSend = paragraphs.slice(0, 2); // Max 2 messages
-      } else {
-        // Split by sentences
-        const sentences = aiMessage.match(/[^.!?]+[.!?]+/g) || [aiMessage];
-        messagesToSend = [];
-        let currentChunk = '';
-        for (const sentence of sentences) {
-          if ((currentChunk + sentence).length > 800) {
-            if (currentChunk) messagesToSend.push(currentChunk.trim());
-            currentChunk = sentence;
-          } else {
-            currentChunk += sentence;
-          }
-        }
-        if (currentChunk) messagesToSend.push(currentChunk.trim());
-        // Limit to max 2 messages
-        messagesToSend = messagesToSend.slice(0, 2);
-      }
-    }
-    
-    console.log(`Will send ${messagesToSend.length} message(s) (limited to max 2)`);
-    
-    // If we had to truncate, log warning
-    if (aiMessage.length > 2000) {
-      console.warn('Response was very long, truncated to 2 messages to avoid spam');
-    }
+    // ALWAYS send ONE complete message - never split to avoid incomplete responses
+    // The AI is already instructed to keep responses short and complete
+    const messagesToSend = [aiMessage];
+    console.log(`Sending 1 complete message (${aiMessage.length} chars)`);
 
     // Send messages via Z-API
     for (let i = 0; i < messagesToSend.length; i++) {
