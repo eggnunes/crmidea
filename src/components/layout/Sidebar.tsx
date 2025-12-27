@@ -15,15 +15,24 @@ import {
   UserCheck,
   Calendar,
   TrendingUp,
-  Headphones
+  Headphones,
+  CheckCheck
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NavLink } from "@/components/NavLink";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRoles } from "@/hooks/useUserRoles";
 import { useUnreadMessages } from "@/hooks/useUnreadMessages";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface SidebarProps {
   collapsed: boolean;
@@ -56,7 +65,27 @@ const adminItems = [
 export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const { user, signOut } = useAuth();
   const { isAdmin } = useUserRoles();
-  const { unreadCount } = useUnreadMessages();
+  const { unreadCount, refetch } = useUnreadMessages();
+
+  const handleMarkAllAsRead = async () => {
+    if (!user?.id) return;
+    
+    try {
+      const { error } = await supabase
+        .from('whatsapp_conversations')
+        .update({ unread_count: 0 })
+        .eq('user_id', user.id)
+        .gt('unread_count', 0);
+
+      if (error) throw error;
+      
+      await refetch();
+      toast.success('Todas as mensagens foram marcadas como lidas');
+    } catch (error) {
+      console.error('Error marking all as read:', error);
+      toast.error('Erro ao marcar mensagens como lidas');
+    }
+  };
 
   const renderNavItems = (items: typeof commercialItems) => (
     <ul className="space-y-1">
@@ -64,37 +93,64 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         const isWhatsApp = item.to === "/whatsapp";
         const showBadge = isWhatsApp && unreadCount > 0;
         
+        const navContent = (
+          <NavLink
+            to={item.to}
+            end={item.to === "/"}
+            className={cn(
+              "flex items-center gap-3 px-3 py-2.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-sidebar-accent transition-colors relative",
+              collapsed && "justify-center px-2"
+            )}
+            activeClassName="bg-sidebar-accent text-foreground"
+          >
+            <div className="relative">
+              <item.icon className="w-5 h-5 flex-shrink-0" />
+              {showBadge && collapsed && (
+                <span className="absolute -top-1 -right-1 w-2 h-2 bg-destructive rounded-full animate-pulse" />
+              )}
+            </div>
+            {!collapsed && (
+              <>
+                <span className="font-medium flex-1">{item.label}</span>
+                {showBadge && (
+                  <Badge 
+                    variant="destructive" 
+                    className="h-5 min-w-5 px-1.5 text-xs font-bold animate-pulse"
+                  >
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </Badge>
+                )}
+              </>
+            )}
+          </NavLink>
+        );
+
+        // Wrap WhatsApp item with context menu
+        if (isWhatsApp) {
+          return (
+            <li key={item.to}>
+              <ContextMenu>
+                <ContextMenuTrigger asChild>
+                  {navContent}
+                </ContextMenuTrigger>
+                <ContextMenuContent>
+                  <ContextMenuItem 
+                    onClick={handleMarkAllAsRead}
+                    disabled={unreadCount === 0}
+                    className="gap-2"
+                  >
+                    <CheckCheck className="w-4 h-4" />
+                    Marcar todas como lidas
+                  </ContextMenuItem>
+                </ContextMenuContent>
+              </ContextMenu>
+            </li>
+          );
+        }
+        
         return (
           <li key={item.to}>
-            <NavLink
-              to={item.to}
-              end={item.to === "/"}
-              className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-sidebar-accent transition-colors relative",
-                collapsed && "justify-center px-2"
-              )}
-              activeClassName="bg-sidebar-accent text-foreground"
-            >
-              <div className="relative">
-                <item.icon className="w-5 h-5 flex-shrink-0" />
-                {showBadge && collapsed && (
-                  <span className="absolute -top-1 -right-1 w-2 h-2 bg-destructive rounded-full animate-pulse" />
-                )}
-              </div>
-              {!collapsed && (
-                <>
-                  <span className="font-medium flex-1">{item.label}</span>
-                  {showBadge && (
-                    <Badge 
-                      variant="destructive" 
-                      className="h-5 min-w-5 px-1.5 text-xs font-bold animate-pulse"
-                    >
-                      {unreadCount > 99 ? '99+' : unreadCount}
-                    </Badge>
-                  )}
-                </>
-              )}
-            </NavLink>
+            {navContent}
           </li>
         );
       })}
