@@ -156,7 +156,47 @@ serve(async (req) => {
       });
     }
 
-    // Get training documents for context
+    // Check if this is a simple acknowledgment after a welcome message (don't respond)
+    // This prevents AI from responding to "obrigado", "ok", "valeu" after welcome messages
+    const simpleAcknowledgments = [
+      'obrigado', 'obrigada', 'obg', 'brigado', 'brigada',
+      'ok', 'okay', 'blz', 'beleza', 'certo',
+      'valeu', 'vlw', 'valew',
+      'perfeito', 'top', 'show', 'legal',
+      'entendi', 'entendido', 'ta bom', 'tá bom', 'tá', 'ta',
+      'sim', 'não', 'nao',
+      '👍', '✅', '🙏', '😊', '🤝', '👏'
+    ];
+    
+    const normalizedContent = processedContent.toLowerCase().trim();
+    const isSimpleAcknowledgment = simpleAcknowledgments.some(ack => 
+      normalizedContent === ack || 
+      normalizedContent === ack + '!' ||
+      normalizedContent === ack + '.' ||
+      normalizedContent.match(new RegExp(`^${ack}[!.,\\s]*$`))
+    );
+    
+    if (isSimpleAcknowledgment) {
+      // Check if the last message from us was a welcome/automated message (not AI)
+      const { data: lastOurMessage } = await supabase
+        .from('whatsapp_messages')
+        .select('content, is_ai_response, is_from_contact')
+        .eq('conversation_id', conversationId)
+        .eq('is_from_contact', false)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      
+      // If the last message from us was NOT an AI response (likely welcome/automated message)
+      // and this is just a simple acknowledgment, don't respond
+      if (lastOurMessage && !lastOurMessage.is_ai_response) {
+        console.log('Simple acknowledgment after automated message, skipping AI response:', normalizedContent);
+        return new Response(JSON.stringify({ status: 'skipped', reason: 'simple_acknowledgment' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
     const { data: trainingDocs } = await supabase
       .from('ai_training_documents')
       .select('title, content')

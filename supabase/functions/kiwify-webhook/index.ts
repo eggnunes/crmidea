@@ -640,7 +640,83 @@ Deno.serve(async (req) => {
       }
     }
 
-    // For successful purchases, send welcome message via WhatsApp
+    // For refunds, send a message to the customer
+    if ((eventType.toLowerCase() === 'reembolso' || 
+         eventType.toLowerCase() === 'compra_reembolsada') && customer.mobile) {
+      console.log('Sending refund confirmation message to:', customer.full_name);
+      
+      try {
+        const zapiInstanceId = Deno.env.get('ZAPI_INSTANCE_ID');
+        const zapiToken = Deno.env.get('ZAPI_TOKEN');
+        const zapiClientToken = Deno.env.get('ZAPI_CLIENT_TOKEN');
+        
+        if (zapiInstanceId && zapiToken && zapiClientToken) {
+          const phone = customer.mobile.replace(/\D/g, '');
+          const formattedPhone = phone.startsWith('55') ? phone : `55${phone}`;
+          const firstName = customer.first_name || customer.full_name.split(' ')[0];
+          
+          const refundMessage = `Olá, ${firstName}! 👋\n\n` +
+            `Recebemos sua solicitação de reembolso do produto *${productName}*.\n\n` +
+            `O processamento já foi iniciado e você receberá o valor conforme o prazo da sua forma de pagamento.\n\n` +
+            `Se tiver alguma dúvida ou quiser compartilhar o motivo da sua decisão (isso nos ajuda a melhorar!), fique à vontade para responder esta mensagem.\n\n` +
+            `Obrigado pela confiança e esperamos te ver em breve! 🙏\n\n` +
+            `_Equipe IDEA_`;
+          
+          const zapiResponse = await fetch(
+            `https://api.z-api.io/instances/${zapiInstanceId}/token/${zapiToken}/send-text`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Client-Token': zapiClientToken,
+              },
+              body: JSON.stringify({
+                phone: formattedPhone,
+                message: refundMessage,
+              }),
+            }
+          );
+          
+          const zapiResult = await zapiResponse.json();
+          console.log('Refund message sent via Z-API:', zapiResult);
+          
+          // Create conversation and message record
+          const { data: conversation } = await supabase
+            .from('whatsapp_conversations')
+            .upsert({
+              user_id: userId,
+              contact_phone: formattedPhone,
+              contact_name: customer.full_name,
+              channel: 'whatsapp',
+              last_message_at: new Date().toISOString(),
+              lead_id: leadId,
+            }, {
+              onConflict: 'user_id,contact_phone,channel',
+            })
+            .select()
+            .single();
+          
+          if (conversation) {
+            await supabase
+              .from('whatsapp_messages')
+              .insert({
+                user_id: userId,
+                conversation_id: conversation.id,
+                content: refundMessage,
+                is_from_contact: false,
+                is_ai_response: false,
+                message_type: 'text',
+                status: 'sent',
+                channel: 'whatsapp',
+                zapi_message_id: zapiResult.messageId || null,
+              });
+          }
+        }
+      } catch (refundMsgError) {
+        console.error('Error sending refund message:', refundMsgError);
+      }
+    }
+
     if ((eventType.toLowerCase() === 'compra_aprovada' || 
          eventType.toLowerCase() === 'assinatura_renovada' ||
          eventType.toLowerCase() === 'order_approved') && customer.mobile) {
