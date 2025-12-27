@@ -298,28 +298,24 @@ Deno.serve(async (req) => {
     console.log('Raw payload keys:', Object.keys(rawPayload));
     
     // Normalize payload - handle both direct and nested (order) formats
-    // Kiwify sends: { url, signature, order: { Customer, Product, ... } }
-    // Check if order object exists and has Customer inside it
+    // Kiwify can send in 2 formats:
+    // 1. Nested: { url, signature, order: { Customer, Product, ... } }
+    // 2. Direct: { Customer, Product, webhook_event_type, ... } (no order wrapper)
     const orderData = rawPayload.order;
-    const isNestedFormat = !!(orderData && (orderData.Customer || orderData.Product));
-    console.log('Payload format:', isNestedFormat ? 'nested (order object)' : 'direct');
-    console.log('Order data present:', !!orderData);
+    const hasOrderWrapper = !!(orderData && typeof orderData === 'object');
+    console.log('Has order wrapper:', hasOrderWrapper);
     
-    // Extract normalized data from either format
-    let customer, productName, eventType, commissions;
+    // Use the order data if wrapped, otherwise use rawPayload directly
+    const payloadData = hasOrderWrapper ? orderData : rawPayload;
     
-    if (isNestedFormat && orderData) {
-      customer = orderData.Customer;
-      productName = orderData.Product?.product_name;
-      eventType = orderData.webhook_event_type;
-      commissions = orderData.Commissions;
-      console.log('Extracted from nested format - Product object:', orderData.Product);
-    } else {
-      customer = rawPayload.Customer;
-      productName = rawPayload.product_name;
-      eventType = rawPayload.webhook_event_type;
-      commissions = rawPayload.Commissions;
-    }
+    // Extract data - Product and Customer are capitalized in Kiwify
+    const customer = payloadData.Customer;
+    const productName = payloadData.Product?.product_name;
+    const eventType = payloadData.webhook_event_type;
+    const commissions = payloadData.Commissions;
+    
+    console.log('Product object:', JSON.stringify(payloadData.Product));
+    console.log('Customer object:', JSON.stringify(customer));
     
     console.log('Webhook event type:', eventType);
     console.log('Customer:', customer?.full_name, customer?.email);
