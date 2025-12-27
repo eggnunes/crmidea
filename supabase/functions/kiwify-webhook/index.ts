@@ -502,7 +502,110 @@ Deno.serve(async (req) => {
       }
     }
 
-    // For abandoned carts, schedule WhatsApp recovery message (within 30 minutes)
+    // Send WhatsApp notification to admin for important events (purchases, refunds, abandoned carts)
+    const importantEvents = [
+      'compra_aprovada', 
+      'order_approved', 
+      'reembolso', 
+      'compra_reembolsada', 
+      'carrinho_abandonado',
+      'chargeback'
+    ];
+    
+    const eventLower = eventType.toLowerCase();
+    if (importantEvents.includes(eventLower)) {
+      console.log('Important event detected, sending WhatsApp to admin:', eventLower);
+      
+      try {
+        // Get admin's personal WhatsApp from follow_up_settings
+        const { data: followUpSettings } = await supabase
+          .from('follow_up_settings')
+          .select('personal_whatsapp')
+          .eq('user_id', userId)
+          .single();
+        
+        const adminPhone = followUpSettings?.personal_whatsapp;
+        console.log('Admin personal WhatsApp:', adminPhone);
+        
+        if (adminPhone) {
+          const zapiInstanceId = Deno.env.get('ZAPI_INSTANCE_ID');
+          const zapiToken = Deno.env.get('ZAPI_TOKEN');
+          const zapiClientToken = Deno.env.get('ZAPI_CLIENT_TOKEN');
+          
+          if (zapiInstanceId && zapiToken && zapiClientToken) {
+            // Format admin phone
+            const formattedAdminPhone = adminPhone.replace(/\D/g, '').startsWith('55') 
+              ? adminPhone.replace(/\D/g, '') 
+              : `55${adminPhone.replace(/\D/g, '')}`;
+            
+            // Create message based on event type
+            let adminMessage = '';
+            const valueText = value ? `R$ ${value.toFixed(2)}` : 'Valor não informado';
+            
+            if (eventLower === 'compra_aprovada' || eventLower === 'order_approved') {
+              adminMessage = `🎉 *NOVA VENDA KIWIFY!*\n\n` +
+                `👤 *Cliente:* ${customer.full_name}\n` +
+                `📧 *Email:* ${customer.email}\n` +
+                `📱 *Telefone:* ${customer.mobile || 'Não informado'}\n` +
+                `📦 *Produto:* ${productName}\n` +
+                `💰 *Valor:* ${valueText}\n\n` +
+                `🕐 ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`;
+            } else if (eventLower === 'reembolso' || eventLower === 'compra_reembolsada') {
+              adminMessage = `💸 *PEDIDO DE REEMBOLSO!*\n\n` +
+                `👤 *Cliente:* ${customer.full_name}\n` +
+                `📧 *Email:* ${customer.email}\n` +
+                `📦 *Produto:* ${productName}\n` +
+                `💰 *Valor:* ${valueText}\n\n` +
+                `⚠️ Verifique o motivo e entre em contato!\n\n` +
+                `🕐 ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`;
+            } else if (eventLower === 'carrinho_abandonado') {
+              adminMessage = `🛒 *CARRINHO ABANDONADO!*\n\n` +
+                `👤 *Cliente:* ${customer.full_name}\n` +
+                `📧 *Email:* ${customer.email}\n` +
+                `📱 *Telefone:* ${customer.mobile || 'Não informado'}\n` +
+                `📦 *Produto:* ${productName}\n` +
+                `💰 *Valor:* ${valueText}\n\n` +
+                `🔥 Faça follow-up urgente!\n\n` +
+                `🕐 ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`;
+            } else if (eventLower === 'chargeback') {
+              adminMessage = `⚠️ *ALERTA DE CHARGEBACK!*\n\n` +
+                `👤 *Cliente:* ${customer.full_name}\n` +
+                `📧 *Email:* ${customer.email}\n` +
+                `📦 *Produto:* ${productName}\n` +
+                `💰 *Valor:* ${valueText}\n\n` +
+                `🚨 AÇÃO URGENTE NECESSÁRIA!\n\n` +
+                `🕐 ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`;
+            }
+            
+            if (adminMessage) {
+              const adminZapiResponse = await fetch(
+                `https://api.z-api.io/instances/${zapiInstanceId}/token/${zapiToken}/send-text`,
+                {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Client-Token': zapiClientToken,
+                  },
+                  body: JSON.stringify({
+                    phone: formattedAdminPhone,
+                    message: adminMessage,
+                  }),
+                }
+              );
+              
+              const adminZapiResult = await adminZapiResponse.json();
+              console.log('Admin WhatsApp notification sent:', adminZapiResult);
+            }
+          } else {
+            console.log('Z-API credentials not configured for admin notification');
+          }
+        } else {
+          console.log('No personal WhatsApp configured for admin');
+        }
+      } catch (adminNotifError) {
+        console.error('Error sending admin WhatsApp notification:', adminNotifError);
+      }
+    }
     if (eventType.toLowerCase() === 'carrinho_abandonado' && customer.mobile) {
       console.log('Triggering abandoned cart WhatsApp alert for:', customer.full_name);
       
