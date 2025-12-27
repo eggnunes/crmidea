@@ -20,8 +20,10 @@ import {
 import { cn } from "@/lib/utils";
 import { NavLink } from "@/components/NavLink";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRoles } from "@/hooks/useUserRoles";
+import { useUnreadMessages } from "@/hooks/useUnreadMessages";
 
 interface SidebarProps {
   collapsed: boolean;
@@ -54,25 +56,48 @@ const adminItems = [
 export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const { user, signOut } = useAuth();
   const { isAdmin } = useUserRoles();
+  const { unreadCount } = useUnreadMessages();
 
   const renderNavItems = (items: typeof commercialItems) => (
     <ul className="space-y-1">
-      {items.map((item) => (
-        <li key={item.to}>
-          <NavLink
-            to={item.to}
-            end={item.to === "/"}
-            className={cn(
-              "flex items-center gap-3 px-3 py-2.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-sidebar-accent transition-colors",
-              collapsed && "justify-center px-2"
-            )}
-            activeClassName="bg-sidebar-accent text-foreground"
-          >
-            <item.icon className="w-5 h-5 flex-shrink-0" />
-            {!collapsed && <span className="font-medium">{item.label}</span>}
-          </NavLink>
-        </li>
-      ))}
+      {items.map((item) => {
+        const isWhatsApp = item.to === "/whatsapp";
+        const showBadge = isWhatsApp && unreadCount > 0;
+        
+        return (
+          <li key={item.to}>
+            <NavLink
+              to={item.to}
+              end={item.to === "/"}
+              className={cn(
+                "flex items-center gap-3 px-3 py-2.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-sidebar-accent transition-colors relative",
+                collapsed && "justify-center px-2"
+              )}
+              activeClassName="bg-sidebar-accent text-foreground"
+            >
+              <div className="relative">
+                <item.icon className="w-5 h-5 flex-shrink-0" />
+                {showBadge && collapsed && (
+                  <span className="absolute -top-1 -right-1 w-2 h-2 bg-destructive rounded-full animate-pulse" />
+                )}
+              </div>
+              {!collapsed && (
+                <>
+                  <span className="font-medium flex-1">{item.label}</span>
+                  {showBadge && (
+                    <Badge 
+                      variant="destructive" 
+                      className="h-5 min-w-5 px-1.5 text-xs font-bold animate-pulse"
+                    >
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </Badge>
+                  )}
+                </>
+              )}
+            </NavLink>
+          </li>
+        );
+      })}
     </ul>
   );
 
