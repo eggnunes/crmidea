@@ -313,7 +313,9 @@ Deno.serve(async (req) => {
     const productName = payloadData.Product?.product_name;
     const eventType = payloadData.webhook_event_type;
     const commissions = payloadData.Commissions;
+    const orderId = payloadData.order_id;
     
+    console.log('Order ID:', orderId);
     console.log('Product object:', JSON.stringify(payloadData.Product));
     console.log('Customer object:', JSON.stringify(customer));
     
@@ -345,9 +347,28 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Initialize Supabase client here to check for duplicates
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Check for duplicate webhook by order_id - avoid processing same order multiple times
+    if (orderId) {
+      const { data: existingInteraction } = await supabase
+        .from('interactions')
+        .select('id')
+        .ilike('description', `%${orderId}%`)
+        .limit(1)
+        .maybeSingle();
+      
+      if (existingInteraction) {
+        console.log('Duplicate webhook detected for order_id:', orderId, '- skipping');
+        return new Response(
+          JSON.stringify({ success: true, message: 'Duplicate webhook ignored', order_id: orderId }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+    }
 
     // Get the admin user (owner of the CRM) to associate leads
     // We'll get the first admin user from user_roles
@@ -441,9 +462,9 @@ Deno.serve(async (req) => {
       leadAction = 'created';
     }
 
-    // Add interaction for this event
+    // Add interaction for this event - include order_id for duplicate detection
     const interactionType = mapEventToInteractionType(eventType);
-    const interactionDescription = `Evento Kiwify: ${eventType} - Produto: ${productName}${value ? ` - Valor: R$ ${value.toFixed(2)}` : ''}`;
+    const interactionDescription = `Evento Kiwify: ${eventType} - Produto: ${productName}${value ? ` - Valor: R$ ${value.toFixed(2)}` : ''}${orderId ? ` [Order: ${orderId}]` : ''}`;
 
     const { error: interactionError } = await supabase
       .from('interactions')
