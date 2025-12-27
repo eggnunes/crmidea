@@ -29,6 +29,7 @@ interface KiwifyWebhookPayload {
   Commissions?: {
     charge_amount: number;
     product_base_price: number;
+    my_commission?: number;  // This is the value the producer receives (for co-productions)
   };
   Subscription?: {
     id: string;
@@ -58,6 +59,7 @@ interface KiwifyWebhookPayload {
     Commissions?: {
       charge_amount: number;
       product_base_price: number;
+      my_commission?: number;  // This is the value the producer receives (for co-productions)
     };
     Subscription?: {
       id: string;
@@ -404,9 +406,16 @@ Deno.serve(async (req) => {
 
     const newStatus = mapEventToStatus(eventType);
     const productType = mapProductName(productName);
+    
+    // Log commissions for debugging
+    console.log('Commissions object:', JSON.stringify(commissions));
+    
     // Convert from centavos to reais (Kiwify sends values in centavos)
-    const valueInCentavos = commissions?.charge_amount || commissions?.product_base_price || null;
+    // Priority: my_commission (producer's share for co-productions) > charge_amount > product_base_price
+    const valueInCentavos = commissions?.my_commission || commissions?.charge_amount || commissions?.product_base_price || null;
     const value = valueInCentavos ? valueInCentavos / 100 : null;
+    
+    console.log('Value extracted:', value, 'from centavos:', valueInCentavos);
 
     let leadId: string;
     let leadAction: 'created' | 'updated';
