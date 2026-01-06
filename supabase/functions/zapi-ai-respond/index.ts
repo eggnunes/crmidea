@@ -416,9 +416,10 @@ ${knowledgeBase}
       console.log('Generating audio response with ElevenLabs...');
 
       try {
-        // Generate audio with ElevenLabs - configurações otimizadas para máxima clareza
+        // Generate audio with ElevenLabs - configurações otimizadas para máxima qualidade
+        // Using eleven_turbo_v2_5 for better latency and clarity
         const elevenLabsResponse = await fetch(
-          `https://api.elevenlabs.io/v1/text-to-speech/${aiConfig.elevenlabs_voice_id}?output_format=mp3_44100_192`,
+          `https://api.elevenlabs.io/v1/text-to-speech/${aiConfig.elevenlabs_voice_id}?output_format=mp3_44100_128`,
           {
             method: 'POST',
             headers: {
@@ -427,13 +428,12 @@ ${knowledgeBase}
             },
             body: JSON.stringify({
               text: aiMessage,
-              model_id: 'eleven_multilingual_v2',
+              model_id: 'eleven_turbo_v2_5', // Modelo mais rápido e com melhor clareza
               voice_settings: {
-                stability: 0.85,          // Alto para pronúncia mais consistente e clara
-                similarity_boost: 0.70,   // Ligeiramente menor para priorizar clareza
-                style: 0.10,              // Mínimo para evitar distorções
-                use_speaker_boost: true,
-                speed: 0.90,              // Mais lento para melhor articulação
+                stability: 0.75,          // Equilíbrio entre clareza e naturalidade
+                similarity_boost: 0.80,   // Mantém características da voz
+                style: 0.0,               // Zero para evitar qualquer distorção
+                use_speaker_boost: true,  // Melhora clareza
               },
             }),
           }
