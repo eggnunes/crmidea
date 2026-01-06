@@ -48,6 +48,16 @@ async function getValidAccessToken(supabase: any, userId: string): Promise<strin
 
   if (tokens.error) {
     console.error('[google-calendar-sync] Refresh error:', tokens);
+    
+    // If token is permanently invalid, delete it so user can reconnect
+    if (tokens.error === 'invalid_grant') {
+      console.log('[google-calendar-sync] Token revoked, deleting from database...');
+      await supabase
+        .from('google_calendar_tokens')
+        .delete()
+        .eq('user_id', userId);
+    }
+    
     return null;
   }
 
