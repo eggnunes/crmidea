@@ -86,3 +86,6 @@ verify_jwt = true
 
 [functions.booking-notifications]
 verify_jwt = false
+
+[functions.generate-logo]
+verify_jwt = false
