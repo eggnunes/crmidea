@@ -21,7 +21,9 @@ import {
   UserPlus,
   ChevronDown,
   LogIn,
-  HelpCircle
+  HelpCircle,
+  Instagram,
+  Youtube
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -29,6 +31,7 @@ import { CONSULTING_FEATURES, FEATURE_CATEGORIES } from "@/data/consultingFeatur
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useState } from "react";
 import logoConsultoria from "@/assets/logo-consultoria.png";
+import logoRE from "@/assets/logo-re.png";
 
 // ID do consultor padrão - em produção, isso poderia ser dinâmico
 const DEFAULT_CONSULTANT_ID = "default";
@@ -485,17 +488,48 @@ export function PublicConsultingPage() {
       </section>
       
       {/* Footer */}
-      <footer className="py-8 border-t">
-        <div className="container mx-auto px-4 text-center text-muted-foreground">
-          <div className="flex items-center justify-center gap-3 mb-4">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-              <Zap className="w-5 h-5 text-primary-foreground" />
+      <footer className="py-12 border-t bg-slate-900">
+        <div className="container mx-auto px-4">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+            <Link to="/" className="flex items-center gap-2">
+              <img src={logoRE} alt="Rafael Egg" className="h-12 w-12 object-contain" />
+              <span className="text-xl font-bold text-white">Rafael Egg</span>
+            </Link>
+            <div className="flex gap-3">
+              <a 
+                href="https://www.instagram.com/rafaeleggnunes/" 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="p-2 rounded-full bg-slate-800 text-slate-300 hover:text-pink-400 hover:bg-slate-700 transition-all duration-300"
+                aria-label="Instagram"
+              >
+                <Instagram className="h-5 w-5" />
+              </a>
+              <a 
+                href="https://www.tiktok.com/@rafaeleggnunes" 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="p-2 rounded-full bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 transition-all duration-300"
+                aria-label="TikTok"
+              >
+                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/>
+                </svg>
+              </a>
+              <a 
+                href="https://www.youtube.com/channel/UCDQo50DPXM2ZaRBuw7o7ZmQ" 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="p-2 rounded-full bg-slate-800 text-slate-300 hover:text-red-400 hover:bg-slate-700 transition-all duration-300"
+                aria-label="YouTube"
+              >
+                <Youtube className="h-5 w-5" />
+              </a>
             </div>
-            <span className="font-bold">IDEA - Inteligência Artificial para Advogados</span>
           </div>
-          <p className="text-sm">
-            © {new Date().getFullYear()} IDEA. Todos os direitos reservados.
-          </p>
+          <div className="mt-8 text-center text-slate-400 text-sm">
+            <p>© {new Date().getFullYear()} Rafael Egg. Todos os direitos reservados.</p>
+          </div>
         </div>
       </footer>
     </div>
