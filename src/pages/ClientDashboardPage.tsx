@@ -274,6 +274,40 @@ export function ClientDashboardPage() {
       </header>
 
       <main className="container mx-auto px-4 py-8">
+        {/* Alert: Form not completed */}
+        {!formProgress?.is_completed && (
+          <Card className="mb-6 border-amber-300 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30 dark:border-amber-700">
+            <CardContent className="pt-6">
+              <div className="flex flex-col md:flex-row md:items-center gap-4">
+                <div className="w-14 h-14 rounded-full bg-amber-100 dark:bg-amber-900 flex items-center justify-center flex-shrink-0">
+                  <ClipboardList className="w-7 h-7 text-amber-600 dark:text-amber-400" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-bold text-lg text-amber-800 dark:text-amber-300">
+                    📋 Complete seu Diagnóstico!
+                  </h3>
+                  <p className="text-amber-700 dark:text-amber-400 text-sm mt-1">
+                    Para iniciarmos a sua consultoria, precisamos que você preencha o formulário de diagnóstico. 
+                    Isso nos ajudará a entender melhor o seu escritório e personalizar a consultoria para você.
+                  </p>
+                  <div className="flex items-center gap-2 mt-2">
+                    <Progress value={(formProgress?.current_step || 1) / 6 * 100} className="h-2 flex-1 max-w-xs" />
+                    <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">
+                      Etapa {formProgress?.current_step || 1} de 6
+                    </span>
+                  </div>
+                </div>
+                <Button asChild size="lg" className="gap-2 bg-amber-600 hover:bg-amber-700 text-white">
+                  <Link to="/diagnostico-cliente">
+                    {formProgress?.current_step === 1 ? "Iniciar Diagnóstico" : "Continuar Preenchendo"}
+                    <ArrowRight className="w-4 h-4" />
+                  </Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Welcome Card */}
         <Card className="mb-8 border-primary/20 bg-gradient-to-r from-primary/5 to-transparent">
           <CardContent className="pt-6">
@@ -287,13 +321,11 @@ export function ClientDashboardPage() {
                 </p>
               </div>
               
-              {!formProgress?.is_completed && (
-                <Button asChild className="gap-2">
-                  <Link to={`/diagnostico-cliente`}>
-                    {formProgress?.current_step === 1 ? "Iniciar Diagnóstico" : "Continuar Diagnóstico"}
-                    <ArrowRight className="w-4 h-4" />
-                  </Link>
-                </Button>
+              {formProgress?.is_completed && (
+                <Badge variant="default" className="bg-green-500 text-white gap-1">
+                  <CheckCircle2 className="w-4 h-4" />
+                  Diagnóstico Concluído
+                </Badge>
               )}
             </div>
           </CardContent>
