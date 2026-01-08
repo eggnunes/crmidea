@@ -19,6 +19,49 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Card, CardContent } from "@/components/ui/card";
 
+// Blog images
+import blogIaRevolucionando from "@/assets/blog-ia-revolucionando.png";
+import blogChatgptPrompts from "@/assets/blog-chatgpt-prompts.png";
+import blogEticaIa from "@/assets/blog-etica-ia.png";
+import blogFerramentasIa from "@/assets/blog-ferramentas-ia.png";
+import blogContratosIa from "@/assets/blog-contratos-ia.png";
+import blogPesquisaJuridica from "@/assets/blog-pesquisa-juridica.png";
+import blogIaIniciantes from "@/assets/blog-ia-iniciantes.png";
+import blogProdutividade from "@/assets/blog-produtividade.png";
+
+// Image mapping
+const articleImages: Record<string, string> = {
+  "revolucionando": blogIaRevolucionando,
+  "2025": blogIaRevolucionando,
+  "lgpd": blogIaRevolucionando,
+  "futuro": blogProdutividade,
+  "chatgpt": blogChatgptPrompts,
+  "prompts": blogChatgptPrompts,
+  "ética": blogEticaIa,
+  "etica": blogEticaIa,
+  "ferramentas": blogFerramentasIa,
+  "gratuitas": blogFerramentasIa,
+  "contratos": blogContratosIa,
+  "automatizar": blogContratosIa,
+  "pesquisa": blogPesquisaJuridica,
+  "jurisprudência": blogPesquisaJuridica,
+  "iniciantes": blogIaIniciantes,
+  "começar": blogIaIniciantes,
+  "zero": blogIaIniciantes,
+  "produtividade": blogProdutividade,
+  "escritório": blogProdutividade,
+};
+
+function getArticleImage(title: string, slug?: string): string {
+  const searchText = `${title} ${slug || ""}`.toLowerCase();
+  for (const [keyword, image] of Object.entries(articleImages)) {
+    if (searchText.includes(keyword.toLowerCase())) {
+      return image;
+    }
+  }
+  return blogIaRevolucionando;
+}
+
 export function BlogArticlePage() {
   const { slug } = useParams<{ slug: string }>();
   const { data: article, isLoading, error } = useBlogPost(slug || "");
