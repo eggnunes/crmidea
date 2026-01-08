@@ -344,6 +344,42 @@ export function ClientDiagnosticForm() {
           description: "Formulário de diagnóstico preenchido e enviado com sucesso.",
         });
 
+      // Get consultant email for notification
+      const { data: consultantProfile } = await supabase
+        .from("profiles")
+        .select("email")
+        .eq("user_id", consultantId)
+        .maybeSingle();
+
+      // Send email notifications
+      try {
+        const aiExperienceText = formData.has_used_ai 
+          ? `${formData.ai_familiarity_level || "Iniciante"} - Já usou IA`
+          : "Nunca usou IA";
+
+        await supabase.functions.invoke("send-diagnostic-notification", {
+          body: {
+            clientName: formData.full_name,
+            clientEmail: formData.email,
+            clientPhone: formData.phone,
+            officeName: formData.office_name,
+            consultantEmail: consultantProfile?.email || "contato@idea.com.br",
+            consultantId: consultantId,
+            diagnosticSummary: {
+              practiceAreas: formData.practice_areas || "",
+              numLawyers: formData.num_lawyers,
+              numEmployees: formData.num_employees,
+              selectedFeaturesCount: formData.selected_features?.length || 0,
+              aiExperience: aiExperienceText,
+            },
+          },
+        });
+        console.log("Notification emails sent successfully");
+      } catch (emailError) {
+        console.error("Error sending notification emails:", emailError);
+        // Don't fail the submission if email fails
+      }
+
       setIsCompleted(true);
       toast.success("Diagnóstico enviado com sucesso!");
     } catch (error) {
