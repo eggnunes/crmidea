@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Settings, Bell, User, Palette, Database, Shield, Send, Loader2, Link2, CheckCircle, XCircle, RefreshCw, Sparkles, BarChart3, FileText } from "lucide-react";
+import { Settings, Bell, User, Palette, Database, Shield, Send, Loader2, Link2, CheckCircle, XCircle, RefreshCw, Sparkles, BarChart3, FileText, MousePointerClick } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
@@ -19,6 +19,7 @@ import { PersonalWhatsAppConfig } from "@/components/PersonalWhatsAppConfig";
 import { FollowUpTemplatesManager } from "@/components/FollowUpTemplatesManager";
 import { FollowUpDashboard } from "@/components/FollowUpDashboard";
 import { BlogPostsManager } from "@/components/blog/BlogPostsManager";
+import { BioAnalytics } from "@/components/bio/BioAnalytics";
 
 
 export function SettingsPage() {
@@ -246,7 +247,7 @@ export function SettingsPage() {
 
       {/* Settings Tabs */}
       <Tabs defaultValue="notifications" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-7 lg:w-auto lg:inline-flex">
+        <TabsList className="grid w-full grid-cols-8 lg:w-auto lg:inline-flex">
           <TabsTrigger value="notifications" className="gap-2">
             <Bell className="w-4 h-4" />
             <span className="hidden sm:inline">Notificações</span>
@@ -262,6 +263,10 @@ export function SettingsPage() {
           <TabsTrigger value="blog" className="gap-2">
             <FileText className="w-4 h-4" />
             <span className="hidden sm:inline">Blog</span>
+          </TabsTrigger>
+          <TabsTrigger value="bio" className="gap-2">
+            <MousePointerClick className="w-4 h-4" />
+            <span className="hidden sm:inline">Bio</span>
           </TabsTrigger>
           <TabsTrigger value="integrations" className="gap-2">
             <Link2 className="w-4 h-4" />
@@ -407,6 +412,11 @@ export function SettingsPage() {
         {/* Blog Tab */}
         <TabsContent value="blog" className="space-y-6">
           <BlogPostsManager />
+        </TabsContent>
+
+        {/* Bio Analytics Tab */}
+        <TabsContent value="bio" className="space-y-6">
+          <BioAnalytics />
         </TabsContent>
 
         {/* Integrations Tab */}

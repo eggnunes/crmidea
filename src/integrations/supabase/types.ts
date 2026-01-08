@@ -188,6 +188,36 @@ export type Database = {
         }
         Relationships: []
       }
+      bio_link_clicks: {
+        Row: {
+          category: string
+          clicked_at: string
+          id: string
+          link_title: string
+          link_url: string
+          referrer: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          category: string
+          clicked_at?: string
+          id?: string
+          link_title: string
+          link_url: string
+          referrer?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          category?: string
+          clicked_at?: string
+          id?: string
+          link_title?: string
+          link_url?: string
+          referrer?: string | null
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       blog_posts: {
         Row: {
           category: string | null
