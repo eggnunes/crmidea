@@ -517,7 +517,7 @@ export function HomePage() {
             <Card className="bg-slate-800/50 border-slate-700 hover:border-purple-500/50 transition-all duration-300 group hover:scale-[1.02] hover:shadow-xl hover:shadow-purple-500/10">
               <CardContent className="p-8">
                 <div className="flex items-center gap-4 mb-4">
-                  <div className="h-12 w-auto flex items-center">
+                  <div className="h-24 w-auto flex items-center">
                     <img src={logoRobodetoga} alt="Robô de Toga" className="h-full w-auto object-contain" />
                   </div>
                   <div>
