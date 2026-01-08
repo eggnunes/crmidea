@@ -1200,7 +1200,7 @@ export function BlogArticlePage() {
           <nav className="relative z-10 container mx-auto px-6 py-6">
             <div className="flex items-center justify-between">
               <Link to="/" className="flex items-center gap-3 group">
-                <img src={logoRE} alt="Rafael Egg" className="h-10 w-10 object-contain transition-transform duration-300 group-hover:scale-110" />
+                <img src={logoRE} alt="Rafael Egg" className="h-20 w-20 object-contain transition-transform duration-300 group-hover:scale-110" />
                 <span className="text-2xl font-bold text-white tracking-tight">Rafael Egg</span>
               </Link>
               <Button variant="ghost" className="text-slate-300 hover:text-amber-400" asChild>
@@ -1362,7 +1362,7 @@ export function BlogArticlePage() {
           <div className="container mx-auto px-6">
             <div className="flex flex-col md:flex-row items-center justify-between gap-6">
               <Link to="/" className="flex items-center gap-2">
-                <img src={logoRE} alt="Rafael Egg" className="h-8 w-8 object-contain" />
+                <img src={logoRE} alt="Rafael Egg" className="h-12 w-12 object-contain" />
                 <span className="text-xl font-bold text-white">Rafael Egg</span>
               </Link>
               <div className="flex gap-3">

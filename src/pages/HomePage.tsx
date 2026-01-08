@@ -60,10 +60,10 @@ export function HomePage() {
       title: "Consultoria IDEA",
       description: "Consultoria personalizada em IA para escritórios de advocacia",
       icon: Target,
-      link: "https://mentoriarafaelegg.com.br/consultoria-idea/",
+      link: "/consultoria",
       logo: logoConsultoria,
       highlight: true,
-      external: true
+      external: false
     },
     {
       title: "Mentoria",
@@ -199,7 +199,7 @@ export function HomePage() {
         <nav className="relative z-10 container mx-auto px-6 py-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <img src={logoRE} alt="Rafael Egg" className="h-10 w-10 object-contain" />
+              <img src={logoRE} alt="Rafael Egg" className="h-20 w-20 object-contain" />
               <span className="text-2xl font-bold text-white tracking-tight">Rafael Egg</span>
             </div>
             <div className="hidden md:flex items-center gap-6">
@@ -355,39 +355,42 @@ export function HomePage() {
               <Card className="bg-slate-800/50 border-slate-700 hover:border-amber-500/50 transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-amber-500/10 group">
                 <CardContent className="p-6 text-center">
                   <img src={logoRE} alt="Advogado" className="h-12 w-12 mx-auto mb-4 object-contain transition-transform duration-300 group-hover:scale-110" />
-                  <h3 className="text-lg font-semibold text-white mb-2">Advogado</h3>
-                  <p className="text-slate-400">Mais de 15 anos de experiência no mercado jurídico brasileiro</p>
+                  <h3 className="text-lg font-semibold text-white mb-2">Advogado desde 2008</h3>
+                  <p className="text-slate-400">Sócio do Egg Nunes Advogados, escritório especializado há 30 anos em servidores públicos</p>
                 </CardContent>
               </Card>
               
               <Card className="bg-slate-800/50 border-slate-700 hover:border-amber-500/50 transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-orange-500/10 group">
                 <CardContent className="p-6 text-center">
                   <Brain className="h-12 w-12 text-orange-500 mx-auto mb-4 transition-transform duration-300 group-hover:scale-110" />
-                  <h3 className="text-lg font-semibold text-white mb-2">Especialista em IA</h3>
-                  <p className="text-slate-400">Pioneiro na aplicação de inteligência artificial na advocacia</p>
+                  <h3 className="text-lg font-semibold text-white mb-2">Melhor em IA 2025</h3>
+                  <p className="text-slate-400">Escritório premiado como Melhor em IA do Brasil pela Law Summit</p>
                 </CardContent>
               </Card>
               
               <Card className="bg-slate-800/50 border-slate-700 hover:border-amber-500/50 transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-amber-400/10 group">
                 <CardContent className="p-6 text-center">
                   <Award className="h-12 w-12 text-amber-400 mx-auto mb-4 transition-transform duration-300 group-hover:scale-110" />
-                  <h3 className="text-lg font-semibold text-white mb-2">Mentor & Autor</h3>
-                  <p className="text-slate-400">3 e-books publicados e centenas de advogados capacitados</p>
+                  <h3 className="text-lg font-semibold text-white mb-2">Criador do Método IDEA</h3>
+                  <p className="text-slate-400">Centenas de advogados capacitados a automatizarem e escalarem seus escritórios</p>
                 </CardContent>
               </Card>
             </div>
 
             <div className="mt-12 bg-gradient-to-r from-amber-500/10 to-orange-500/10 rounded-2xl p-8 border border-amber-500/20 transition-all duration-300 hover:border-amber-500/40">
               <p className="text-lg text-slate-300 leading-relaxed">
-                Sou advogado e mentor especializado em ajudar escritórios de advocacia a implementarem 
-                soluções de Inteligência Artificial em suas rotinas. Através do <strong className="text-amber-400">Método IDEA</strong> 
-                (Inteligência de Dados e Artificial), desenvolvo metodologias práticas que permitem 
-                advogados aumentarem sua produtividade, reduzirem custos operacionais e entregarem 
-                mais valor aos seus clientes.
+                Sou Rafael Egg Nunes, advogado desde 2008, mentor em IA para advogados e sócio do 
+                <strong className="text-amber-400"> Egg Nunes Advogados Associados</strong>, escritório fundado pela minha família 
+                e especializado há 30 anos em causas de servidores públicos e concurseiros.
               </p>
               <p className="text-lg text-slate-300 leading-relaxed mt-4">
-                Minha missão é democratizar o acesso à tecnologia de ponta no mundo jurídico, 
-                tornando a IA acessível e aplicável para advogados de todas as áreas de atuação.
+                Em 2025, nosso escritório foi premiado como <strong className="text-amber-400">Melhor Escritório em Inteligência 
+                Artificial do Brasil</strong> pela Law Summit. Usando IA estrategicamente, conseguimos multiplicar o faturamento 
+                em mais de <strong className="text-amber-400">10x</strong>, mantendo a qualidade e reduzindo drasticamente o trabalho operacional.
+              </p>
+              <p className="text-lg text-slate-300 leading-relaxed mt-4">
+                Criei o <strong className="text-amber-400">Método IDEA</strong> (Inteligência de Dados e Artificial) e já ajudei 
+                centenas de advogados a automatizarem rotinas, captarem clientes no automático e escalarem seus escritórios.
               </p>
             </div>
           </div>
@@ -432,10 +435,17 @@ export function HomePage() {
                     className="text-amber-500 hover:text-orange-500 hover:bg-amber-500/10 p-0 transition-all duration-300 group-hover:translate-x-1"
                     asChild
                   >
-                    <a href={product.link} target={product.external ? "_blank" : undefined} rel={product.external ? "noopener noreferrer" : undefined}>
-                      Saiba mais
-                      <ExternalLink className="ml-2 h-4 w-4" />
-                    </a>
+                    {product.external ? (
+                      <a href={product.link} target="_blank" rel="noopener noreferrer">
+                        Saiba mais
+                        <ExternalLink className="ml-2 h-4 w-4" />
+                      </a>
+                    ) : (
+                      <Link to={product.link}>
+                        Saiba mais
+                        <ExternalLink className="ml-2 h-4 w-4" />
+                      </Link>
+                    )}
                   </Button>
                 </CardContent>
               </Card>
@@ -747,7 +757,7 @@ export function HomePage() {
           <div className="grid md:grid-cols-3 gap-8">
             <div>
               <div className="flex items-center gap-2 mb-4">
-                <img src={logoRE} alt="Rafael Egg" className="h-8 w-8 object-contain" />
+                <img src={logoRE} alt="Rafael Egg" className="h-16 w-16 object-contain" />
                 <span className="text-xl font-bold text-white">Rafael Egg</span>
               </div>
               <p className="text-slate-400">
