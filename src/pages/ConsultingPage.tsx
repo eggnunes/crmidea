@@ -23,7 +23,8 @@ import {
   Settings,
   ShieldCheck,
   MailCheck,
-  CalendarCog
+  CalendarCog,
+  UserCheck
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -35,6 +36,7 @@ import { ConsultingNotificationSettings } from "@/components/consulting/Consulti
 import { ConsultingSettingsPanel } from "@/components/consulting/ConsultingSettingsPanel";
 import { ConsultingCalendarSettings } from "@/components/consulting/ConsultingCalendarSettings";
 import { SentEmailsLog } from "@/components/consulting/SentEmailsLog";
+import { PendingClientApprovals } from "@/components/consulting/PendingClientApprovals";
 
 interface ConsultingClientBasic {
   id: string;
@@ -158,6 +160,10 @@ export function ConsultingPage() {
             <Users className="w-4 h-4" />
             Clientes
           </TabsTrigger>
+          <TabsTrigger value="approvals" className="gap-2">
+            <UserCheck className="w-4 h-4" />
+            Aprovações
+          </TabsTrigger>
           <TabsTrigger value="admin" className="gap-2">
             <ShieldCheck className="w-4 h-4" />
             Administração
@@ -175,6 +181,7 @@ export function ConsultingPage() {
             Notificações
           </TabsTrigger>
         </TabsList>
+
 
         <TabsContent value="clients" className="space-y-6">
           {/* Stats */}
@@ -317,6 +324,10 @@ export function ConsultingPage() {
               ))}
             </div>
           )}
+        </TabsContent>
+
+        <TabsContent value="approvals">
+          <PendingClientApprovals />
         </TabsContent>
 
         <TabsContent value="admin">

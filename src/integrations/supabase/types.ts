@@ -618,33 +618,42 @@ export type Database = {
       }
       client_profiles: {
         Row: {
+          approved_at: string | null
+          approved_by: string | null
           consultant_id: string
           created_at: string
           email: string
           full_name: string
           id: string
+          is_approved: boolean | null
           office_name: string | null
           phone: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
           consultant_id: string
           created_at?: string
           email: string
           full_name: string
           id?: string
+          is_approved?: boolean | null
           office_name?: string | null
           phone?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          approved_at?: string | null
+          approved_by?: string | null
           consultant_id?: string
           created_at?: string
           email?: string
           full_name?: string
           id?: string
+          is_approved?: boolean | null
           office_name?: string | null
           phone?: string | null
           updated_at?: string

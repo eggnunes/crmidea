@@ -1,14 +1,17 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Zap, Loader2, ArrowLeft } from "lucide-react";
+import { Zap, Loader2, ArrowLeft, CheckCircle, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
+
+// Default consultant ID (Rafael Egg)
+const DEFAULT_CONSULTANT_ID = "e850e3e3-1682-4cb0-af43-d7dade2aff9e";
 
 const signUpSchema = z.object({
   fullName: z.string().min(3, "Nome deve ter pelo menos 3 caracteres"),
@@ -26,10 +29,12 @@ const signInSchema = z.object({
 });
 
 export function ClientAuthPage() {
-  const { consultantId } = useParams<{ consultantId: string }>();
+  const { consultantId: urlConsultantId } = useParams<{ consultantId: string }>();
+  const consultantId = urlConsultantId || DEFAULT_CONSULTANT_ID;
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<"login" | "signup">("signup");
   const [loading, setLoading] = useState(false);
+  const [signupSuccess, setSignupSuccess] = useState(false);
   
   // Sign up form
   const [signUpData, setSignUpData] = useState({
@@ -63,11 +68,6 @@ export function ClientAuthPage() {
       return;
     }
     
-    if (!consultantId) {
-      toast.error("ID do consultor não encontrado");
-      return;
-    }
-    
     setLoading(true);
     
     try {
@@ -97,15 +97,22 @@ export function ClientAuthPage() {
       }
 
       if (data.user) {
-        // Create client profile
-        await supabase
+        // Create client profile with is_approved = false
+        const { error: profileError } = await supabase
           .from("client_profiles")
           .insert({
             user_id: data.user.id,
             consultant_id: consultantId,
             full_name: signUpData.fullName,
             email: signUpData.email,
+            is_approved: false,
           });
+
+        if (profileError) {
+          console.error("Error creating client profile:", profileError);
+          toast.error("Erro ao criar perfil. Tente novamente.");
+          return;
+        }
 
         // Create initial form progress
         await supabase
@@ -125,11 +132,24 @@ export function ClientAuthPage() {
             consultant_id: consultantId,
             event_type: "signup",
             title: "Cadastro realizado",
-            description: "Bem-vindo à consultoria IDEA!",
+            description: "Aguardando aprovação do consultor.",
           });
 
-        toast.success("Cadastro realizado com sucesso!");
-        navigate("/consultoria/dashboard");
+        // Notify consultant via WhatsApp
+        try {
+          await supabase.functions.invoke("notify-client-signup", {
+            body: {
+              clientName: signUpData.fullName,
+              clientEmail: signUpData.email,
+            },
+          });
+        } catch (notifyError) {
+          console.error("Error sending notification:", notifyError);
+          // Don't block signup if notification fails
+        }
+
+        setSignupSuccess(true);
+        toast.success("Cadastro realizado! Aguarde a aprovação do consultor.");
       }
     } catch (error) {
       console.error("Sign up error:", error);
@@ -158,7 +178,7 @@ export function ClientAuthPage() {
     setLoading(true);
     
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data: authData, error } = await supabase.auth.signInWithPassword({
         email: signInData.email,
         password: signInData.password,
       });
@@ -172,6 +192,21 @@ export function ClientAuthPage() {
         return;
       }
 
+      // Check if client is approved
+      if (authData.user) {
+        const { data: profile } = await supabase
+          .from("client_profiles")
+          .select("is_approved")
+          .eq("user_id", authData.user.id)
+          .maybeSingle();
+
+        if (profile && !profile.is_approved) {
+          await supabase.auth.signOut();
+          toast.error("Seu cadastro ainda está aguardando aprovação. Você receberá um e-mail quando for aprovado.");
+          return;
+        }
+      }
+
       toast.success("Login realizado com sucesso!");
       navigate("/consultoria/dashboard");
     } catch (error) {
@@ -181,6 +216,51 @@ export function ClientAuthPage() {
       setLoading(false);
     }
   };
+
+  // Show success message after signup
+  if (signupSuccess) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex items-center justify-center p-4">
+        <div className="w-full max-w-md text-center">
+          <div className="flex items-center justify-center mb-6">
+            <div className="w-20 h-20 rounded-full bg-amber-500/20 flex items-center justify-center">
+              <Clock className="w-10 h-10 text-amber-500" />
+            </div>
+          </div>
+          
+          <h1 className="text-2xl font-bold mb-4">Cadastro Realizado!</h1>
+          
+          <p className="text-muted-foreground mb-6">
+            Seu cadastro foi enviado com sucesso. Aguarde a aprovação do consultor para acessar a área do cliente.
+          </p>
+          
+          <p className="text-sm text-muted-foreground mb-8">
+            Você receberá uma notificação por e-mail quando seu acesso for liberado.
+          </p>
+          
+          <div className="space-y-3">
+            <Button 
+              variant="outline" 
+              className="w-full"
+              onClick={() => {
+                setSignupSuccess(false);
+                setActiveTab("login");
+              }}
+            >
+              Já fui aprovado - Fazer Login
+            </Button>
+            
+            <Link to="/consultoria">
+              <Button variant="ghost" className="w-full">
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Voltar para a página da consultoria
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex items-center justify-center p-4">
