@@ -24,13 +24,15 @@ import {
   Video,
   Users,
   CalendarCheck,
-  TrendingUp
+  TrendingUp,
+  Send
 } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { User as SupabaseUser } from "@supabase/supabase-js";
+import { ClientProgressFeedback } from "@/components/clients/ClientProgressFeedback";
 
 interface ClientProfile {
   id: string;
@@ -421,9 +423,26 @@ export function ClientDashboardPage() {
         <Tabs defaultValue="sessions" className="space-y-4">
           <TabsList>
             <TabsTrigger value="sessions">Reuniões</TabsTrigger>
+            <TabsTrigger value="progress" className="gap-2">
+              <Send className="w-4 h-4" />
+              Meu Progresso
+            </TabsTrigger>
             <TabsTrigger value="timeline">Timeline</TabsTrigger>
             <TabsTrigger value="prompt">Prompt Gerado</TabsTrigger>
           </TabsList>
+
+          {/* Progress Feedback Tab */}
+          <TabsContent value="progress">
+            {consultingClient && user ? (
+              <ClientProgressFeedback clientId={consultingClient.id} userId={user.id} />
+            ) : (
+              <Card>
+                <CardContent className="py-8 text-center">
+                  <p className="text-muted-foreground">Complete o diagnóstico para acessar esta seção.</p>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
 
           {/* Sessions Tab */}
           <TabsContent value="sessions">
