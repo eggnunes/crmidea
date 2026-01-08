@@ -13,7 +13,7 @@ export const CONSULTING_FEATURES: ConsultingFeature[] = [
   { id: 4, name: "Pesquisa de Jurisprudência Inteligente", description: "Busca avançada em jurisprudência com filtros inteligentes, análise de tendências e sumarização automática.", category: "IA" },
 
   // Jurídico e Processual (5-8)
-  { id: 5, name: "Integração com Sistema de Gestão Processual", description: "Sincronização bidirecional com Advbox, Projuris, Astrea ou outro sistema de gestão processual.", category: "Jurídico" },
+  { id: 5, name: "Integração com Sistema de Gestão Processual", description: "Sincronização bidirecional com seu sistema de gestão processual atual (Projuris, Astrea, Themis, GOJUR, SAJ ou outro).", category: "Jurídico" },
   { id: 6, name: "Analytics Processual Avançado", description: "Dashboards de produtividade, tempo de tramitação, taxa de sucesso e identificação de gargalos.", category: "Jurídico" },
   { id: 7, name: "Gestão Inteligente de Tarefas Processuais", description: "Atribuição automática, priorização por urgência, notificações de prazos e relatórios de produtividade.", category: "Jurídico" },
   { id: 8, name: "Banco de Decisões Favoráveis", description: "Repositório de decisões favoráveis com categorização, busca avançada e compartilhamento de estratégias.", category: "Jurídico" },

@@ -25,13 +25,15 @@ import {
   Settings,
   FileText,
   CreditCard,
-  Scale
+  Scale,
+  FileDown
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { CONSULTING_FEATURES } from "@/data/consultingFeatures";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ConsultingSessionsManager } from "./ConsultingSessionsManager";
+import { exportClientToPDF, exportClientToDOCX } from "@/utils/exportClient";
 
 interface ConsultingClient {
   id: string;
@@ -185,6 +187,26 @@ O prompt deve:
     .map(id => CONSULTING_FEATURES.find(f => f.id === id))
     .filter(Boolean);
 
+  const handleExportPDF = () => {
+    try {
+      exportClientToPDF(client);
+      toast.success('PDF exportado com sucesso!');
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+      toast.error('Erro ao exportar PDF');
+    }
+  };
+
+  const handleExportDOCX = async () => {
+    try {
+      await exportClientToDOCX(client);
+      toast.success('DOCX exportado com sucesso!');
+    } catch (error) {
+      console.error('Error exporting DOCX:', error);
+      toast.error('Erro ao exportar DOCX');
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -199,18 +221,28 @@ O prompt deve:
             {client.office_name}
           </p>
         </div>
-        <Select value={client.status} onValueChange={updateStatus}>
-          <SelectTrigger className="w-40">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {statusOptions.map(option => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={handleExportPDF}>
+            <FileDown className="w-4 h-4 mr-2" />
+            PDF
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleExportDOCX}>
+            <FileText className="w-4 h-4 mr-2" />
+            DOCX
+          </Button>
+          <Select value={client.status} onValueChange={updateStatus}>
+            <SelectTrigger className="w-40">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {statusOptions.map(option => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       <Tabs defaultValue="info" className="space-y-4">
