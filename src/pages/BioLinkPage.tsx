@@ -10,8 +10,9 @@ import logoComboEbooks from "@/assets/logo-combo-ebooks-new.png";
 import logoEggNunes from "@/assets/logo-eggnunes.png";
 import logoRobodetoga from "@/assets/logo-robodetoga.png";
 import logoVagasjuridicas from "@/assets/logo-vagasjuridicas.png";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Helmet } from "react-helmet";
+import { supabase } from "@/integrations/supabase/client";
 
 const products = [
   {
@@ -105,7 +106,38 @@ const otherProjects = [
   }
 ];
 
+const trackClick = async (title: string, url: string, category: string) => {
+  try {
+    await supabase.from("bio_link_clicks").insert({
+      link_title: title,
+      link_url: url,
+      category: category,
+      user_agent: navigator.userAgent,
+      referrer: document.referrer || null
+    });
+  } catch (error) {
+    console.error("Error tracking click:", error);
+  }
+};
+
 export function BioLinkPage() {
+  const navigate = useNavigate();
+
+  const handleProductClick = (product: typeof products[0]) => {
+    trackClick(product.title, product.link, product.category);
+    
+    if (product.external) {
+      window.open(product.link, "_blank", "noopener,noreferrer");
+    } else {
+      navigate(product.link);
+    }
+  };
+
+  const handleProjectClick = (project: typeof otherProjects[0]) => {
+    trackClick(project.title, project.link, "projeto");
+    window.open(project.link, "_blank", "noopener,noreferrer");
+  };
+
   return (
     <>
       <Helmet>
@@ -184,46 +216,24 @@ export function BioLinkPage() {
                       ? 'border-amber-500/50 hover:border-amber-400 hover:shadow-lg hover:shadow-amber-500/20' 
                       : 'border-slate-700 hover:border-slate-600'
                   }`}
+                  onClick={() => handleProductClick(product)}
                 >
-                  {product.external ? (
-                    <a href={product.link} target="_blank" rel="noopener noreferrer" className="block">
-                      <CardContent className="p-4">
-                        <div className="flex items-center gap-4">
-                          <div className="w-20 h-14 flex items-center justify-center flex-shrink-0">
-                            <img 
-                              src={product.logo} 
-                              alt={product.title}
-                              className="max-h-14 max-w-20 object-contain"
-                            />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h3 className="font-semibold text-white text-sm">{product.title}</h3>
-                            <p className="text-slate-400 text-xs line-clamp-2">{product.description}</p>
-                          </div>
-                          <ExternalLink className="w-4 h-4 text-amber-400 flex-shrink-0" />
-                        </div>
-                      </CardContent>
-                    </a>
-                  ) : (
-                    <Link to={product.link} className="block">
-                      <CardContent className="p-4">
-                        <div className="flex items-center gap-4">
-                          <div className="w-20 h-14 flex items-center justify-center flex-shrink-0">
-                            <img 
-                              src={product.logo} 
-                              alt={product.title}
-                              className="max-h-14 max-w-20 object-contain"
-                            />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h3 className="font-semibold text-white text-sm">{product.title}</h3>
-                            <p className="text-slate-400 text-xs line-clamp-2">{product.description}</p>
-                          </div>
-                          <ExternalLink className="w-4 h-4 text-amber-400 flex-shrink-0" />
-                        </div>
-                      </CardContent>
-                    </Link>
-                  )}
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-4">
+                      <div className="w-20 h-14 flex items-center justify-center flex-shrink-0">
+                        <img 
+                          src={product.logo} 
+                          alt={product.title}
+                          className="max-h-14 max-w-20 object-contain"
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-white text-sm">{product.title}</h3>
+                        <p className="text-slate-400 text-xs line-clamp-2">{product.description}</p>
+                      </div>
+                      <ExternalLink className="w-4 h-4 text-amber-400 flex-shrink-0" />
+                    </div>
+                  </CardContent>
                 </Card>
               ))}
             </div>
@@ -239,35 +249,34 @@ export function BioLinkPage() {
                 <Card 
                   key={index}
                   className={`bg-slate-800/60 border-2 transition-all duration-300 hover:scale-[1.02] cursor-pointer ${project.accentColor}`}
+                  onClick={() => handleProjectClick(project)}
                 >
-                  <a href={project.link} target="_blank" rel="noopener noreferrer" className="block">
-                      <CardContent className="p-4">
-                        <div className="flex items-center gap-4">
-                          <div className="w-14 h-14 flex items-center justify-center flex-shrink-0">
-                            {project.logo ? (
-                              <div className={project.logoBg || ""}>
-                                <img 
-                                  src={project.logo} 
-                                  alt={project.title}
-                                  className="h-12 w-12 object-contain"
-                                />
-                              </div>
-                            ) : (
-                              <div className={`h-12 w-12 rounded-lg ${project.iconBg} flex items-center justify-center`}>
-                                <svg className={`h-6 w-6 ${project.iconColor}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                                </svg>
-                              </div>
-                            )}
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-4">
+                      <div className="w-14 h-14 flex items-center justify-center flex-shrink-0">
+                        {project.logo ? (
+                          <div className={project.logoBg || ""}>
+                            <img 
+                              src={project.logo} 
+                              alt={project.title}
+                              className="h-12 w-12 object-contain"
+                            />
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <h3 className="font-semibold text-white text-sm">{project.title}</h3>
-                            <p className="text-slate-400 text-xs line-clamp-2">{project.description}</p>
+                        ) : (
+                          <div className={`h-12 w-12 rounded-lg ${project.iconBg} flex items-center justify-center`}>
+                            <svg className={`h-6 w-6 ${project.iconColor}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                            </svg>
                           </div>
-                          <ExternalLink className={`w-4 h-4 flex-shrink-0 ${project.buttonColor}`} />
-                        </div>
-                      </CardContent>
-                  </a>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-white text-sm">{project.title}</h3>
+                        <p className="text-slate-400 text-xs line-clamp-2">{project.description}</p>
+                      </div>
+                      <ExternalLink className={`w-4 h-4 flex-shrink-0 ${project.buttonColor}`} />
+                    </div>
+                  </CardContent>
                 </Card>
               ))}
             </div>

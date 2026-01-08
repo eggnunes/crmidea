@@ -149,6 +149,23 @@ export function ImplementationPlanViewer({
           </div>
         ) : (
           <div className="space-y-4">
+            {/* Explanatory text about gradual implementation */}
+            <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+              <h4 className="font-semibold text-amber-600 dark:text-amber-400 mb-2 flex items-center gap-2">
+                <Sparkles className="w-4 h-4" />
+                Por que a implementação é gradual?
+              </h4>
+              <p className="text-sm text-muted-foreground mb-2">
+                A inteligência artificial do Lovable funciona melhor quando recebe instruções em etapas. 
+                Se tentarmos implementar tudo de uma vez, podem ocorrer erros ou funcionalidades incompletas.
+              </p>
+              <p className="text-sm text-muted-foreground">
+                <strong>Como usar:</strong> Copie o prompt de cada etapa na ordem indicada e cole no Lovable. 
+                Aguarde a IA terminar a implementação completa antes de passar para a próxima etapa. 
+                Isso garante que seu sistema seja construído de forma sólida e sem erros.
+              </p>
+            </div>
+
             <div className="flex items-center gap-2 p-3 bg-primary/5 rounded-lg border border-primary/20">
               <Sparkles className="w-5 h-5 text-primary flex-shrink-0" />
               <p className="text-sm">
