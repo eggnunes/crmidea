@@ -13,12 +13,13 @@ export function QRCodeGenerator() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [copied, setCopied] = useState(false);
   
-  const formUrl = user ? `${window.location.origin}/diagnostico/${user.id}` : "";
+  // URL para página de cadastro (não para o formulário de diagnóstico direto)
+  const cadastroUrl = user ? `${window.location.origin}/cadastro-cliente/${user.id}` : "";
   
   useEffect(() => {
-    if (!canvasRef.current || !formUrl) return;
+    if (!canvasRef.current || !cadastroUrl) return;
     
-    QRCode.toCanvas(canvasRef.current, formUrl, {
+    QRCode.toCanvas(canvasRef.current, cadastroUrl, {
       width: 200,
       margin: 2,
       color: {
@@ -30,11 +31,11 @@ export function QRCodeGenerator() {
         console.error("Error generating QR code:", error);
       }
     });
-  }, [formUrl]);
+  }, [cadastroUrl]);
   
   const handleCopyLink = async () => {
     try {
-      await navigator.clipboard.writeText(formUrl);
+      await navigator.clipboard.writeText(cadastroUrl);
       setCopied(true);
       toast.success("Link copiado!");
       setTimeout(() => setCopied(false), 2000);
@@ -47,7 +48,7 @@ export function QRCodeGenerator() {
     if (!canvasRef.current) return;
     
     const link = document.createElement("a");
-    link.download = "qrcode-diagnostico.png";
+    link.download = "qrcode-cadastro-cliente.png";
     link.href = canvasRef.current.toDataURL("image/png");
     link.click();
     toast.success("QR Code baixado!");
@@ -58,10 +59,10 @@ export function QRCodeGenerator() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <QrCode className="w-5 h-5" />
-          QR Code do Formulário de Diagnóstico
+          QR Code para Cadastro de Clientes
         </CardTitle>
         <CardDescription>
-          Compartilhe este QR Code ou link com seus clientes de consultoria
+          Compartilhe este QR Code ou link para novos clientes se cadastrarem
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -72,9 +73,9 @@ export function QRCodeGenerator() {
           
           <div className="flex-1 space-y-4 w-full">
             <div className="space-y-2">
-              <Label>Link do formulário</Label>
+              <Label>Link de cadastro para clientes</Label>
               <div className="flex gap-2">
-                <Input value={formUrl} readOnly className="font-mono text-sm" />
+                <Input value={cadastroUrl} readOnly className="font-mono text-sm" />
                 <Button variant="outline" size="icon" onClick={handleCopyLink}>
                   {copied ? (
                     <Check className="w-4 h-4 text-green-500" />
@@ -83,7 +84,7 @@ export function QRCodeGenerator() {
                   )}
                 </Button>
                 <Button variant="outline" size="icon" asChild>
-                  <a href={formUrl} target="_blank" rel="noopener noreferrer">
+                  <a href={cadastroUrl} target="_blank" rel="noopener noreferrer">
                     <ExternalLink className="w-4 h-4" />
                   </a>
                 </Button>

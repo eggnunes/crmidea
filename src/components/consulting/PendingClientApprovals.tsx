@@ -88,7 +88,8 @@ export function PendingClientApprovals() {
   const approveClient = async (client: PendingClient) => {
     setApproving(client.id);
     try {
-      const { error } = await supabase
+      // 1. Update client_profiles to mark as approved
+      const { error: updateError } = await supabase
         .from('client_profiles')
         .update({
           is_approved: true,
@@ -97,9 +98,30 @@ export function PendingClientApprovals() {
         })
         .eq('id', client.id);
 
-      if (error) throw error;
+      if (updateError) throw updateError;
 
-      // Create timeline event
+      // 2. Create entry in consulting_clients so client appears in "Clientes" tab
+      const { error: insertError } = await supabase
+        .from('consulting_clients')
+        .insert({
+          user_id: user?.id,
+          lead_id: null,
+          full_name: client.full_name,
+          email: client.email,
+          phone: client.phone || '',
+          office_name: client.office_name || 'Não informado',
+          office_address: 'A preencher',
+          num_lawyers: 1,
+          num_employees: 1,
+          status: 'pending',
+        });
+
+      if (insertError) {
+        console.error('Error creating consulting_client:', insertError);
+        // Don't fail the whole operation if this fails
+      }
+
+      // 3. Create timeline event
       await supabase
         .from('client_timeline_events')
         .insert({
