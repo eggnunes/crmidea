@@ -27,7 +27,8 @@ import {
   CreditCard,
   Scale,
   FileDown,
-  FolderOpen
+  FolderOpen,
+  Rocket
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -35,6 +36,7 @@ import { CONSULTING_FEATURES } from "@/data/consultingFeatures";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ConsultingSessionsManager } from "./ConsultingSessionsManager";
 import { ClientDocumentsManager } from "./ClientDocumentsManager";
+import { ImplementationPlanViewer } from "./ImplementationPlanViewer";
 import { exportClientToPDF, exportClientToDOCX } from "@/utils/exportClient";
 
 interface ConsultingClient {
@@ -65,6 +67,7 @@ interface ConsultingClient {
   ai_familiarity_level: string;
   tasks_to_automate: string | null;
   case_management_system: string | null;
+  implementation_plan: unknown | null;
 }
 
 interface ConsultingClientDetailProps {
@@ -251,6 +254,10 @@ O prompt deve:
         <TabsList>
           <TabsTrigger value="info">Informações</TabsTrigger>
           <TabsTrigger value="features">Funcionalidades</TabsTrigger>
+          <TabsTrigger value="plan" className="flex items-center gap-2">
+            <Rocket className="w-4 h-4" />
+            Plano de Implementação
+          </TabsTrigger>
           <TabsTrigger value="documents" className="flex items-center gap-2">
             <FolderOpen className="w-4 h-4" />
             Documentos
@@ -491,6 +498,14 @@ O prompt deve:
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="plan">
+          <ImplementationPlanViewer 
+            clientId={client.id} 
+            existingPlan={client.implementation_plan as any}
+            onPlanGenerated={(plan) => setClient({ ...client, implementation_plan: plan })}
+          />
         </TabsContent>
 
         <TabsContent value="documents">
