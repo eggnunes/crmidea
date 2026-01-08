@@ -30,6 +30,7 @@ import { HomePage } from "./pages/HomePage";
 import { BlogPage } from "./pages/BlogPage";
 import { BlogArticlePage } from "./pages/BlogArticlePage";
 import { BioLinkPage } from "./pages/BioLinkPage";
+import { EbookCapturePage } from "./pages/EbookCapturePage";
 import { Loader2 } from "lucide-react";
 
 const queryClient = new QueryClient();
@@ -60,6 +61,7 @@ function AppRoutes() {
       <Route path="/bio" element={<BioLinkPage />} />
       <Route path="/blog" element={<BlogPage />} />
       <Route path="/blog/:slug" element={<BlogArticlePage />} />
+      <Route path="/ebook" element={<EbookCapturePage />} />
       
       {/* Autenticação admin */}
       <Route path="/auth" element={<AuthPage />} />
