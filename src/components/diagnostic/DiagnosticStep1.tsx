@@ -4,7 +4,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Upload, Sparkles, Building2, Loader2 } from "lucide-react";
+import { Upload, Sparkles, Building2, Loader2, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { DiagnosticFormData } from "@/pages/PublicDiagnosticForm";
@@ -14,6 +14,24 @@ interface DiagnosticStep1Props {
   updateFormData: (updates: Partial<DiagnosticFormData>) => void;
   consultantId?: string;
 }
+
+// Interface para resposta da ViaCEP
+interface ViaCepResponse {
+  cep: string;
+  logradouro: string;
+  complemento: string;
+  bairro: string;
+  localidade: string;
+  uf: string;
+  erro?: boolean;
+}
+
+// Função para formatar CEP: XXXXX-XXX
+const formatCEP = (value: string): string => {
+  const numbers = value.replace(/\D/g, "").slice(0, 8);
+  if (numbers.length <= 5) return numbers;
+  return `${numbers.slice(0, 5)}-${numbers.slice(5)}`;
+};
 
 // Função para formatar telefone com máscara
 const formatPhone = (value: string): string => {
@@ -157,8 +175,57 @@ export const validateOAB = (value: string): boolean => {
 export function DiagnosticStep1({ formData, updateFormData, consultantId }: DiagnosticStep1Props) {
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const [isGeneratingLogo, setIsGeneratingLogo] = useState(false);
+  const [isSearchingCep, setIsSearchingCep] = useState(false);
   const [cpfCnpjError, setCpfCnpjError] = useState<string | null>(null);
   const [oabError, setOabError] = useState<string | null>(null);
+  const [cep, setCep] = useState("");
+
+  const handleCepSearch = async (cepValue: string) => {
+    const numbers = cepValue.replace(/\D/g, "");
+    if (numbers.length !== 8) {
+      toast.error("CEP deve ter 8 dígitos");
+      return;
+    }
+
+    setIsSearchingCep(true);
+
+    try {
+      const response = await fetch(`https://viacep.com.br/ws/${numbers}/json/`);
+      const data: ViaCepResponse = await response.json();
+
+      if (data.erro) {
+        toast.error("CEP não encontrado");
+        return;
+      }
+
+      // Formata o endereço completo
+      const endereco = [
+        data.logradouro,
+        data.bairro,
+        `${data.localidade}/${data.uf}`,
+        data.cep
+      ].filter(Boolean).join(", ");
+
+      updateFormData({ office_address: endereco });
+      toast.success("Endereço preenchido automaticamente!");
+    } catch (error) {
+      console.error("Erro ao buscar CEP:", error);
+      toast.error("Erro ao buscar CEP. Verifique sua conexão.");
+    } finally {
+      setIsSearchingCep(false);
+    }
+  };
+
+  const handleCepChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatCEP(e.target.value);
+    setCep(formatted);
+
+    // Busca automática quando completar 8 dígitos
+    const numbers = formatted.replace(/\D/g, "");
+    if (numbers.length === 8) {
+      handleCepSearch(formatted);
+    }
+  };
   
   const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -438,6 +505,37 @@ export function DiagnosticStep1({ formData, updateFormData, consultantId }: Diag
           />
         </div>
         
+        {/* CEP com busca automática */}
+        <div className="space-y-2">
+          <Label htmlFor="cep">CEP</Label>
+          <div className="flex gap-2">
+            <Input
+              id="cep"
+              value={cep}
+              onChange={handleCepChange}
+              placeholder="00000-000"
+              maxLength={9}
+              className="flex-1"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={() => handleCepSearch(cep)}
+              disabled={isSearchingCep || cep.replace(/\D/g, "").length !== 8}
+            >
+              {isSearchingCep ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Search className="w-4 h-4" />
+              )}
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Digite o CEP para preencher o endereço automaticamente
+          </p>
+        </div>
+
         <div className="space-y-2">
           <Label htmlFor="office_address">Endereço do Escritório <span className="text-destructive">*</span></Label>
           <Input

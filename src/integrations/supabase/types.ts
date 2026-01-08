@@ -769,6 +769,7 @@ export type Database = {
           case_management_system: string | null
           client_service_flow: string | null
           comfortable_with_tech: boolean | null
+          cpf_cnpj: string | null
           created_at: string
           custom_features: string | null
           email: string
@@ -787,6 +788,7 @@ export type Database = {
           motivations_other: string | null
           num_employees: number
           num_lawyers: number
+          oab_number: string | null
           office_address: string
           office_name: string
           other_ai_tools: string | null
@@ -810,6 +812,7 @@ export type Database = {
           case_management_system?: string | null
           client_service_flow?: string | null
           comfortable_with_tech?: boolean | null
+          cpf_cnpj?: string | null
           created_at?: string
           custom_features?: string | null
           email: string
@@ -828,6 +831,7 @@ export type Database = {
           motivations_other?: string | null
           num_employees?: number
           num_lawyers?: number
+          oab_number?: string | null
           office_address: string
           office_name: string
           other_ai_tools?: string | null
@@ -851,6 +855,7 @@ export type Database = {
           case_management_system?: string | null
           client_service_flow?: string | null
           comfortable_with_tech?: boolean | null
+          cpf_cnpj?: string | null
           created_at?: string
           custom_features?: string | null
           email?: string
@@ -869,6 +874,7 @@ export type Database = {
           motivations_other?: string | null
           num_employees?: number
           num_lawyers?: number
+          oab_number?: string | null
           office_address?: string
           office_name?: string
           other_ai_tools?: string | null
