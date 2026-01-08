@@ -111,12 +111,13 @@ export function ConsultingPage() {
     completed: clients.filter(c => c.status === 'completed').length,
   };
 
-  const formUrl = user ? `${window.location.origin}/diagnostico/${user.id}` : "";
+  // URL para página de cadastro de clientes
+  const cadastroUrl = user ? `${window.location.origin}/cadastro-cliente/${user.id}` : "";
 
   const copyFormLink = () => {
-    if (formUrl) {
-      navigator.clipboard.writeText(formUrl);
-      toast.success('Link copiado!');
+    if (cadastroUrl) {
+      navigator.clipboard.writeText(cadastroUrl);
+      toast.success('Link de cadastro copiado!');
     }
   };
 
