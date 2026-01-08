@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown } from "lucide-react";
 import { CONSULTING_FEATURES, FEATURE_CATEGORIES } from "@/data/consultingFeatures";
+import { AIFeatureSuggestions } from "./AIFeatureSuggestions";
 import type { DiagnosticFormData } from "@/pages/PublicDiagnosticForm";
 
 interface DiagnosticStep4Props {
@@ -15,7 +16,7 @@ interface DiagnosticStep4Props {
 
 export function DiagnosticStep4({ formData, updateFormData }: DiagnosticStep4Props) {
   const [openCategories, setOpenCategories] = useState<string[]>(
-    Object.keys(FEATURE_CATEGORIES)
+    FEATURE_CATEGORIES.map(c => c.id)
   );
   
   const toggleFeature = (featureId: number) => {
@@ -42,9 +43,23 @@ export function DiagnosticStep4({ formData, updateFormData }: DiagnosticStep4Pro
   
   return (
     <div className="space-y-6">
+      {/* AI Assistant */}
+      <AIFeatureSuggestions
+        formData={{
+          practice_areas: formData.practice_areas,
+          num_lawyers: formData.num_lawyers,
+          num_employees: formData.num_employees,
+          case_management_system: formData.case_management_system,
+          tasks_to_automate: formData.tasks_to_automate,
+          ai_familiarity_level: formData.ai_familiarity_level,
+        }}
+        selectedFeatures={formData.selected_features}
+        onSelectFeature={toggleFeature}
+      />
+
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
-          Selecione as funcionalidades que deseja implantar no seu escritório
+          Ou selecione manualmente as funcionalidades desejadas
         </p>
         <Badge variant="secondary">
           {selectedCount} selecionada{selectedCount !== 1 ? "s" : ""}
@@ -52,17 +67,17 @@ export function DiagnosticStep4({ formData, updateFormData }: DiagnosticStep4Pro
       </div>
       
       <div className="space-y-3">
-        {Object.entries(FEATURE_CATEGORIES).map(([key, category]) => {
-          const features = getCategoryFeatures(key);
+        {FEATURE_CATEGORIES.map((category) => {
+          const features = getCategoryFeatures(category.id);
           const selectedInCategory = features.filter((f) =>
             formData.selected_features.includes(f.id)
           ).length;
           
           return (
             <Collapsible
-              key={key}
-              open={openCategories.includes(key)}
-              onOpenChange={() => toggleCategory(key)}
+              key={category.id}
+              open={openCategories.includes(category.id)}
+              onOpenChange={() => toggleCategory(category.id)}
             >
               <CollapsibleTrigger className="flex items-center justify-between w-full p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors">
                 <div className="flex items-center gap-3">
@@ -77,7 +92,7 @@ export function DiagnosticStep4({ formData, updateFormData }: DiagnosticStep4Pro
                   )}
                   <ChevronDown
                     className={`w-4 h-4 transition-transform ${
-                      openCategories.includes(key) ? "rotate-180" : ""
+                      openCategories.includes(category.id) ? "rotate-180" : ""
                     }`}
                   />
                 </div>
