@@ -55,6 +55,10 @@ export function HomePage() {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const handleConsultoriaClick = () => {
+    window.scrollTo(0, 0);
+  };
+
   const products = [
     {
       title: "Consultoria IDEA",
@@ -63,7 +67,8 @@ export function HomePage() {
       link: "/consultoria",
       logo: logoConsultoria,
       highlight: true,
-      external: false
+      external: false,
+      onClick: handleConsultoriaClick
     },
     {
       title: "Mentoria",
@@ -441,7 +446,7 @@ export function HomePage() {
                         <ExternalLink className="ml-2 h-4 w-4" />
                       </a>
                     ) : (
-                      <Link to={product.link}>
+                      <Link to={product.link} onClick={product.onClick}>
                         Saiba mais
                         <ExternalLink className="ml-2 h-4 w-4" />
                       </Link>
