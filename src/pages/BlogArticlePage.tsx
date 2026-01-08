@@ -160,6 +160,15 @@ export function BlogArticlePage() {
 
       {/* Article */}
       <article className="container mx-auto px-6 py-12 max-w-4xl">
+        {/* Cover Image */}
+        <div className="mb-8 rounded-2xl overflow-hidden shadow-2xl shadow-amber-500/10">
+          <img 
+            src={getArticleImage(article.title, article.slug)} 
+            alt={article.title}
+            className="w-full h-64 md:h-80 lg:h-96 object-cover"
+          />
+        </div>
+
         {/* Article Header */}
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-4">
