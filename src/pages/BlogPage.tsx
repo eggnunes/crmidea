@@ -19,7 +19,7 @@ import { useBlogPosts } from "@/hooks/useBlogPosts";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
-// Blog images
+// Blog images - mapeamento exato por slug (sem repetição)
 import blogIaRevolucionando from "@/assets/blog-ia-revolucionando.png";
 import blogChatgptPrompts from "@/assets/blog-chatgpt-prompts.png";
 import blogEticaIa from "@/assets/blog-etica-ia.png";
@@ -29,44 +29,21 @@ import blogPesquisaJuridica from "@/assets/blog-pesquisa-juridica.png";
 import blogIaIniciantes from "@/assets/blog-ia-iniciantes.png";
 import blogProdutividade from "@/assets/blog-produtividade.png";
 
-// Image mapping by article slug/title keywords
-const articleImages: Record<string, string> = {
-  "revolucionando": blogIaRevolucionando,
-  "transformando": blogIaRevolucionando,
-  "2025": blogIaRevolucionando,
-  "chatgpt": blogChatgptPrompts,
-  "prompts": blogChatgptPrompts,
-  "ética": blogEticaIa,
-  "etica": blogEticaIa,
-  "ferramentas": blogFerramentasIa,
-  "gratuitas": blogFerramentasIa,
-  "contratos": blogContratosIa,
-  "automatizar": blogContratosIa,
-  "automatizando": blogContratosIa,
-  "pesquisa": blogPesquisaJuridica,
-  "jurisprudência": blogPesquisaJuridica,
-  "jurisprudencia": blogPesquisaJuridica,
-  "iniciantes": blogIaIniciantes,
-  "começar": blogIaIniciantes,
-  "comecar": blogIaIniciantes,
-  "zero": blogIaIniciantes,
-  "produtividade": blogProdutividade,
-  "escritório": blogProdutividade,
-  "escritorio": blogProdutividade,
+// Mapeamento EXATO por slug - cada imagem pertence a apenas um artigo
+const articleImagesBySlug: Record<string, string> = {
+  "ia-revolucionando-advocacia-2025": blogIaRevolucionando,
+  "chatgpt-advogados-10-prompts-essenciais": blogChatgptPrompts,
+  "etica-ia-advocacia-guia-definitivo": blogEticaIa,
+  "ferramentas-ia-gratuitas-advogados": blogFerramentasIa,
+  "automatizar-contratos-inteligencia-artificial": blogContratosIa,
+  "pesquisa-juridica-ia-jurisprudencia-minutos": blogPesquisaJuridica,
+  "ia-advocacia-como-comecar-guia-iniciantes": blogIaIniciantes,
+  "aumentar-produtividade-escritorio-advocacia-ia": blogProdutividade,
 };
 
-// Function to get article image based on title or slug
-function getArticleImage(title: string, slug?: string): string {
-  const searchText = `${title} ${slug || ""}`.toLowerCase();
-  
-  for (const [keyword, image] of Object.entries(articleImages)) {
-    if (searchText.includes(keyword.toLowerCase())) {
-      return image;
-    }
-  }
-  
-  // Default fallback
-  return blogIaRevolucionando;
+function getArticleImage(slug?: string): string | null {
+  if (!slug) return null;
+  return articleImagesBySlug[slug] || null;
 }
 
 // Default articles if no dynamic content exists
@@ -255,13 +232,15 @@ export function BlogPage() {
                         </Link>
                       </Button>
                     </div>
-                    <div className="w-full md:w-80 h-48 rounded-xl overflow-hidden">
-                      <img 
-                        src={getArticleImage(featuredArticle.title, featuredArticle.slug)} 
-                        alt={featuredArticle.title}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
+                    {getArticleImage(featuredArticle.slug) && (
+                      <div className="w-full md:w-80 h-48 rounded-xl overflow-hidden">
+                        <img 
+                          src={getArticleImage(featuredArticle.slug)!} 
+                          alt={featuredArticle.title}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -281,13 +260,15 @@ export function BlogPage() {
                     className="bg-slate-800/50 border-slate-700 hover:border-amber-500/50 transition-all duration-300 group hover:scale-[1.02] hover:shadow-xl hover:shadow-amber-500/10 h-full"
                   >
                     <CardContent className="p-6">
-                      <div className="h-40 rounded-lg mb-4 overflow-hidden">
-                        <img 
-                          src={getArticleImage(article.title, article.slug)} 
-                          alt={article.title}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        />
-                      </div>
+                      {getArticleImage(article.slug) && (
+                        <div className="h-40 rounded-lg mb-4 overflow-hidden">
+                          <img 
+                            src={getArticleImage(article.slug)!} 
+                            alt={article.title}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          />
+                        </div>
+                      )}
                       {article.category && (
                         <Badge variant="outline" className="border-amber-500/30 text-amber-400 mb-3">
                           {article.category}

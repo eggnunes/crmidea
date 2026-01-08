@@ -19,7 +19,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Card, CardContent } from "@/components/ui/card";
 
-// Blog images
+// Blog images - mapeamento exato por slug (sem repetição)
 import blogIaRevolucionando from "@/assets/blog-ia-revolucionando.png";
 import blogChatgptPrompts from "@/assets/blog-chatgpt-prompts.png";
 import blogEticaIa from "@/assets/blog-etica-ia.png";
@@ -29,37 +29,24 @@ import blogPesquisaJuridica from "@/assets/blog-pesquisa-juridica.png";
 import blogIaIniciantes from "@/assets/blog-ia-iniciantes.png";
 import blogProdutividade from "@/assets/blog-produtividade.png";
 
-// Image mapping
-const articleImages: Record<string, string> = {
-  "revolucionando": blogIaRevolucionando,
-  "2025": blogIaRevolucionando,
-  "lgpd": blogIaRevolucionando,
-  "futuro": blogProdutividade,
-  "chatgpt": blogChatgptPrompts,
-  "prompts": blogChatgptPrompts,
-  "ética": blogEticaIa,
-  "etica": blogEticaIa,
-  "ferramentas": blogFerramentasIa,
-  "gratuitas": blogFerramentasIa,
-  "contratos": blogContratosIa,
-  "automatizar": blogContratosIa,
-  "pesquisa": blogPesquisaJuridica,
-  "jurisprudência": blogPesquisaJuridica,
-  "iniciantes": blogIaIniciantes,
-  "começar": blogIaIniciantes,
-  "zero": blogIaIniciantes,
-  "produtividade": blogProdutividade,
-  "escritório": blogProdutividade,
+// Mapeamento EXATO por slug - cada imagem pertence a apenas um artigo
+const articleImagesBySlug: Record<string, string> = {
+  "ia-revolucionando-advocacia-2025": blogIaRevolucionando,
+  "chatgpt-advogados-10-prompts-essenciais": blogChatgptPrompts,
+  "etica-ia-advocacia-guia-definitivo": blogEticaIa,
+  "ferramentas-ia-gratuitas-advogados": blogFerramentasIa,
+  "automatizar-contratos-inteligencia-artificial": blogContratosIa,
+  "pesquisa-juridica-ia-jurisprudencia-minutos": blogPesquisaJuridica,
+  "ia-advocacia-como-comecar-guia-iniciantes": blogIaIniciantes,
+  "aumentar-produtividade-escritorio-advocacia-ia": blogProdutividade,
+  // Artigos sem imagem específica - retornarão null
+  // "lgpd-inteligencia-artificial-advogados": null,
+  // "futuro-advocacia-ia-previsoes-2030": null,
 };
 
-function getArticleImage(title: string, slug?: string): string {
-  const searchText = `${title} ${slug || ""}`.toLowerCase();
-  for (const [keyword, image] of Object.entries(articleImages)) {
-    if (searchText.includes(keyword.toLowerCase())) {
-      return image;
-    }
-  }
-  return blogIaRevolucionando;
+function getArticleImage(slug?: string): string | null {
+  if (!slug) return null;
+  return articleImagesBySlug[slug] || null;
 }
 
 export function BlogArticlePage() {
@@ -160,14 +147,16 @@ export function BlogArticlePage() {
 
       {/* Article */}
       <article className="container mx-auto px-6 py-12 max-w-4xl">
-        {/* Cover Image */}
-        <div className="mb-8 rounded-2xl overflow-hidden shadow-2xl shadow-amber-500/10">
-          <img 
-            src={getArticleImage(article.title, article.slug)} 
-            alt={article.title}
-            className="w-full h-64 md:h-80 lg:h-96 object-cover"
-          />
-        </div>
+        {/* Cover Image - só exibe se existir imagem para o artigo */}
+        {getArticleImage(article.slug) && (
+          <div className="mb-8 rounded-2xl overflow-hidden shadow-2xl shadow-amber-500/10">
+            <img 
+              src={getArticleImage(article.slug)!} 
+              alt={article.title}
+              className="w-full h-64 md:h-80 lg:h-96 object-cover"
+            />
+          </div>
+        )}
 
         {/* Article Header */}
         <div className="mb-8">
