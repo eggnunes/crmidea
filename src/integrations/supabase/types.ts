@@ -757,6 +757,50 @@ export type Database = {
         }
         Relationships: []
       }
+      consulting_client_reminders: {
+        Row: {
+          client_id: string
+          created_at: string
+          days_since_last_meeting: number | null
+          id: string
+          is_dismissed: boolean | null
+          reminder_message: string
+          reminder_type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          days_since_last_meeting?: number | null
+          id?: string
+          is_dismissed?: boolean | null
+          reminder_message: string
+          reminder_type?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          days_since_last_meeting?: number | null
+          id?: string
+          is_dismissed?: boolean | null
+          reminder_message?: string
+          reminder_type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "consulting_client_reminders_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "consulting_clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       consulting_clients: {
         Row: {
           address_complement: string | null
