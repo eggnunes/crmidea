@@ -766,6 +766,7 @@ export type Database = {
           ai_tasks_used: string | null
           ai_tools_used: string | null
           ai_usage_frequency: string | null
+          bairro: string | null
           case_management_flow: string | null
           case_management_other: string | null
           case_management_system: string | null
@@ -813,6 +814,7 @@ export type Database = {
           ai_tasks_used?: string | null
           ai_tools_used?: string | null
           ai_usage_frequency?: string | null
+          bairro?: string | null
           case_management_flow?: string | null
           case_management_other?: string | null
           case_management_system?: string | null
@@ -860,6 +862,7 @@ export type Database = {
           ai_tasks_used?: string | null
           ai_tools_used?: string | null
           ai_usage_frequency?: string | null
+          bairro?: string | null
           case_management_flow?: string | null
           case_management_other?: string | null
           case_management_system?: string | null

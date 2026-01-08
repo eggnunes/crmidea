@@ -17,7 +17,8 @@ import {
   FileText,
   Sparkles,
   QrCode,
-  ExternalLink
+  ExternalLink,
+  MapPin
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -31,6 +32,8 @@ interface ConsultingClientBasic {
   email: string;
   phone: string;
   office_name: string;
+  cidade: string | null;
+  estado: string | null;
   num_lawyers: number;
   num_employees: number;
   status: string;
@@ -249,6 +252,12 @@ export function ConsultingPage() {
                   <Phone className="w-4 h-4" />
                   {client.phone}
                 </div>
+                {(client.cidade || client.estado) && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <MapPin className="w-4 h-4" />
+                    {client.cidade}{client.cidade && client.estado ? ' - ' : ''}{client.estado}
+                  </div>
+                )}
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">
                     {client.num_lawyers} advogado(s) • {client.num_employees} colaborador(es)
