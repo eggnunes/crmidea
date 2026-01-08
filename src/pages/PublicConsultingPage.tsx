@@ -17,9 +17,14 @@ import {
   Clock,
   Lightbulb,
   Handshake,
-  GraduationCap
+  GraduationCap,
+  UserPlus
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
+
+// ID do consultor padrão - em produção, isso poderia ser dinâmico
+const DEFAULT_CONSULTANT_ID = "default";
 
 const benefits = [
   {
@@ -122,6 +127,17 @@ const testimonials = [
 ];
 
 export function PublicConsultingPage() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+
+  const handleCadastro = () => {
+    if (user) {
+      navigate('/area-cliente');
+    } else {
+      navigate(`/cadastro-cliente/${DEFAULT_CONSULTANT_ID}`);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       {/* Hero Section */}
@@ -134,11 +150,17 @@ export function PublicConsultingPage() {
             </div>
             <span className="font-bold text-xl">IDEA</span>
           </div>
-          <Button asChild>
-            <a href="https://crmidea.lovable.app" target="_blank" rel="noopener noreferrer">
-              Contratar Consultoria
-            </a>
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button variant="outline" onClick={handleCadastro} className="gap-2">
+              <UserPlus className="w-4 h-4" />
+              {user ? 'Área do Cliente' : 'Criar Conta'}
+            </Button>
+            <Button asChild>
+              <a href="https://crmidea.lovable.app" target="_blank" rel="noopener noreferrer">
+                Contratar Consultoria
+              </a>
+            </Button>
+          </div>
         </nav>
         
         <div className="container mx-auto px-4 py-20 text-center relative z-10">
@@ -157,11 +179,9 @@ export function PublicConsultingPage() {
           </p>
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button size="lg" className="gap-2" asChild>
-              <a href="https://crmidea.lovable.app" target="_blank" rel="noopener noreferrer">
-                Quero a Consultoria
-                <ArrowRight className="w-4 h-4" />
-              </a>
+            <Button size="lg" className="gap-2" onClick={handleCadastro}>
+              <UserPlus className="w-4 h-4" />
+              {user ? 'Acessar Minha Área' : 'Cadastrar Agora'}
             </Button>
             <Button size="lg" variant="outline" className="gap-2" asChild>
               <a href="#como-funciona">
@@ -351,9 +371,13 @@ export function PublicConsultingPage() {
           </p>
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button size="lg" variant="secondary" className="gap-2" asChild>
+            <Button size="lg" variant="secondary" className="gap-2" onClick={handleCadastro}>
+              <UserPlus className="w-4 h-4" />
+              {user ? 'Acessar Minha Área' : 'Cadastrar Grátis'}
+            </Button>
+            <Button size="lg" variant="outline" className="gap-2 bg-transparent border-primary-foreground/30 hover:bg-primary-foreground/10" asChild>
               <a href="https://crmidea.lovable.app" target="_blank" rel="noopener noreferrer">
-                Contratar Consultoria
+                Falar com Consultor
                 <ArrowRight className="w-4 h-4" />
               </a>
             </Button>
