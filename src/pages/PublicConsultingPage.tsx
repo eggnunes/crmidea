@@ -26,7 +26,8 @@ import {
   Youtube,
   Settings,
   CreditCard,
-  Menu
+  Menu,
+  Shield
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -686,8 +687,15 @@ export function PublicConsultingPage() {
               </a>
             </div>
           </div>
-          <div className="mt-8 text-center text-slate-400 text-sm">
-            <p>© {new Date().getFullYear()} Rafael Egg. Todos os direitos reservados.</p>
+          <div className="mt-8 flex flex-col md:flex-row items-center justify-between gap-4 text-sm">
+            <p className="text-slate-400">© {new Date().getFullYear()} Rafael Egg. Todos os direitos reservados.</p>
+            <Link 
+              to="/metodo-idea" 
+              className="text-slate-600 hover:text-slate-400 text-xs transition-colors duration-300 flex items-center gap-1"
+            >
+              <Shield className="h-3 w-3" />
+              Admin
+            </Link>
           </div>
         </div>
       </footer>
