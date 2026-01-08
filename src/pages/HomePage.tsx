@@ -415,7 +415,9 @@ export function HomePage() {
                       <img 
                         src={product.logo} 
                         alt={product.title} 
-                        className="h-full w-auto max-w-full object-contain transition-transform duration-300 group-hover:scale-105"
+                        className={`w-auto max-w-full object-contain transition-transform duration-300 group-hover:scale-105 ${
+                          product.title === "Curso IDEA" ? "h-20 scale-150" : "h-full"
+                        }`}
                       />
                     </div>
                   ) : (
@@ -436,6 +438,137 @@ export function HomePage() {
                 </CardContent>
               </Card>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Outros Projetos Section */}
+      <section id="projetos" className="py-20 bg-slate-900/50 scroll-mt-20">
+        <div className="container mx-auto px-6">
+          <div className="text-center mb-12">
+            <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 mb-4 transition-all duration-300 hover:scale-105">Ecossistema</Badge>
+            <h2 className="text-3xl md:text-4xl font-bold text-white tracking-tight">Outros Projetos</h2>
+            <p className="text-slate-400 mt-4 max-w-2xl mx-auto">
+              Conheça outras iniciativas e plataformas que desenvolvi para o universo jurídico
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-8">
+            {/* Antigolpe Advogado */}
+            <Card className="bg-slate-800/50 border-slate-700 hover:border-blue-500/50 transition-all duration-300 group hover:scale-[1.02] hover:shadow-xl hover:shadow-blue-500/10">
+              <CardContent className="p-8">
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="p-3 bg-blue-500/20 rounded-xl">
+                    <Scale className="h-8 w-8 text-blue-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-semibold text-white">Antigolpe Advogado</h3>
+                    <p className="text-blue-400 text-sm">antigolpeadvogado.com.br</p>
+                  </div>
+                </div>
+                <p className="text-slate-400 mb-4">
+                  Plataforma gratuita para consultar e denunciar números de WhatsApp usados no golpe do falso advogado. 
+                  Proteja-se verificando se um número já foi reportado como golpe antes de fazer qualquer pagamento.
+                </p>
+                <Button 
+                  variant="ghost" 
+                  className="text-blue-400 hover:text-blue-300 hover:bg-blue-500/10 p-0 transition-all duration-300 group-hover:translate-x-1"
+                  asChild
+                >
+                  <a href="https://antigolpeadvogado.com.br" target="_blank" rel="noopener noreferrer">
+                    Acessar plataforma
+                    <ExternalLink className="ml-2 h-4 w-4" />
+                  </a>
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Vagas Jurídicas */}
+            <Card className="bg-slate-800/50 border-slate-700 hover:border-orange-500/50 transition-all duration-300 group hover:scale-[1.02] hover:shadow-xl hover:shadow-orange-500/10">
+              <CardContent className="p-8">
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="p-3 bg-orange-500/20 rounded-xl">
+                    <Users className="h-8 w-8 text-orange-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-semibold text-white">Vagas Jurídicas</h3>
+                    <p className="text-orange-400 text-sm">vagasjuridicas.com</p>
+                  </div>
+                </div>
+                <p className="text-slate-400 mb-4">
+                  Portal especializado em oportunidades no mercado jurídico. Conectamos advogados, estagiários e 
+                  profissionais do Direito às melhores vagas em escritórios e empresas de todo o Brasil.
+                </p>
+                <Button 
+                  variant="ghost" 
+                  className="text-orange-400 hover:text-orange-300 hover:bg-orange-500/10 p-0 transition-all duration-300 group-hover:translate-x-1"
+                  asChild
+                >
+                  <a href="https://vagasjuridicas.com" target="_blank" rel="noopener noreferrer">
+                    Buscar vagas
+                    <ExternalLink className="ml-2 h-4 w-4" />
+                  </a>
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Robô de Toga */}
+            <Card className="bg-slate-800/50 border-slate-700 hover:border-purple-500/50 transition-all duration-300 group hover:scale-[1.02] hover:shadow-xl hover:shadow-purple-500/10">
+              <CardContent className="p-8">
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="p-3 bg-purple-500/20 rounded-xl">
+                    <Brain className="h-8 w-8 text-purple-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-semibold text-white">Robô de Toga</h3>
+                    <p className="text-purple-400 text-sm">robodetoga.com.br</p>
+                  </div>
+                </div>
+                <p className="text-slate-400 mb-4">
+                  Portal de Inteligência Artificial para o Direito. Descubra as últimas notícias sobre IA no Direito, 
+                  acesse ferramentas gratuitas, explore agentes especializados e aprenda com conteúdos práticos.
+                </p>
+                <Button 
+                  variant="ghost" 
+                  className="text-purple-400 hover:text-purple-300 hover:bg-purple-500/10 p-0 transition-all duration-300 group-hover:translate-x-1"
+                  asChild
+                >
+                  <a href="https://robodetoga.com.br" target="_blank" rel="noopener noreferrer">
+                    Explorar portal
+                    <ExternalLink className="ml-2 h-4 w-4" />
+                  </a>
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Egg Nunes Advocacia */}
+            <Card className="bg-slate-800/50 border-slate-700 hover:border-amber-500/50 transition-all duration-300 group hover:scale-[1.02] hover:shadow-xl hover:shadow-amber-500/10">
+              <CardContent className="p-8">
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="p-3 bg-amber-500/20 rounded-xl">
+                    <Award className="h-8 w-8 text-amber-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-semibold text-white">Egg Nunes Advocacia</h3>
+                    <p className="text-amber-400 text-sm">eggnunes.com.br</p>
+                  </div>
+                </div>
+                <p className="text-slate-400 mb-4">
+                  Escritório de advocacia referência desde 1994 com atuação em todo Brasil. 
+                  Especializado em diversas áreas do Direito, oferecendo assessoria jurídica completa e personalizada.
+                </p>
+                <Button 
+                  variant="ghost" 
+                  className="text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 p-0 transition-all duration-300 group-hover:translate-x-1"
+                  asChild
+                >
+                  <a href="https://eggnunes.com.br" target="_blank" rel="noopener noreferrer">
+                    Conhecer escritório
+                    <ExternalLink className="ml-2 h-4 w-4" />
+                  </a>
+                </Button>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </section>
