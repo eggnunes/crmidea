@@ -31,7 +31,7 @@ import { ConsultingClientDetail } from "@/components/consulting/ConsultingClient
 import { QRCodeGenerator } from "@/components/diagnostic/QRCodeGenerator";
 import { ConsultingReminders } from "@/components/consulting/ConsultingReminders";
 import { ConsultingNotificationSettings } from "@/components/consulting/ConsultingNotificationSettings";
-import { ConsultingClientsAdmin } from "@/components/consulting/ConsultingClientsAdmin";
+import { ConsultingSettingsPanel } from "@/components/consulting/ConsultingSettingsPanel";
 import { SentEmailsLog } from "@/components/consulting/SentEmailsLog";
 
 interface ConsultingClientBasic {
@@ -314,7 +314,7 @@ export function ConsultingPage() {
         </TabsContent>
 
         <TabsContent value="admin">
-          <ConsultingClientsAdmin />
+          <ConsultingSettingsPanel />
         </TabsContent>
 
         <TabsContent value="emails">
