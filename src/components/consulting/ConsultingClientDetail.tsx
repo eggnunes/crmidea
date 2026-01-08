@@ -209,7 +209,10 @@ O prompt deve:
           <TabsTrigger value="info">Informações</TabsTrigger>
           <TabsTrigger value="features">Funcionalidades</TabsTrigger>
           <TabsTrigger value="prompt">Prompt</TabsTrigger>
-          <TabsTrigger value="sessions">Reuniões</TabsTrigger>
+          <TabsTrigger value="sessions" className="flex items-center gap-2">
+            <FileText className="w-4 h-4" />
+            Atas de Reunião
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="info" className="space-y-4">
