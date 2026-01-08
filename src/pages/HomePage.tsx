@@ -411,15 +411,11 @@ export function HomePage() {
               >
                 <CardContent className="p-6">
                 {product.logo ? (
-                    <div className={`mb-4 flex items-center justify-center overflow-visible ${
-                      product.title === "Curso IDEA" ? "h-28" : "h-20"
-                    }`}>
+                    <div className="h-20 mb-4 flex items-center justify-center">
                       <img 
                         src={product.logo} 
                         alt={product.title} 
-                        className={`w-auto object-contain transition-transform duration-300 group-hover:scale-105 ${
-                          product.title === "Curso IDEA" ? "h-28 scale-[4] origin-center" : "h-full max-w-full"
-                        }`}
+                        className="h-full w-auto max-w-full object-contain transition-transform duration-300 group-hover:scale-105"
                       />
                     </div>
                   ) : (
