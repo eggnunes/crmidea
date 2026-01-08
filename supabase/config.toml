@@ -98,3 +98,6 @@ verify_jwt = true
 
 [functions.client-monthly-report]
 verify_jwt = false
+
+[functions.send-welcome-email]
+verify_jwt = true

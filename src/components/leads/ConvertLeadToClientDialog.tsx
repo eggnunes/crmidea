@@ -75,7 +75,22 @@ export function ConvertLeadToClientDialog({ lead, open, onOpenChange, onSuccess 
 
       if (error) throw error;
 
-      toast.success("Lead convertido para cliente de consultoria!");
+      // Send welcome email with form link
+      try {
+        await supabase.functions.invoke("send-welcome-email", {
+          body: {
+            clientName: lead.name,
+            clientEmail: lead.email,
+            officeName: formData.office_name,
+            consultantId: user.id,
+            checkFormFilled: false, // New client, hasn't filled form yet
+          },
+        });
+        toast.success("Lead convertido e email de boas-vindas enviado!");
+      } catch (emailError) {
+        console.error("Error sending welcome email:", emailError);
+        toast.success("Lead convertido para cliente de consultoria!");
+      }
       onOpenChange(false);
       onSuccess();
     } catch (error) {
