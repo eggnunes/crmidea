@@ -25,6 +25,7 @@ import { ptBR } from "date-fns/locale";
 import { ConsultingClientDialog } from "@/components/consulting/ConsultingClientDialog";
 import { ConsultingClientDetail } from "@/components/consulting/ConsultingClientDetail";
 import { QRCodeGenerator } from "@/components/diagnostic/QRCodeGenerator";
+import { ConsultingReminders } from "@/components/consulting/ConsultingReminders";
 
 interface ConsultingClientBasic {
   id: string;
@@ -181,6 +182,9 @@ export function ConsultingPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Reminders - Clients without recent meetings */}
+      <ConsultingReminders />
 
       {/* Form Link Card */}
       {/* QR Code Generator */}
