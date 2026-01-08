@@ -71,7 +71,7 @@ export function ClientAuthPage() {
     setLoading(true);
     
     try {
-      const redirectUrl = `${window.location.origin}/area-cliente`;
+      const redirectUrl = `${window.location.origin}/consultoria/dashboard`;
       
       const { data, error } = await supabase.auth.signUp({
         email: signUpData.email,
@@ -129,7 +129,7 @@ export function ClientAuthPage() {
           });
 
         toast.success("Cadastro realizado com sucesso!");
-        navigate("/area-cliente");
+        navigate("/consultoria/dashboard");
       }
     } catch (error) {
       console.error("Sign up error:", error);
@@ -173,7 +173,7 @@ export function ClientAuthPage() {
       }
 
       toast.success("Login realizado com sucesso!");
-      navigate("/area-cliente");
+      navigate("/consultoria/dashboard");
     } catch (error) {
       console.error("Sign in error:", error);
       toast.error("Erro ao fazer login. Tente novamente.");
@@ -186,7 +186,7 @@ export function ClientAuthPage() {
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <Link to="/sobre-consultoria" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-4">
+          <Link to="/" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-4">
             <ArrowLeft className="w-4 h-4" />
             Voltar
           </Link>

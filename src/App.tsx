@@ -26,6 +26,7 @@ import { ConsultingPage } from "./pages/ConsultingPage";
 import { AuthPage } from "./pages/AuthPage";
 import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
 import NotFound from "./pages/NotFound";
+import { HomePage } from "./pages/HomePage";
 import { Loader2 } from "lucide-react";
 
 const queryClient = new QueryClient();
@@ -51,16 +52,27 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 function AppRoutes() {
   return (
     <Routes>
+      {/* Página pública inicial - raphaelhague.com */}
+      <Route path="/" element={<HomePage />} />
+      
+      {/* Autenticação */}
       <Route path="/auth" element={<AuthPage />} />
       <Route path="/privacidade" element={<PrivacyPolicyPage />} />
+      
+      {/* Páginas públicas */}
       <Route path="/agendar/:userId" element={<PublicBookingPage />} />
       <Route path="/diagnostico/:consultantId" element={<PublicDiagnosticForm />} />
       <Route path="/sobre-consultoria" element={<PublicConsultingPage />} />
+      
+      {/* Área do cliente da consultoria - /consultoria */}
+      <Route path="/consultoria" element={<ClientAuthPage />} />
+      <Route path="/consultoria/dashboard" element={<ClientDashboardPage />} />
+      <Route path="/consultoria/diagnostico" element={<ClientDiagnosticForm />} />
       <Route path="/cadastro-cliente/:consultantId" element={<ClientAuthPage />} />
-      <Route path="/area-cliente" element={<ClientDashboardPage />} />
-      <Route path="/diagnostico-cliente" element={<ClientDiagnosticForm />} />
+      
+      {/* Método IDEIA - CRM Admin - /metodo-ideia */}
       <Route
-        path="/*"
+        path="/metodo-ideia/*"
         element={
           <ProtectedRoute>
             <AppLayout>
@@ -83,6 +95,9 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
+      
+      {/* Rota de fallback */}
+      <Route path="*" element={<NotFound />} />
     </Routes>
   );
 }

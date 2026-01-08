@@ -87,7 +87,7 @@ export function ClientDiagnosticForm() {
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!session) {
-        navigate("/sobre-consultoria");
+        navigate("/consultoria");
         return;
       }
       
@@ -447,7 +447,7 @@ export function ClientDiagnosticForm() {
                 {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                 <span className="ml-2 hidden sm:inline">Salvar</span>
               </Button>
-              <Button variant="ghost" size="sm" onClick={() => navigate("/area-cliente")}>
+              <Button variant="ghost" size="sm" onClick={() => navigate("/consultoria/dashboard")}>
                 Voltar ao Dashboard
               </Button>
             </div>
