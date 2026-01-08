@@ -411,14 +411,16 @@ export function HomePage() {
               >
                 <CardContent className="p-6">
                 {product.logo ? (
-                    <div className={`mb-4 flex items-center justify-center overflow-hidden ${
-                      product.title === "Curso IDEA" ? "h-32" : "h-20"
+                    <div className={`mb-4 flex items-center justify-center overflow-hidden rounded-lg ${
+                      product.title === "Curso IDEA" ? "h-24 bg-slate-800/80" : "h-20"
                     }`}>
                       <img 
                         src={product.logo} 
                         alt={product.title} 
                         className={`w-auto object-contain ${
-                          product.title === "Curso IDEA" ? "h-32 max-w-full" : "h-full max-w-full transition-transform duration-300 group-hover:scale-105"
+                          product.title === "Curso IDEA" 
+                            ? "h-20 max-w-[90%] mix-blend-lighten" 
+                            : "h-full max-w-full transition-transform duration-300 group-hover:scale-105"
                         }`}
                       />
                     </div>
