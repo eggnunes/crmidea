@@ -542,9 +542,32 @@ export function DiagnosticStep1({ formData, updateFormData, consultantId }: Diag
             id="office_address"
             value={formData.office_address}
             onChange={(e) => updateFormData({ office_address: e.target.value })}
-            placeholder="Endereço completo"
+            placeholder="Rua, Avenida, Praça..."
             required
           />
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-2">
+            <Label htmlFor="address_number">Número <span className="text-destructive">*</span></Label>
+            <Input
+              id="address_number"
+              value={formData.address_number}
+              onChange={(e) => updateFormData({ address_number: e.target.value })}
+              placeholder="123"
+              required
+            />
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="address_complement">Complemento</Label>
+            <Input
+              id="address_complement"
+              value={formData.address_complement}
+              onChange={(e) => updateFormData({ address_complement: e.target.value })}
+              placeholder="Sala 101, Bloco A, etc."
+            />
+          </div>
         </div>
         
         <div className="grid gap-4 md:grid-cols-3">

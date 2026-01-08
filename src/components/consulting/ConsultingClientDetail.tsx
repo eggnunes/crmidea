@@ -23,7 +23,9 @@ import {
   Brain,
   Target,
   Settings,
-  FileText
+  FileText,
+  CreditCard,
+  Scale
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -36,8 +38,12 @@ interface ConsultingClient {
   full_name: string;
   email: string;
   phone: string;
+  cpf_cnpj: string | null;
+  oab_number: string | null;
   office_name: string;
   office_address: string;
+  address_number: string | null;
+  address_complement: string | null;
   foundation_year: number | null;
   website: string | null;
   num_lawyers: number;
@@ -246,6 +252,18 @@ O prompt deve:
                     </a>
                   </div>
                 )}
+                {client.cpf_cnpj && (
+                  <div className="flex items-center gap-2">
+                    <CreditCard className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm">{client.cpf_cnpj}</span>
+                  </div>
+                )}
+                {client.oab_number && (
+                  <div className="flex items-center gap-2">
+                    <Scale className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm">OAB {client.oab_number}</span>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -258,9 +276,12 @@ O prompt deve:
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <MapPin className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-sm">{client.office_address}</span>
+                <div className="flex items-start gap-2">
+                  <MapPin className="w-4 h-4 text-muted-foreground mt-0.5" />
+                  <div className="text-sm">
+                    <p>{client.office_address}{client.address_number ? `, ${client.address_number}` : ''}</p>
+                    {client.address_complement && <p className="text-muted-foreground">{client.address_complement}</p>}
+                  </div>
                 </div>
                 {client.foundation_year && (
                   <div className="flex items-center gap-2">
