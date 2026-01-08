@@ -28,6 +28,7 @@ import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
 import NotFound from "./pages/NotFound";
 import { HomePage } from "./pages/HomePage";
 import { BlogPage } from "./pages/BlogPage";
+import { BlogArticlePage } from "./pages/BlogArticlePage";
 import { Loader2 } from "lucide-react";
 
 const queryClient = new QueryClient();
@@ -56,6 +57,7 @@ function AppRoutes() {
       {/* Página pública inicial - rafaelegg.com */}
       <Route path="/" element={<HomePage />} />
       <Route path="/blog" element={<BlogPage />} />
+      <Route path="/blog/:slug" element={<BlogArticlePage />} />
       
       {/* Autenticação admin */}
       <Route path="/auth" element={<AuthPage />} />
