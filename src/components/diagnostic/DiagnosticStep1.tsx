@@ -198,15 +198,14 @@ export function DiagnosticStep1({ formData, updateFormData, consultantId }: Diag
         return;
       }
 
-      // Formata o endereço completo
-      const endereco = [
-        data.logradouro,
-        data.bairro,
-        `${data.localidade}/${data.uf}`,
-        data.cep
-      ].filter(Boolean).join(", ");
-
-      updateFormData({ office_address: endereco });
+      // Preenche os campos separadamente
+      const endereco = [data.logradouro, data.bairro].filter(Boolean).join(", ");
+      
+      updateFormData({ 
+        office_address: endereco,
+        cidade: data.localidade,
+        estado: data.uf
+      });
       toast.success("Endereço preenchido automaticamente!");
     } catch (error) {
       console.error("Erro ao buscar CEP:", error);
@@ -566,6 +565,31 @@ export function DiagnosticStep1({ formData, updateFormData, consultantId }: Diag
               value={formData.address_complement}
               onChange={(e) => updateFormData({ address_complement: e.target.value })}
               placeholder="Sala 101, Bloco A, etc."
+            />
+          </div>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-2">
+            <Label htmlFor="cidade">Cidade <span className="text-destructive">*</span></Label>
+            <Input
+              id="cidade"
+              value={formData.cidade}
+              onChange={(e) => updateFormData({ cidade: e.target.value })}
+              placeholder="São Paulo"
+              required
+            />
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="estado">Estado (UF) <span className="text-destructive">*</span></Label>
+            <Input
+              id="estado"
+              value={formData.estado}
+              onChange={(e) => updateFormData({ estado: e.target.value.toUpperCase().slice(0, 2) })}
+              placeholder="SP"
+              maxLength={2}
+              required
             />
           </div>
         </div>

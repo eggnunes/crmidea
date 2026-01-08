@@ -27,6 +27,8 @@ export interface DiagnosticFormData {
   office_address: string;
   address_number: string;
   address_complement: string;
+  cidade: string;
+  estado: string;
   website: string;
   foundation_year: number | null;
   num_lawyers: number;
@@ -78,6 +80,8 @@ const initialFormData: DiagnosticFormData = {
   office_address: "",
   address_number: "",
   address_complement: "",
+  cidade: "",
+  estado: "",
   website: "",
   foundation_year: null,
   num_lawyers: 1,
@@ -166,6 +170,8 @@ export function PublicDiagnosticForm() {
           office_address: formData.office_address,
           address_number: formData.address_number || null,
           address_complement: formData.address_complement || null,
+          cidade: formData.cidade || null,
+          estado: formData.estado || null,
           website: formData.website || null,
           foundation_year: formData.foundation_year,
           num_lawyers: formData.num_lawyers,
