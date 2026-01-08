@@ -41,6 +41,9 @@ import logoGuiaIA from "@/assets/logo-guia-ia-new.png";
 import logoCodigoPrompts from "@/assets/logo-codigo-prompts-new.png";
 import logoComboEbooks from "@/assets/logo-combo-ebooks-new.png";
 import logoEggNunes from "@/assets/logo-eggnunes.png";
+import logoRobodetoga from "@/assets/logo-robodetoga.png";
+import logoVagasjuridicas from "@/assets/logo-vagasjuridicas.png";
+import logoAntigolpe from "@/assets/logo-antigolpe.png";
 import fotoRafael from "@/assets/foto-rafael.jpg";
 
 export function HomePage() {
@@ -456,8 +459,8 @@ export function HomePage() {
             <Card className="bg-slate-800/50 border-slate-700 hover:border-blue-500/50 transition-all duration-300 group hover:scale-[1.02] hover:shadow-xl hover:shadow-blue-500/10">
               <CardContent className="p-8">
                 <div className="flex items-center gap-4 mb-4">
-                  <div className="p-3 bg-blue-500/20 rounded-xl">
-                    <Scale className="h-8 w-8 text-blue-400" />
+                  <div className="h-12 w-auto flex items-center">
+                    <img src={logoAntigolpe} alt="Antigolpe Advogado" className="h-full w-auto object-contain" />
                   </div>
                   <div>
                     <h3 className="text-xl font-semibold text-white">Antigolpe Advogado</h3>
@@ -485,8 +488,8 @@ export function HomePage() {
             <Card className="bg-slate-800/50 border-slate-700 hover:border-orange-500/50 transition-all duration-300 group hover:scale-[1.02] hover:shadow-xl hover:shadow-orange-500/10">
               <CardContent className="p-8">
                 <div className="flex items-center gap-4 mb-4">
-                  <div className="p-3 bg-orange-500/20 rounded-xl">
-                    <Users className="h-8 w-8 text-orange-400" />
+                  <div className="h-12 w-auto flex items-center">
+                    <img src={logoVagasjuridicas} alt="Vagas Jurídicas" className="h-full w-auto object-contain" />
                   </div>
                   <div>
                     <h3 className="text-xl font-semibold text-white">Vagas Jurídicas</h3>
@@ -514,8 +517,8 @@ export function HomePage() {
             <Card className="bg-slate-800/50 border-slate-700 hover:border-purple-500/50 transition-all duration-300 group hover:scale-[1.02] hover:shadow-xl hover:shadow-purple-500/10">
               <CardContent className="p-8">
                 <div className="flex items-center gap-4 mb-4">
-                  <div className="p-3 bg-purple-500/20 rounded-xl">
-                    <Brain className="h-8 w-8 text-purple-400" />
+                  <div className="h-12 w-auto flex items-center">
+                    <img src={logoRobodetoga} alt="Robô de Toga" className="h-full w-auto object-contain" />
                   </div>
                   <div>
                     <h3 className="text-xl font-semibold text-white">Robô de Toga</h3>
@@ -524,8 +527,8 @@ export function HomePage() {
                 </div>
                 <p className="text-slate-400 mb-4">
                   Portal completo de IA para advogados com notícias atualizadas diariamente, ferramentas gratuitas 
-                  (conversor PDF, OCR, calculadora de prazos), agentes IA especializados, pesquisa jurisprudencial 
-                  e gerador de petições. Seu hub de informação e automação jurídica.
+                  (conversor PDF, OCR, calculadora de prazos), agentes IA especializados, pesquisa jurisprudencial, 
+                  gerador de petições e muito mais.
                 </p>
                 <Button 
                   variant="ghost" 
