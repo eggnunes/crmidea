@@ -25,7 +25,9 @@ import {
   Users,
   CalendarCheck,
   TrendingUp,
-  Send
+  Send,
+  Trophy,
+  BarChart3
 } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -33,6 +35,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { User as SupabaseUser } from "@supabase/supabase-js";
 import { ClientProgressFeedback } from "@/components/clients/ClientProgressFeedback";
+import { ClientBadges } from "@/components/clients/ClientBadges";
+import { ClientProgressCharts } from "@/components/clients/ClientProgressCharts";
 
 interface ClientProfile {
   id: string;
@@ -421,11 +425,19 @@ export function ClientDashboardPage() {
 
         {/* Tabs */}
         <Tabs defaultValue="sessions" className="space-y-4">
-          <TabsList>
+          <TabsList className="flex-wrap h-auto gap-1">
             <TabsTrigger value="sessions">Reuniões</TabsTrigger>
             <TabsTrigger value="progress" className="gap-2">
               <Send className="w-4 h-4" />
               Meu Progresso
+            </TabsTrigger>
+            <TabsTrigger value="badges" className="gap-2">
+              <Trophy className="w-4 h-4" />
+              Conquistas
+            </TabsTrigger>
+            <TabsTrigger value="charts" className="gap-2">
+              <BarChart3 className="w-4 h-4" />
+              Evolução
             </TabsTrigger>
             <TabsTrigger value="timeline">Timeline</TabsTrigger>
             <TabsTrigger value="prompt">Prompt Gerado</TabsTrigger>
@@ -439,6 +451,32 @@ export function ClientDashboardPage() {
               <Card>
                 <CardContent className="py-8 text-center">
                   <p className="text-muted-foreground">Complete o diagnóstico para acessar esta seção.</p>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
+          {/* Badges Tab */}
+          <TabsContent value="badges">
+            {consultingClient ? (
+              <ClientBadges clientId={consultingClient.id} />
+            ) : (
+              <Card>
+                <CardContent className="py-8 text-center">
+                  <p className="text-muted-foreground">Complete o diagnóstico para acessar suas conquistas.</p>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
+          {/* Charts Tab */}
+          <TabsContent value="charts">
+            {consultingClient ? (
+              <ClientProgressCharts clientId={consultingClient.id} />
+            ) : (
+              <Card>
+                <CardContent className="py-8 text-center">
+                  <p className="text-muted-foreground">Complete o diagnóstico para ver sua evolução.</p>
                 </CardContent>
               </Card>
             )}

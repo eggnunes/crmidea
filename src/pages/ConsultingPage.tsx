@@ -20,7 +20,9 @@ import {
   QrCode,
   ExternalLink,
   MapPin,
-  Settings
+  Settings,
+  ShieldCheck,
+  MailCheck
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -29,6 +31,8 @@ import { ConsultingClientDetail } from "@/components/consulting/ConsultingClient
 import { QRCodeGenerator } from "@/components/diagnostic/QRCodeGenerator";
 import { ConsultingReminders } from "@/components/consulting/ConsultingReminders";
 import { ConsultingNotificationSettings } from "@/components/consulting/ConsultingNotificationSettings";
+import { ConsultingClientsAdmin } from "@/components/consulting/ConsultingClientsAdmin";
+import { SentEmailsLog } from "@/components/consulting/SentEmailsLog";
 
 interface ConsultingClientBasic {
   id: string;
@@ -147,10 +151,18 @@ export function ConsultingPage() {
       </div>
 
       <Tabs defaultValue="clients" className="space-y-6">
-        <TabsList>
+        <TabsList className="flex-wrap h-auto gap-1">
           <TabsTrigger value="clients" className="gap-2">
             <Users className="w-4 h-4" />
             Clientes
+          </TabsTrigger>
+          <TabsTrigger value="admin" className="gap-2">
+            <ShieldCheck className="w-4 h-4" />
+            Administração
+          </TabsTrigger>
+          <TabsTrigger value="emails" className="gap-2">
+            <MailCheck className="w-4 h-4" />
+            E-mails Enviados
           </TabsTrigger>
           <TabsTrigger value="settings" className="gap-2">
             <Settings className="w-4 h-4" />
@@ -299,6 +311,14 @@ export function ConsultingPage() {
               ))}
             </div>
           )}
+        </TabsContent>
+
+        <TabsContent value="admin">
+          <ConsultingClientsAdmin />
+        </TabsContent>
+
+        <TabsContent value="emails">
+          <SentEmailsLog />
         </TabsContent>
 
         <TabsContent value="settings">

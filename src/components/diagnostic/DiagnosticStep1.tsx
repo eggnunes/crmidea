@@ -362,36 +362,68 @@ export function DiagnosticStep1({ formData, updateFormData, consultantId }: Diag
           </AvatarFallback>
         </Avatar>
         
-        <div className="flex gap-2 flex-wrap justify-center">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={isUploadingLogo}
-            onClick={() => document.getElementById("logo-upload")?.click()}
-          >
-            {isUploadingLogo ? (
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            ) : (
-              <Upload className="w-4 h-4 mr-2" />
-            )}
-            Enviar Logo
-          </Button>
+        {/* Upload section */}
+        <div className="w-full text-center space-y-3">
+          <div>
+            <p className="text-sm font-medium mb-2">Envie a logo do seu escritório</p>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isUploadingLogo}
+              onClick={() => document.getElementById("logo-upload")?.click()}
+              className="w-full max-w-xs"
+            >
+              {isUploadingLogo ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Upload className="w-4 h-4 mr-2" />
+              )}
+              {formData.logo_url ? "Trocar Logo" : "Enviar Logo"}
+            </Button>
+          </div>
           
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            disabled={isGeneratingLogo || !formData.office_name}
-            onClick={handleGenerateLogo}
-          >
-            {isGeneratingLogo ? (
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            ) : (
-              <Sparkles className="w-4 h-4 mr-2" />
+          {/* Divider with AI option */}
+          <div className="relative py-2">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-muted-foreground/20" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-muted/30 px-2 text-muted-foreground">
+                ou, se não tiver logo
+              </span>
+            </div>
+          </div>
+          
+          {/* AI Generation */}
+          <div>
+            <p className="text-xs text-muted-foreground mb-2">
+              Gere uma logo profissional automaticamente com IA
+            </p>
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={isGeneratingLogo || !formData.office_name.trim()}
+              onClick={handleGenerateLogo}
+              className="w-full max-w-xs"
+            >
+              {isGeneratingLogo ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Gerando logo...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  Gerar Logo com IA
+                </>
+              )}
+            </Button>
+            {!formData.office_name.trim() && (
+              <p className="text-xs text-amber-500 mt-1">
+                Preencha o nome do escritório primeiro
+              </p>
             )}
-            Gerar com IA
-          </Button>
+          </div>
         </div>
         
         <input
@@ -401,10 +433,6 @@ export function DiagnosticStep1({ formData, updateFormData, consultantId }: Diag
           className="hidden"
           onChange={handleLogoUpload}
         />
-        
-        <p className="text-xs text-muted-foreground text-center">
-          Envie sua logomarca ou gere uma com IA (opcional)
-        </p>
       </div>
       
       {/* Personal Info */}
