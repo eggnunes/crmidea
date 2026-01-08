@@ -11,8 +11,8 @@ const corsHeaders = {
 
 const FROM_EMAIL = "Rafael Nunes <naoresponda@rafaelegg.com>";
 
-// Hardcoded ebook URL - you can update this when you upload the ebook
-const EBOOK_URL = "https://ngzodolcmriqlcccpicz.supabase.co/storage/v1/object/public/ebooks/guia-ia-advogados.pdf";
+// PDF URL from storage - Prompts para Fotos Profissionais
+const PDF_URL = "https://ngzodolcmriqlcccpicz.supabase.co/storage/v1/object/public/ebooks/Prompts%20para%20Fotos%20Profissionais.pdf";
 
 interface EbookCaptureRequest {
   name: string;
@@ -27,11 +27,10 @@ const handler = async (req: Request): Promise<Response> => {
 
   try {
     const data: EbookCaptureRequest = await req.json();
-    console.log("Received ebook capture request:", JSON.stringify(data));
+    console.log("Received capture request:", JSON.stringify(data));
 
     const { name, email, phone } = data;
 
-    // Validate input
     if (!name || !email || !phone) {
       return new Response(
         JSON.stringify({ error: "Nome, email e telefone são obrigatórios" }),
@@ -81,7 +80,7 @@ const handler = async (req: Request): Promise<Response> => {
           product: "ebook_unitario",
           status: "novo",
           source: "evento",
-          notes: "Lead capturado via formulário de ebook no evento",
+          notes: "Lead capturado via formulário - Prompts para Fotos Profissionais com IA (evento)",
         })
         .select("id")
         .single();
@@ -94,6 +93,13 @@ const handler = async (req: Request): Promise<Response> => {
       }
     } else {
       console.log("Lead already exists:", leadId);
+      // Update notes to append event info
+      await supabase
+        .from("leads")
+        .update({
+          notes: "Lead existente - também baixou Prompts para Fotos Profissionais (evento)",
+        })
+        .eq("id", leadId);
     }
 
     // Add tag to lead
@@ -108,7 +114,7 @@ const handler = async (req: Request): Promise<Response> => {
       console.log("Added 'evento' tag to lead:", leadId);
     }
 
-    // Save ebook capture record
+    // Save capture record
     const { error: captureError } = await supabase
       .from("ebook_captures")
       .insert({
@@ -144,7 +150,7 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    // Send ebook email
+    // Send email with PDF
     const emailHtml = `
       <!DOCTYPE html>
       <html>
@@ -152,61 +158,61 @@ const handler = async (req: Request): Promise<Response> => {
         <meta charset="utf-8">
         <style>
           body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; padding: 30px; border-radius: 12px 12px 0 0; text-align: center; }
+          .header { background: linear-gradient(135deg, #8b5cf6, #d946ef); color: white; padding: 30px; border-radius: 12px 12px 0 0; text-align: center; }
           .content { background: #f8fafc; padding: 30px; border-radius: 0 0 12px 12px; }
-          .btn { display: inline-block; background: linear-gradient(135deg, #f59e0b, #ea580c); color: white; padding: 16px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 18px; }
-          .highlight { background: #fff7ed; border-left: 4px solid #f97316; padding: 15px; margin: 20px 0; border-radius: 0 8px 8px 0; }
+          .btn { display: inline-block; background: linear-gradient(135deg, #8b5cf6, #d946ef); color: white; padding: 16px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 18px; }
+          .highlight { background: #faf5ff; border-left: 4px solid #8b5cf6; padding: 15px; margin: 20px 0; border-radius: 0 8px 8px 0; }
           .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0; font-size: 13px; color: #64748b; text-align: center; }
         </style>
       </head>
       <body>
         <div class="header">
-          <h1>📚 Seu Ebook Chegou!</h1>
-          <p>Inteligência Artificial para Advogados</p>
+          <h1>📸 Seus Prompts Chegaram!</h1>
+          <p>Fotos Profissionais com Inteligência Artificial</p>
         </div>
         <div class="content">
           <p>Olá <strong>${name.split(" ")[0]}</strong>,</p>
           
-          <p>Muito obrigado pelo interesse! Aqui está o seu ebook sobre Inteligência Artificial para Advogados. 🎉</p>
+          <p>Muito obrigado pelo interesse! Aqui está o seu material com prompts para criar fotos profissionais usando IA. 🎉</p>
           
           <div style="text-align: center; margin: 30px 0;">
-            <a href="${EBOOK_URL}" class="btn">📥 Baixar Ebook Agora</a>
+            <a href="${PDF_URL}" class="btn">📥 Baixar PDF Agora</a>
           </div>
           
           <div class="highlight">
-            <strong>💡 Dica:</strong> Salve este e-mail para acessar o ebook quando quiser!
+            <strong>💡 Dica:</strong> Salve este e-mail para acessar os prompts quando quiser! Você pode usar com ChatGPT, Midjourney, Leonardo AI, e outras ferramentas.
           </div>
           
-          <h3>O que você vai aprender:</h3>
+          <h3>O que você vai encontrar no material:</h3>
           <ul>
-            <li>✅ Como usar IA para pesquisa jurídica</li>
-            <li>✅ Automação de documentos legais</li>
-            <li>✅ Técnicas de prompts para advogados</li>
-            <li>✅ Ferramentas práticas do dia a dia</li>
+            <li>📷 Prompts prontos para fotos profissionais de perfil</li>
+            <li>✨ Técnicas para poses e iluminação realistas</li>
+            <li>🎨 Variações para diferentes estilos e cenários</li>
+            <li>🤖 Dicas de uso com as principais IAs de imagem</li>
           </ul>
           
           <div style="background: #ecfdf5; border-left: 4px solid #10b981; padding: 15px; margin: 20px 0; border-radius: 0 8px 8px 0;">
-            <strong>🚀 Quer ir além?</strong>
-            <p style="margin: 10px 0 0;">Conheça a <strong>Consultoria IDEA</strong> - implementação completa de IA no seu escritório com acompanhamento personalizado!</p>
+            <strong>🚀 Quer ir além com IA?</strong>
+            <p style="margin: 10px 0 0;">Conheça a <strong>Consultoria IDEA</strong> - implementação completa de IA no seu negócio com acompanhamento personalizado!</p>
           </div>
           
           <div class="footer">
             <p>Dúvidas? Entre em contato conosco pelo WhatsApp.</p>
-            <p><strong>Rafael Nunes - Especialista em IA para Advogados</strong></p>
+            <p><strong>Rafael Nunes - Especialista em IA</strong></p>
           </div>
         </div>
       </body>
       </html>
     `;
 
-    console.log("Sending ebook email to:", email);
+    console.log("Sending email to:", email);
     const emailResponse = await resend.emails.send({
       from: FROM_EMAIL,
       to: [email],
-      subject: "📚 Seu Ebook: IA para Advogados - Download Aqui!",
+      subject: "📸 Seus Prompts para Fotos Profissionais com IA - Baixe Agora!",
       html: emailHtml,
     });
-    console.log("Ebook email sent:", emailResponse);
+    console.log("Email sent:", emailResponse);
 
     // Update capture record to mark email as sent
     await supabase
@@ -219,7 +225,7 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(
       JSON.stringify({
         success: true,
-        message: "Ebook enviado com sucesso!",
+        message: "Material enviado com sucesso!",
         emailId: emailResponse.data?.id,
         leadId: leadId,
       }),
