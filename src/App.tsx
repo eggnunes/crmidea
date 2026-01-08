@@ -29,6 +29,7 @@ import NotFound from "./pages/NotFound";
 import { HomePage } from "./pages/HomePage";
 import { BlogPage } from "./pages/BlogPage";
 import { BlogArticlePage } from "./pages/BlogArticlePage";
+import { BioLinkPage } from "./pages/BioLinkPage";
 import { Loader2 } from "lucide-react";
 
 const queryClient = new QueryClient();
@@ -56,6 +57,7 @@ function AppRoutes() {
     <Routes>
       {/* Página pública inicial - rafaelegg.com */}
       <Route path="/" element={<HomePage />} />
+      <Route path="/bio" element={<BioLinkPage />} />
       <Route path="/blog" element={<BlogPage />} />
       <Route path="/blog/:slug" element={<BlogArticlePage />} />
       
