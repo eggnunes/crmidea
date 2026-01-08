@@ -16,6 +16,7 @@ import { WhatsAppPage } from "./pages/WhatsAppPage";
 import { AlertsCenterPage } from "./pages/AlertsCenterPage";
 import { CalendarPage } from "./pages/CalendarPage";
 import { PublicBookingPage } from "./pages/PublicBookingPage";
+import { PublicDiagnosticForm } from "./pages/PublicDiagnosticForm";
 import AdminUsersPage from "./pages/AdminUsersPage";
 import { ConsultingPage } from "./pages/ConsultingPage";
 import { AuthPage } from "./pages/AuthPage";
@@ -49,6 +50,7 @@ function AppRoutes() {
       <Route path="/auth" element={<AuthPage />} />
       <Route path="/privacidade" element={<PrivacyPolicyPage />} />
       <Route path="/agendar/:userId" element={<PublicBookingPage />} />
+      <Route path="/diagnostico/:consultantId" element={<PublicDiagnosticForm />} />
       <Route
         path="/*"
         element={
