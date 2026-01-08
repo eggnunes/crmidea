@@ -85,7 +85,7 @@ export function BlogPage() {
   const featuredArticle = articles[0];
   const otherArticles = articles.slice(1);
 
-  const categories = ["Todos", ...Array.from(new Set(articles.map(a => a.category).filter(Boolean)))];
+  
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#1a1f2e] via-[#0f1419] to-[#1a1f2e]">
@@ -122,24 +122,7 @@ export function BlogPage() {
         </div>
       </header>
 
-      {/* Categories */}
-      <section className="container mx-auto px-6 py-8">
-        <div className="flex flex-wrap justify-center gap-3">
-          {categories.map((category, index) => (
-            <Button
-              key={index}
-              variant={index === 0 ? "default" : "outline"}
-              size="sm"
-              className={index === 0 
-                ? "bg-amber-500 hover:bg-amber-600 text-white" 
-                : "border-slate-600 text-slate-300 hover:bg-slate-800 hover:border-amber-500/50"
-              }
-            >
-              {category}
-            </Button>
-          ))}
-        </div>
-      </section>
+      {/* Removed category filter cards as per user request */}
 
       {isLoading ? (
         <div className="flex items-center justify-center py-20">
