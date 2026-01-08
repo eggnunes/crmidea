@@ -371,6 +371,48 @@ export type Database = {
         }
         Relationships: []
       }
+      client_meeting_notes: {
+        Row: {
+          client_user_id: string
+          consultant_id: string
+          created_at: string
+          duration_minutes: number | null
+          id: string
+          meeting_date: string
+          next_steps: string | null
+          notes: string | null
+          summary: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          client_user_id: string
+          consultant_id: string
+          created_at?: string
+          duration_minutes?: number | null
+          id?: string
+          meeting_date: string
+          next_steps?: string | null
+          notes?: string | null
+          summary?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          client_user_id?: string
+          consultant_id?: string
+          created_at?: string
+          duration_minutes?: number | null
+          id?: string
+          meeting_date?: string
+          next_steps?: string | null
+          notes?: string | null
+          summary?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       client_milestones: {
         Row: {
           category: string | null
@@ -423,6 +465,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      client_profiles: {
+        Row: {
+          consultant_id: string
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          office_name: string | null
+          phone: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          consultant_id: string
+          created_at?: string
+          email: string
+          full_name: string
+          id?: string
+          office_name?: string | null
+          phone?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          consultant_id?: string
+          created_at?: string
+          email?: string
+          full_name?: string
+          id?: string
+          office_name?: string | null
+          phone?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       client_sessions: {
         Row: {
@@ -529,6 +607,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      client_timeline_events: {
+        Row: {
+          client_user_id: string
+          consultant_id: string
+          created_at: string
+          description: string | null
+          event_date: string
+          event_type: string
+          id: string
+          metadata: Json | null
+          title: string
+        }
+        Insert: {
+          client_user_id: string
+          consultant_id: string
+          created_at?: string
+          description?: string | null
+          event_date?: string
+          event_type: string
+          id?: string
+          metadata?: Json | null
+          title: string
+        }
+        Update: {
+          client_user_id?: string
+          consultant_id?: string
+          created_at?: string
+          description?: string | null
+          event_date?: string
+          event_type?: string
+          id?: string
+          metadata?: Json | null
+          title?: string
+        }
+        Relationships: []
       }
       clients: {
         Row: {
@@ -883,6 +997,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      diagnostic_form_progress: {
+        Row: {
+          client_user_id: string
+          consultant_id: string
+          created_at: string
+          current_step: number
+          form_data: Json
+          id: string
+          is_completed: boolean
+          submitted_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          client_user_id: string
+          consultant_id: string
+          created_at?: string
+          current_step?: number
+          form_data?: Json
+          id?: string
+          is_completed?: boolean
+          submitted_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          client_user_id?: string
+          consultant_id?: string
+          created_at?: string
+          current_step?: number
+          form_data?: Json
+          id?: string
+          is_completed?: boolean
+          submitted_at?: string | null
+          updated_at?: string
+        }
+        Relationships: []
       }
       follow_up_logs: {
         Row: {
