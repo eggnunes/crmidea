@@ -73,7 +73,8 @@ const otherProjects = [
     iconBg: "bg-blue-500/20",
     iconColor: "text-blue-400",
     accentColor: "border-blue-500/50 hover:border-blue-400",
-    buttonColor: "text-blue-400 hover:text-blue-300"
+    buttonColor: "text-blue-400 hover:text-blue-300",
+    logoBg: null
   },
   {
     title: "Vagas Jurídicas",
@@ -81,7 +82,8 @@ const otherProjects = [
     link: "https://vagasjuridicas.com",
     logo: logoVagasjuridicas,
     accentColor: "border-orange-500/50 hover:border-orange-400",
-    buttonColor: "text-orange-400 hover:text-orange-300"
+    buttonColor: "text-orange-400 hover:text-orange-300",
+    logoBg: "bg-white rounded-lg p-1"
   },
   {
     title: "Robô de Toga",
@@ -89,7 +91,8 @@ const otherProjects = [
     link: "https://robodetoga.com.br",
     logo: logoRobodetoga,
     accentColor: "border-purple-500/50 hover:border-purple-400",
-    buttonColor: "text-purple-400 hover:text-purple-300"
+    buttonColor: "text-purple-400 hover:text-purple-300",
+    logoBg: "bg-white rounded-lg p-1"
   },
   {
     title: "Egg Nunes Advogados",
@@ -97,7 +100,8 @@ const otherProjects = [
     link: "https://eggnunes.com.br",
     logo: logoEggNunes,
     accentColor: "border-amber-500/50 hover:border-amber-400",
-    buttonColor: "text-amber-400 hover:text-amber-300"
+    buttonColor: "text-amber-400 hover:text-amber-300",
+    logoBg: "bg-slate-100 rounded-lg p-1"
   }
 ];
 
@@ -185,11 +189,13 @@ export function BioLinkPage() {
                     <a href={product.link} target="_blank" rel="noopener noreferrer" className="block">
                       <CardContent className="p-4">
                         <div className="flex items-center gap-4">
-                          <img 
-                            src={product.logo} 
-                            alt={product.title}
-                            className="h-14 w-auto object-contain"
-                          />
+                          <div className="w-20 h-14 flex items-center justify-center flex-shrink-0">
+                            <img 
+                              src={product.logo} 
+                              alt={product.title}
+                              className="max-h-14 max-w-20 object-contain"
+                            />
+                          </div>
                           <div className="flex-1 min-w-0">
                             <h3 className="font-semibold text-white text-sm">{product.title}</h3>
                             <p className="text-slate-400 text-xs line-clamp-2">{product.description}</p>
@@ -202,11 +208,13 @@ export function BioLinkPage() {
                     <Link to={product.link} className="block">
                       <CardContent className="p-4">
                         <div className="flex items-center gap-4">
-                          <img 
-                            src={product.logo} 
-                            alt={product.title}
-                            className="h-14 w-auto object-contain"
-                          />
+                          <div className="w-20 h-14 flex items-center justify-center flex-shrink-0">
+                            <img 
+                              src={product.logo} 
+                              alt={product.title}
+                              className="max-h-14 max-w-20 object-contain"
+                            />
+                          </div>
                           <div className="flex-1 min-w-0">
                             <h3 className="font-semibold text-white text-sm">{product.title}</h3>
                             <p className="text-slate-400 text-xs line-clamp-2">{product.description}</p>
@@ -233,28 +241,32 @@ export function BioLinkPage() {
                   className={`bg-slate-800/60 border-2 transition-all duration-300 hover:scale-[1.02] cursor-pointer ${project.accentColor}`}
                 >
                   <a href={project.link} target="_blank" rel="noopener noreferrer" className="block">
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-4">
-                        {project.logo ? (
-                          <img 
-                            src={project.logo} 
-                            alt={project.title}
-                            className="h-12 w-12 object-contain"
-                          />
-                        ) : (
-                          <div className={`h-12 w-12 rounded-lg ${project.iconBg} flex items-center justify-center`}>
-                            <svg className={`h-6 w-6 ${project.iconColor}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                            </svg>
+                      <CardContent className="p-4">
+                        <div className="flex items-center gap-4">
+                          <div className="w-14 h-14 flex items-center justify-center flex-shrink-0">
+                            {project.logo ? (
+                              <div className={project.logoBg || ""}>
+                                <img 
+                                  src={project.logo} 
+                                  alt={project.title}
+                                  className="h-12 w-12 object-contain"
+                                />
+                              </div>
+                            ) : (
+                              <div className={`h-12 w-12 rounded-lg ${project.iconBg} flex items-center justify-center`}>
+                                <svg className={`h-6 w-6 ${project.iconColor}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                                </svg>
+                              </div>
+                            )}
                           </div>
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-white text-sm">{project.title}</h3>
-                          <p className="text-slate-400 text-xs line-clamp-2">{project.description}</p>
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-semibold text-white text-sm">{project.title}</h3>
+                            <p className="text-slate-400 text-xs line-clamp-2">{project.description}</p>
+                          </div>
+                          <ExternalLink className={`w-4 h-4 flex-shrink-0 ${project.buttonColor}`} />
                         </div>
-                        <ExternalLink className={`w-4 h-4 flex-shrink-0 ${project.buttonColor}`} />
-                      </div>
-                    </CardContent>
+                      </CardContent>
                   </a>
                 </Card>
               ))}
