@@ -23,6 +23,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ConsultingClientDialog } from "@/components/consulting/ConsultingClientDialog";
 import { ConsultingClientDetail } from "@/components/consulting/ConsultingClientDetail";
+import { QRCodeGenerator } from "@/components/diagnostic/QRCodeGenerator";
 
 interface ConsultingClientBasic {
   id: string;
@@ -95,11 +96,13 @@ export function ConsultingPage() {
     completed: clients.filter(c => c.status === 'completed').length,
   };
 
-  const formUrl = `${window.location.origin}/consultoria/formulario`;
+  const formUrl = user ? `${window.location.origin}/diagnostico/${user.id}` : "";
 
   const copyFormLink = () => {
-    navigator.clipboard.writeText(formUrl);
-    toast.success('Link copiado!');
+    if (formUrl) {
+      navigator.clipboard.writeText(formUrl);
+      toast.success('Link copiado!');
+    }
   };
 
   const selectedClient = clients.find(c => c.id === selectedClientId);
@@ -177,30 +180,8 @@ export function ConsultingPage() {
       </div>
 
       {/* Form Link Card */}
-      <Card className="border-primary/20 bg-primary/5">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <QrCode className="w-5 h-5" />
-            Link do Formulário de Diagnóstico
-          </CardTitle>
-          <CardDescription>
-            Compartilhe este link com seus clientes de consultoria para eles preencherem o formulário
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex gap-2">
-            <Input value={formUrl} readOnly className="flex-1 font-mono text-sm" />
-            <Button variant="outline" onClick={copyFormLink}>
-              Copiar
-            </Button>
-            <Button variant="outline" asChild>
-              <a href={formUrl} target="_blank" rel="noopener noreferrer">
-                <ExternalLink className="w-4 h-4" />
-              </a>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      {/* QR Code Generator */}
+      <QRCodeGenerator />
 
       {/* Search */}
       <div className="relative">
