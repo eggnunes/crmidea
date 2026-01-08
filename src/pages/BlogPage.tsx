@@ -6,7 +6,6 @@ import {
   Calendar,
   Clock,
   User,
-  Brain,
   BookOpen,
   Sparkles,
   Instagram,
@@ -20,41 +19,81 @@ import { useBlogPosts } from "@/hooks/useBlogPosts";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
+// Blog images
+import blogIaRevolucionando from "@/assets/blog-ia-revolucionando.png";
+import blogChatgptPrompts from "@/assets/blog-chatgpt-prompts.png";
+import blogEticaIa from "@/assets/blog-etica-ia.png";
+import blogFerramentasIa from "@/assets/blog-ferramentas-ia.png";
+import blogContratosIa from "@/assets/blog-contratos-ia.png";
+import blogPesquisaJuridica from "@/assets/blog-pesquisa-juridica.png";
+import blogIaIniciantes from "@/assets/blog-ia-iniciantes.png";
+import blogProdutividade from "@/assets/blog-produtividade.png";
+
+// Image mapping by article slug/title keywords
+const articleImages: Record<string, string> = {
+  "revolucionando": blogIaRevolucionando,
+  "transformando": blogIaRevolucionando,
+  "2025": blogIaRevolucionando,
+  "chatgpt": blogChatgptPrompts,
+  "prompts": blogChatgptPrompts,
+  "ética": blogEticaIa,
+  "etica": blogEticaIa,
+  "ferramentas": blogFerramentasIa,
+  "gratuitas": blogFerramentasIa,
+  "contratos": blogContratosIa,
+  "automatizar": blogContratosIa,
+  "automatizando": blogContratosIa,
+  "pesquisa": blogPesquisaJuridica,
+  "jurisprudência": blogPesquisaJuridica,
+  "jurisprudencia": blogPesquisaJuridica,
+  "iniciantes": blogIaIniciantes,
+  "começar": blogIaIniciantes,
+  "comecar": blogIaIniciantes,
+  "zero": blogIaIniciantes,
+  "produtividade": blogProdutividade,
+  "escritório": blogProdutividade,
+  "escritorio": blogProdutividade,
+};
+
+// Function to get article image based on title or slug
+function getArticleImage(title: string, slug?: string): string {
+  const searchText = `${title} ${slug || ""}`.toLowerCase();
+  
+  for (const [keyword, image] of Object.entries(articleImages)) {
+    if (searchText.includes(keyword.toLowerCase())) {
+      return image;
+    }
+  }
+  
+  // Default fallback
+  return blogIaRevolucionando;
+}
+
 // Default articles if no dynamic content exists
 const defaultArticles = [
   {
     id: "1",
-    title: "Como a IA está Transformando o Direito em 2025",
+    title: "Como a Inteligência Artificial Está Revolucionando a Advocacia em 2025",
     excerpt: "Descubra as principais tendências de inteligência artificial que estão revolucionando a prática jurídica no Brasil e no mundo.",
     category: "Tendências",
     read_time_minutes: 8,
     published_at: new Date().toISOString(),
     is_published: true,
-    slug: "ia-transformando-direito-2025"
+    slug: "ia-revolucionando-advocacia-2025"
   },
   {
     id: "2",
-    title: "5 Ferramentas de IA Essenciais para Advogados",
-    excerpt: "Conheça as ferramentas que todo advogado moderno precisa dominar para aumentar sua produtividade e competitividade.",
-    category: "Ferramentas",
-    read_time_minutes: 6,
-    published_at: new Date().toISOString(),
-    is_published: true,
-    slug: "ferramentas-ia-essenciais-advogados"
-  },
-  {
-    id: "3",
-    title: "Prompts Jurídicos: O Guia Completo",
-    excerpt: "Aprenda a criar prompts eficientes para ChatGPT e outras IAs, otimizando a elaboração de peças processuais.",
+    title: "ChatGPT Para Advogados: 10 Prompts Que Vão Transformar Sua Rotina",
+    excerpt: "Aprenda a usar prompts eficientes para ChatGPT e outras IAs, otimizando a elaboração de peças processuais.",
     category: "Tutorial",
     read_time_minutes: 10,
     published_at: new Date().toISOString(),
     is_published: true,
-    slug: "prompts-juridicos-guia-completo"
+    slug: "chatgpt-prompts-advogados"
   },
   {
-    id: "4",
-    title: "Ética e IA na Advocacia: O que você precisa saber",
+    id: "3",
+    title: "Ética e Inteligência Artificial na Advocacia: O Guia Definitivo",
     excerpt: "Uma análise das questões éticas envolvendo o uso de inteligência artificial na prática jurídica.",
     category: "Ética",
     read_time_minutes: 7,
@@ -63,14 +102,54 @@ const defaultArticles = [
     slug: "etica-ia-advocacia"
   },
   {
+    id: "4",
+    title: "5 Ferramentas de IA Gratuitas Que Todo Advogado Precisa Conhecer",
+    excerpt: "Conheça as ferramentas que todo advogado moderno precisa dominar para aumentar sua produtividade e competitividade.",
+    category: "Ferramentas",
+    read_time_minutes: 6,
+    published_at: new Date().toISOString(),
+    is_published: true,
+    slug: "ferramentas-ia-gratuitas-advogados"
+  },
+  {
     id: "5",
-    title: "Automatizando Contratos com Inteligência Artificial",
+    title: "Como Automatizar Contratos Com Inteligência Artificial",
     excerpt: "Veja como a IA pode acelerar a análise e elaboração de contratos, reduzindo erros e aumentando a eficiência.",
     category: "Prática",
     read_time_minutes: 9,
     published_at: new Date().toISOString(),
     is_published: true,
-    slug: "automatizando-contratos-ia"
+    slug: "automatizar-contratos-ia"
+  },
+  {
+    id: "6",
+    title: "Pesquisa Jurídica Com IA: Encontre Jurisprudência em Minutos",
+    excerpt: "Aprenda técnicas avançadas de pesquisa jurídica usando inteligência artificial para encontrar jurisprudência relevante rapidamente.",
+    category: "Tutorial",
+    read_time_minutes: 8,
+    published_at: new Date().toISOString(),
+    is_published: true,
+    slug: "pesquisa-juridica-ia"
+  },
+  {
+    id: "7",
+    title: "IA na Advocacia: Como Começar do Zero (Guia Para Iniciantes)",
+    excerpt: "Um guia completo para advogados que querem dar os primeiros passos no mundo da inteligência artificial.",
+    category: "Iniciantes",
+    read_time_minutes: 12,
+    published_at: new Date().toISOString(),
+    is_published: true,
+    slug: "ia-advocacia-iniciantes"
+  },
+  {
+    id: "8",
+    title: "Como Aumentar a Produtividade do Escritório de Advocacia Com IA",
+    excerpt: "Estratégias práticas para implementar IA no seu escritório e aumentar a produtividade da equipe.",
+    category: "Produtividade",
+    read_time_minutes: 10,
+    published_at: new Date().toISOString(),
+    is_published: true,
+    slug: "produtividade-escritorio-ia"
   }
 ];
 
@@ -176,8 +255,12 @@ export function BlogPage() {
                         </Link>
                       </Button>
                     </div>
-                    <div className="w-full md:w-64 h-48 bg-gradient-to-br from-amber-500/20 to-orange-500/20 rounded-xl flex items-center justify-center">
-                      <Brain className="w-24 h-24 text-amber-500/50" />
+                    <div className="w-full md:w-80 h-48 rounded-xl overflow-hidden">
+                      <img 
+                        src={getArticleImage(featuredArticle.title, featuredArticle.slug)} 
+                        alt={featuredArticle.title}
+                        className="w-full h-full object-cover"
+                      />
                     </div>
                   </div>
                 </CardContent>
@@ -198,8 +281,12 @@ export function BlogPage() {
                     className="bg-slate-800/50 border-slate-700 hover:border-amber-500/50 transition-all duration-300 group hover:scale-[1.02] hover:shadow-xl hover:shadow-amber-500/10 h-full"
                   >
                     <CardContent className="p-6">
-                      <div className="h-32 bg-gradient-to-br from-slate-700 to-slate-800 rounded-lg mb-4 flex items-center justify-center">
-                        <Brain className="w-12 h-12 text-amber-500/30 group-hover:text-amber-500/50 transition-colors duration-300" />
+                      <div className="h-40 rounded-lg mb-4 overflow-hidden">
+                        <img 
+                          src={getArticleImage(article.title, article.slug)} 
+                          alt={article.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
                       </div>
                       {article.category && (
                         <Badge variant="outline" className="border-amber-500/30 text-amber-400 mb-3">
