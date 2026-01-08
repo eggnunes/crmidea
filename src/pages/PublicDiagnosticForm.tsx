@@ -214,6 +214,16 @@ export function PublicDiagnosticForm() {
       setIsCompleted(true);
       toast.success("Diagnóstico enviado com sucesso!");
 
+      // Generate implementation plan automatically
+      try {
+        await supabase.functions.invoke("generate-implementation-plan", {
+          body: { clientId: data.id }
+        });
+      } catch (planError) {
+        console.error("Error generating implementation plan:", planError);
+        // Don't fail if plan generation fails
+      }
+
       // Send notifications (WhatsApp and Email)
       try {
         await supabase.functions.invoke("send-consulting-notification", {
