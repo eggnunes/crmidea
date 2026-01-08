@@ -353,6 +353,21 @@ export function DiagnosticStep1({ formData, updateFormData, consultantId }: Diag
   
   return (
     <div className="space-y-6">
+      {/* Office Name First */}
+      <div className="space-y-2">
+        <Label htmlFor="office_name">Nome do Escritório <span className="text-destructive">*</span></Label>
+        <Input
+          id="office_name"
+          value={formData.office_name}
+          onChange={(e) => updateFormData({ office_name: e.target.value })}
+          placeholder="Nome do seu escritório de advocacia"
+          required
+        />
+        <p className="text-xs text-muted-foreground">
+          Preencha primeiro o nome do escritório para poder gerar a logo com IA
+        </p>
+      </div>
+
       {/* Logo Section */}
       <div className="flex flex-col items-center gap-4 p-6 border-2 border-dashed rounded-lg bg-muted/30">
         <Avatar className="w-24 h-24">
@@ -389,7 +404,7 @@ export function DiagnosticStep1({ formData, updateFormData, consultantId }: Diag
             </div>
             <div className="relative flex justify-center text-xs uppercase">
               <span className="bg-muted/30 px-2 text-muted-foreground">
-                ou, se não tiver logo
+                Não tem logo? Gere com IA!
               </span>
             </div>
           </div>
@@ -397,7 +412,7 @@ export function DiagnosticStep1({ formData, updateFormData, consultantId }: Diag
           {/* AI Generation */}
           <div>
             <p className="text-xs text-muted-foreground mb-2">
-              Gere uma logo profissional automaticamente com IA
+              Gere uma logo profissional automaticamente com Inteligência Artificial
             </p>
             <Button
               type="button"
@@ -420,7 +435,7 @@ export function DiagnosticStep1({ formData, updateFormData, consultantId }: Diag
             </Button>
             {!formData.office_name.trim() && (
               <p className="text-xs text-amber-500 mt-1">
-                Preencha o nome do escritório primeiro
+                Preencha o nome do escritório acima para habilitar
               </p>
             )}
           </div>
@@ -520,16 +535,6 @@ export function DiagnosticStep1({ formData, updateFormData, consultantId }: Diag
       
       {/* Office Info */}
       <div className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="office_name">Nome do Escritório <span className="text-destructive">*</span></Label>
-          <Input
-            id="office_name"
-            value={formData.office_name}
-            onChange={(e) => updateFormData({ office_name: e.target.value })}
-            placeholder="Nome do seu escritório de advocacia"
-            required
-          />
-        </div>
         
         {/* CEP com busca automática */}
         <div className="space-y-2">
