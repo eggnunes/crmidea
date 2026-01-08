@@ -110,7 +110,7 @@ export function ClientDashboardPage() {
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!session) {
-        navigate("/sobre-consultoria");
+        navigate("/consultoria");
         return;
       }
       
@@ -122,7 +122,7 @@ export function ClientDashboardPage() {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (!session) {
-        navigate("/sobre-consultoria");
+        navigate("/consultoria");
       }
     });
 
@@ -207,7 +207,7 @@ export function ClientDashboardPage() {
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
-    navigate("/sobre-consultoria");
+    navigate("/consultoria");
   };
 
   const handleCopyPrompt = async () => {
@@ -238,7 +238,7 @@ export function ClientDashboardPage() {
               Perfil de cliente não encontrado. Por favor, cadastre-se novamente.
             </p>
             <Button asChild>
-              <Link to="/sobre-consultoria">Voltar</Link>
+              <Link to="/">Voltar</Link>
             </Button>
           </CardContent>
         </Card>
@@ -298,7 +298,7 @@ export function ClientDashboardPage() {
                   </div>
                 </div>
                 <Button asChild size="lg" className="gap-2 bg-amber-600 hover:bg-amber-700 text-white">
-                  <Link to="/diagnostico-cliente">
+                  <Link to="/consultoria/diagnostico">
                     {formProgress?.current_step === 1 ? "Iniciar Diagnóstico" : "Continuar Preenchendo"}
                     <ArrowRight className="w-4 h-4" />
                   </Link>

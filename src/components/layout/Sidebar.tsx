@@ -41,27 +41,27 @@ interface SidebarProps {
 }
 
 const commercialItems = [
-  { to: "/", icon: LayoutDashboard, label: "Dashboard" },
-  { to: "/leads", icon: Users, label: "Leads" },
-  { to: "/pipeline", icon: Kanban, label: "Pipeline" },
-  { to: "/produtos", icon: Package, label: "Produtos" },
+  { to: "/metodo-ideia", icon: LayoutDashboard, label: "Dashboard" },
+  { to: "/metodo-ideia/leads", icon: Users, label: "Leads" },
+  { to: "/metodo-ideia/pipeline", icon: Kanban, label: "Pipeline" },
+  { to: "/metodo-ideia/produtos", icon: Package, label: "Produtos" },
 ];
 
 const postSaleItems = [
-  { to: "/clientes", icon: UserCheck, label: "Clientes" },
-  { to: "/consultoria", icon: GraduationCap, label: "Consultoria" },
-  { to: "/calendario", icon: Calendar, label: "Calendário" },
+  { to: "/metodo-ideia/clientes", icon: UserCheck, label: "Clientes" },
+  { to: "/metodo-ideia/consultoria", icon: GraduationCap, label: "Consultoria" },
+  { to: "/metodo-ideia/calendario", icon: Calendar, label: "Calendário" },
 ];
 
 const operationalItems = [
-  { to: "/integracoes", icon: BarChart3, label: "Integrações" },
-  { to: "/whatsapp", icon: MessageCircle, label: "Central de Atendimento" },
-  { to: "/alertas", icon: Bell, label: "Central de Alertas" },
-  { to: "/configuracoes", icon: Settings, label: "Configurações" },
+  { to: "/metodo-ideia/integracoes", icon: BarChart3, label: "Integrações" },
+  { to: "/metodo-ideia/whatsapp", icon: MessageCircle, label: "Central de Atendimento" },
+  { to: "/metodo-ideia/alertas", icon: Bell, label: "Central de Alertas" },
+  { to: "/metodo-ideia/configuracoes", icon: Settings, label: "Configurações" },
 ];
 
 const adminItems = [
-  { to: "/admin/usuarios", icon: ShieldCheck, label: "Usuários" },
+  { to: "/metodo-ideia/admin/usuarios", icon: ShieldCheck, label: "Usuários" },
 ];
 
 export function Sidebar({ collapsed, onToggle }: SidebarProps) {
