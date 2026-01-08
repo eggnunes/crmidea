@@ -9,7 +9,6 @@ import {
   Brain,
   BookOpen,
   Sparkles,
-  Scale,
   Instagram,
   Linkedin,
   Youtube,
@@ -17,6 +16,7 @@ import {
   Loader2
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import logoRE from "@/assets/logo-re.png";
 import { useBlogPosts } from "@/hooks/useBlogPosts";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -97,7 +97,7 @@ export function BlogPage() {
         <nav className="relative z-10 container mx-auto px-6 py-6">
           <div className="flex items-center justify-between">
             <Link to="/" className="flex items-center gap-3 group">
-              <Scale className="h-8 w-8 text-amber-500 transition-transform duration-300 group-hover:scale-110" />
+              <img src={logoRE} alt="Rafael Egg" className="h-10 w-10 object-contain transition-transform duration-300 group-hover:scale-110" />
               <span className="text-2xl font-bold text-white tracking-tight">Rafael Egg</span>
             </Link>
             <Button variant="ghost" className="text-slate-300 hover:text-amber-400" asChild>
@@ -187,9 +187,11 @@ export function BlogPage() {
                           {featuredArticle.read_time_minutes} min
                         </span>
                       </div>
-                      <Button className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white mt-4">
-                        Ler Artigo
-                        <ExternalLink className="ml-2 h-4 w-4" />
+                      <Button className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white mt-4" asChild>
+                        <Link to={`/blog/${featuredArticle.slug}`}>
+                          Ler Artigo
+                          <ExternalLink className="ml-2 h-4 w-4" />
+                        </Link>
                       </Button>
                     </div>
                     <div className="w-full md:w-64 h-48 bg-gradient-to-br from-amber-500/20 to-orange-500/20 rounded-xl flex items-center justify-center">
@@ -205,38 +207,43 @@ export function BlogPage() {
           <section className="container mx-auto px-6 py-12">
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {otherArticles.map(article => (
-                <Card 
+                <Link 
                   key={article.id}
-                  className="bg-slate-800/50 border-slate-700 hover:border-amber-500/50 transition-all duration-300 group hover:scale-[1.02] hover:shadow-xl hover:shadow-amber-500/10"
+                  to={`/blog/${article.slug}`}
+                  className="block"
                 >
-                  <CardContent className="p-6">
-                    <div className="h-32 bg-gradient-to-br from-slate-700 to-slate-800 rounded-lg mb-4 flex items-center justify-center">
-                      <Brain className="w-12 h-12 text-amber-500/30 group-hover:text-amber-500/50 transition-colors duration-300" />
-                    </div>
-                    {article.category && (
-                      <Badge variant="outline" className="border-amber-500/30 text-amber-400 mb-3">
-                        {article.category}
-                      </Badge>
-                    )}
-                    <h3 className="text-lg font-semibold text-white mb-2 group-hover:text-amber-400 transition-colors duration-300 line-clamp-2">
-                      {article.title}
-                    </h3>
-                    <p className="text-slate-400 text-sm mb-4 line-clamp-2">{article.excerpt}</p>
-                    <div className="flex items-center justify-between text-xs text-slate-500">
-                      <span className="flex items-center gap-1">
-                        <Calendar className="w-3 h-3" />
-                        {article.published_at 
-                          ? format(new Date(article.published_at), "dd MMM yyyy", { locale: ptBR })
-                          : "Em breve"
-                        }
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Clock className="w-3 h-3" />
-                        {article.read_time_minutes} min
-                      </span>
-                    </div>
-                  </CardContent>
-                </Card>
+                  <Card 
+                    className="bg-slate-800/50 border-slate-700 hover:border-amber-500/50 transition-all duration-300 group hover:scale-[1.02] hover:shadow-xl hover:shadow-amber-500/10 h-full"
+                  >
+                    <CardContent className="p-6">
+                      <div className="h-32 bg-gradient-to-br from-slate-700 to-slate-800 rounded-lg mb-4 flex items-center justify-center">
+                        <Brain className="w-12 h-12 text-amber-500/30 group-hover:text-amber-500/50 transition-colors duration-300" />
+                      </div>
+                      {article.category && (
+                        <Badge variant="outline" className="border-amber-500/30 text-amber-400 mb-3">
+                          {article.category}
+                        </Badge>
+                      )}
+                      <h3 className="text-lg font-semibold text-white mb-2 group-hover:text-amber-400 transition-colors duration-300 line-clamp-2">
+                        {article.title}
+                      </h3>
+                      <p className="text-slate-400 text-sm mb-4 line-clamp-2">{article.excerpt}</p>
+                      <div className="flex items-center justify-between text-xs text-slate-500">
+                        <span className="flex items-center gap-1">
+                          <Calendar className="w-3 h-3" />
+                          {article.published_at 
+                            ? format(new Date(article.published_at), "dd MMM yyyy", { locale: ptBR })
+                            : "Em breve"
+                          }
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          {article.read_time_minutes} min
+                        </span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </Link>
               ))}
             </div>
           </section>
@@ -270,7 +277,7 @@ export function BlogPage() {
         <div className="container mx-auto px-6">
           <div className="flex flex-col md:flex-row items-center justify-between gap-6">
             <Link to="/" className="flex items-center gap-2">
-              <Scale className="h-6 w-6 text-amber-500" />
+              <img src={logoRE} alt="Rafael Egg" className="h-8 w-8 object-contain" />
               <span className="text-xl font-bold text-white">Rafael Egg</span>
             </Link>
             <div className="flex gap-3">

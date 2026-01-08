@@ -21,7 +21,6 @@ import {
   Linkedin,
   Youtube,
   Mail,
-  Scale,
   Brain,
   Award,
   Target,
@@ -32,6 +31,7 @@ import {
   Phone,
   Shield
 } from "lucide-react";
+import logoRE from "@/assets/logo-re.png";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -199,7 +199,7 @@ export function HomePage() {
         <nav className="relative z-10 container mx-auto px-6 py-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Scale className="h-8 w-8 text-amber-500" />
+              <img src={logoRE} alt="Rafael Egg" className="h-10 w-10 object-contain" />
               <span className="text-2xl font-bold text-white tracking-tight">Rafael Egg</span>
             </div>
             <div className="hidden md:flex items-center gap-6">
@@ -354,7 +354,7 @@ export function HomePage() {
             <div className="grid md:grid-cols-3 gap-8">
               <Card className="bg-slate-800/50 border-slate-700 hover:border-amber-500/50 transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-amber-500/10 group">
                 <CardContent className="p-6 text-center">
-                  <Scale className="h-12 w-12 text-amber-500 mx-auto mb-4 transition-transform duration-300 group-hover:scale-110" />
+                  <img src={logoRE} alt="Advogado" className="h-12 w-12 mx-auto mb-4 object-contain transition-transform duration-300 group-hover:scale-110" />
                   <h3 className="text-lg font-semibold text-white mb-2">Advogado</h3>
                   <p className="text-slate-400">Mais de 15 anos de experiência no mercado jurídico brasileiro</p>
                 </CardContent>
@@ -516,11 +516,11 @@ export function HomePage() {
             {/* Robô de Toga */}
             <Card className="bg-slate-800/50 border-slate-700 hover:border-purple-500/50 transition-all duration-300 group hover:scale-[1.02] hover:shadow-xl hover:shadow-purple-500/10">
               <CardContent className="p-8">
-                <div className="flex items-start gap-4 mb-4">
-                  <div className="h-24 w-auto flex-shrink-0 flex items-center">
-                    <img src={logoRobodetoga} alt="Robô de Toga" className="h-full w-auto object-contain" />
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="h-20 w-20 flex-shrink-0 flex items-center justify-center">
+                    <img src={logoRobodetoga} alt="Robô de Toga" className="h-full w-full object-contain" />
                   </div>
-                  <div className="pt-2">
+                  <div>
                     <h3 className="text-xl font-semibold text-white">Robô de Toga</h3>
                     <p className="text-purple-400 text-sm">robodetoga.com.br</p>
                   </div>
@@ -747,7 +747,7 @@ export function HomePage() {
           <div className="grid md:grid-cols-3 gap-8">
             <div>
               <div className="flex items-center gap-2 mb-4">
-                <Scale className="h-6 w-6 text-amber-500" />
+                <img src={logoRE} alt="Rafael Egg" className="h-8 w-8 object-contain" />
                 <span className="text-xl font-bold text-white">Rafael Egg</span>
               </div>
               <p className="text-slate-400">
