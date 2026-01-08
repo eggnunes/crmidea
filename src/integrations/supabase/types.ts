@@ -332,6 +332,78 @@ export type Database = {
         }
         Relationships: []
       }
+      client_badges: {
+        Row: {
+          category: string
+          created_at: string
+          description: string
+          icon: string
+          id: string
+          name: string
+          points: number | null
+          requirement_type: string
+          requirement_value: number | null
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          description: string
+          icon: string
+          id?: string
+          name: string
+          points?: number | null
+          requirement_type: string
+          requirement_value?: number | null
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          description?: string
+          icon?: string
+          id?: string
+          name?: string
+          points?: number | null
+          requirement_type?: string
+          requirement_value?: number | null
+        }
+        Relationships: []
+      }
+      client_earned_badges: {
+        Row: {
+          badge_id: string
+          client_id: string
+          earned_at: string
+          id: string
+        }
+        Insert: {
+          badge_id: string
+          client_id: string
+          earned_at?: string
+          id?: string
+        }
+        Update: {
+          badge_id?: string
+          client_id?: string
+          earned_at?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_earned_badges_badge_id_fkey"
+            columns: ["badge_id"]
+            isOneToOne: false
+            referencedRelation: "client_badges"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_earned_badges_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "consulting_clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_form_fields: {
         Row: {
           created_at: string
@@ -927,6 +999,7 @@ export type Database = {
           has_used_ai: boolean | null
           has_used_chatgpt: boolean | null
           id: string
+          lead_id: string | null
           logo_url: string | null
           motivations: string[] | null
           motivations_other: string | null
@@ -941,6 +1014,7 @@ export type Database = {
           selected_features: number[] | null
           status: string | null
           tasks_to_automate: string | null
+          total_points: number | null
           updated_at: string
           user_id: string
           website: string | null
@@ -975,6 +1049,7 @@ export type Database = {
           has_used_ai?: boolean | null
           has_used_chatgpt?: boolean | null
           id?: string
+          lead_id?: string | null
           logo_url?: string | null
           motivations?: string[] | null
           motivations_other?: string | null
@@ -989,6 +1064,7 @@ export type Database = {
           selected_features?: number[] | null
           status?: string | null
           tasks_to_automate?: string | null
+          total_points?: number | null
           updated_at?: string
           user_id: string
           website?: string | null
@@ -1023,6 +1099,7 @@ export type Database = {
           has_used_ai?: boolean | null
           has_used_chatgpt?: boolean | null
           id?: string
+          lead_id?: string | null
           logo_url?: string | null
           motivations?: string[] | null
           motivations_other?: string | null
@@ -1037,11 +1114,20 @@ export type Database = {
           selected_features?: number[] | null
           status?: string | null
           tasks_to_automate?: string | null
+          total_points?: number | null
           updated_at?: string
           user_id?: string
           website?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "consulting_clients_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       consulting_sessions: {
         Row: {

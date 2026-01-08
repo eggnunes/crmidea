@@ -57,6 +57,7 @@ import { isWithinInterval, startOfDay, endOfDay } from "date-fns";
 import { Checkbox } from "@/components/ui/checkbox";
 import { StartConversationButton } from "@/components/whatsapp/StartConversationButton";
 import { useNavigate } from "react-router-dom";
+import { ConvertLeadToClientDialog } from "@/components/leads/ConvertLeadToClientDialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -706,6 +707,7 @@ export function LeadsPage() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [conversationPhones, setConversationPhones] = useState<Set<string>>(new Set());
+  const [convertingLead, setConvertingLead] = useState<Lead | null>(null);
 
   // Fetch phones that have active conversations
   useEffect(() => {
@@ -1122,6 +1124,18 @@ export function LeadsPage() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
+                              {lead.product === 'consultoria' && (
+                                <>
+                                  <DropdownMenuItem 
+                                    onClick={() => setConvertingLead(lead)}
+                                    className="text-primary"
+                                  >
+                                    <UserCheck className="w-4 h-4 mr-2" />
+                                    Converter p/ Consultoria IDEA
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                </>
+                              )}
                               <DropdownMenuItem 
                                 onClick={() => handleConvertToClient(lead)}
                                 className="text-success"
@@ -1227,6 +1241,19 @@ export function LeadsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Convert to Consulting Client Dialog */}
+      {convertingLead && (
+        <ConvertLeadToClientDialog
+          lead={convertingLead}
+          open={!!convertingLead}
+          onOpenChange={(open) => !open && setConvertingLead(null)}
+          onSuccess={() => {
+            setConvertingLead(null);
+            toast.success("Lead convertido para consultoria!");
+          }}
+        />
+      )}
     </div>
   );
 }
