@@ -28,7 +28,8 @@ import {
   Send,
   Trophy,
   BarChart3,
-  FolderOpen
+  FolderOpen,
+  Rocket
 } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -40,6 +41,7 @@ import { ClientBadges } from "@/components/clients/ClientBadges";
 import { ClientProgressCharts } from "@/components/clients/ClientProgressCharts";
 import { ClientFormResponses } from "@/components/clients/ClientFormResponses";
 import { ClientDocumentsManagerReadOnly } from "@/components/consulting/ClientDocumentsManagerReadOnly";
+import { ImplementationPlanViewer } from "@/components/consulting/ImplementationPlanViewer";
 
 interface ClientProfile {
   id: string;
@@ -94,6 +96,7 @@ interface ConsultingClient {
   generated_prompt: string | null;
   status: string | null;
   created_at: string;
+  implementation_plan: unknown | null;
 }
 
 export function ClientDashboardPage() {
@@ -180,7 +183,7 @@ export function ClientDashboardPage() {
         // Fetch consulting client data (generated prompt)
         const { data: clientData } = await supabase
           .from("consulting_clients")
-          .select("id, generated_prompt, status, created_at")
+          .select("id, generated_prompt, status, created_at, implementation_plan")
           .eq("email", profileData.email)
           .maybeSingle();
 
@@ -466,6 +469,10 @@ export function ClientDashboardPage() {
               <FolderOpen className="w-4 h-4" />
               Documentos
             </TabsTrigger>
+            <TabsTrigger value="plan" className="gap-2">
+              <Rocket className="w-4 h-4" />
+              Plano de Implementação
+            </TabsTrigger>
             <TabsTrigger value="responses" className="gap-2">
               <ClipboardList className="w-4 h-4" />
               Minhas Respostas
@@ -494,6 +501,23 @@ export function ClientDashboardPage() {
               <Card>
                 <CardContent className="py-8 text-center text-muted-foreground">
                   Nenhum documento disponível ainda.
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
+          {/* Implementation Plan Tab */}
+          <TabsContent value="plan">
+            {consultingClient ? (
+              <ImplementationPlanViewer 
+                clientId={consultingClient.id} 
+                existingPlan={consultingClient.implementation_plan as any}
+                readOnly={true}
+              />
+            ) : (
+              <Card>
+                <CardContent className="py-8 text-center text-muted-foreground">
+                  Nenhum plano de implementação disponível ainda.
                 </CardContent>
               </Card>
             )}

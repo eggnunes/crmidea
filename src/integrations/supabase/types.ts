@@ -1100,6 +1100,7 @@ export type Database = {
           has_used_ai: boolean | null
           has_used_chatgpt: boolean | null
           id: string
+          implementation_plan: Json | null
           lead_id: string | null
           logo_url: string | null
           motivations: string[] | null
@@ -1150,6 +1151,7 @@ export type Database = {
           has_used_ai?: boolean | null
           has_used_chatgpt?: boolean | null
           id?: string
+          implementation_plan?: Json | null
           lead_id?: string | null
           logo_url?: string | null
           motivations?: string[] | null
@@ -1200,6 +1202,7 @@ export type Database = {
           has_used_ai?: boolean | null
           has_used_chatgpt?: boolean | null
           id?: string
+          implementation_plan?: Json | null
           lead_id?: string | null
           logo_url?: string | null
           motivations?: string[] | null

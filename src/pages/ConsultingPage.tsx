@@ -22,7 +22,8 @@ import {
   MapPin,
   Settings,
   ShieldCheck,
-  MailCheck
+  MailCheck,
+  CalendarCog
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -32,6 +33,7 @@ import { QRCodeGenerator } from "@/components/diagnostic/QRCodeGenerator";
 import { ConsultingReminders } from "@/components/consulting/ConsultingReminders";
 import { ConsultingNotificationSettings } from "@/components/consulting/ConsultingNotificationSettings";
 import { ConsultingSettingsPanel } from "@/components/consulting/ConsultingSettingsPanel";
+import { ConsultingCalendarSettings } from "@/components/consulting/ConsultingCalendarSettings";
 import { SentEmailsLog } from "@/components/consulting/SentEmailsLog";
 
 interface ConsultingClientBasic {
@@ -164,9 +166,13 @@ export function ConsultingPage() {
             <MailCheck className="w-4 h-4" />
             E-mails Enviados
           </TabsTrigger>
+          <TabsTrigger value="calendar" className="gap-2">
+            <CalendarCog className="w-4 h-4" />
+            Agenda
+          </TabsTrigger>
           <TabsTrigger value="settings" className="gap-2">
             <Settings className="w-4 h-4" />
-            Configurações
+            Notificações
           </TabsTrigger>
         </TabsList>
 
@@ -319,6 +325,10 @@ export function ConsultingPage() {
 
         <TabsContent value="emails">
           <SentEmailsLog />
+        </TabsContent>
+
+        <TabsContent value="calendar">
+          <ConsultingCalendarSettings />
         </TabsContent>
 
         <TabsContent value="settings">
