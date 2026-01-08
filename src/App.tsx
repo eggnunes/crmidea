@@ -17,6 +17,7 @@ import { AlertsCenterPage } from "./pages/AlertsCenterPage";
 import { CalendarPage } from "./pages/CalendarPage";
 import { PublicBookingPage } from "./pages/PublicBookingPage";
 import AdminUsersPage from "./pages/AdminUsersPage";
+import { ConsultingPage } from "./pages/ConsultingPage";
 import { AuthPage } from "./pages/AuthPage";
 import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
 import NotFound from "./pages/NotFound";
@@ -63,6 +64,7 @@ function AppRoutes() {
                 <Route path="/whatsapp" element={<WhatsAppPage />} />
                 <Route path="/alertas" element={<AlertsCenterPage />} />
                 <Route path="/calendario" element={<CalendarPage />} />
+                <Route path="/consultoria" element={<ConsultingPage />} />
                 <Route path="/configuracoes" element={<SettingsPage />} />
                 <Route path="/admin/usuarios" element={<AdminUsersPage />} />
                 <Route path="*" element={<NotFound />} />

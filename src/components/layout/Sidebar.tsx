@@ -16,7 +16,8 @@ import {
   Calendar,
   TrendingUp,
   Headphones,
-  CheckCheck
+  CheckCheck,
+  GraduationCap
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NavLink } from "@/components/NavLink";
@@ -48,6 +49,7 @@ const commercialItems = [
 
 const postSaleItems = [
   { to: "/clientes", icon: UserCheck, label: "Clientes" },
+  { to: "/consultoria", icon: GraduationCap, label: "Consultoria" },
   { to: "/calendario", icon: Calendar, label: "Calendário" },
 ];
 

@@ -243,7 +243,7 @@ export function ConsultingPage() {
             <Card 
               key={client.id} 
               className="cursor-pointer hover:border-primary/50 transition-colors"
-              onClick={() => setSelectedClient(client)}
+              onClick={() => setSelectedClientId(client.id)}
             >
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
