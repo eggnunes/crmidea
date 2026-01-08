@@ -85,9 +85,9 @@ export function ImplementationPlanViewer({
     return (
       <Card>
         <CardContent className="py-8 text-center text-muted-foreground">
-          <Wand2 className="w-12 h-12 mx-auto mb-3 opacity-50" />
-          <p>Nenhum plano de implementação disponível ainda.</p>
-          <p className="text-sm mt-2">Aguarde o consultor gerar o seu plano personalizado.</p>
+          <Loader2 className="w-12 h-12 mx-auto mb-3 opacity-50 animate-spin" />
+          <p>Seu plano de implementação está sendo gerado...</p>
+          <p className="text-sm mt-2">Aguarde alguns instantes ou recarregue a página em breve.</p>
         </CardContent>
       </Card>
     );

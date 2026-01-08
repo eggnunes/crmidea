@@ -23,15 +23,24 @@ import {
   LogIn,
   HelpCircle,
   Instagram,
-  Youtube
+  Youtube,
+  Settings,
+  CreditCard,
+  Menu
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { useUserRoles } from "@/hooks/useUserRoles";
 import { CONSULTING_FEATURES, FEATURE_CATEGORIES } from "@/data/consultingFeatures";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useState } from "react";
 import logoConsultoria from "@/assets/logo-consultoria.png";
 import logoRE from "@/assets/logo-re.png";
+import {
+  Sheet,
+  SheetContent,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 
 // ID do consultor padrão - em produção, isso poderia ser dinâmico
 const DEFAULT_CONSULTANT_ID = "default";
@@ -102,24 +111,46 @@ const steps = [
   }
 ];
 
-const testimonials = [
+const lovablePlans = [
   {
-    name: "Dr. Carlos Silva",
-    office: "Silva & Associados",
-    text: "A consultoria transformou completamente a forma como trabalhamos. Reduzimos em 60% o tempo gasto em tarefas administrativas.",
-    rating: 5
+    name: "Free",
+    price: "Grátis",
+    credits: "5 créditos diários",
+    description: "Ideal para explorar e testar a plataforma",
+    features: [
+      "5 créditos diários (máx 30/mês)",
+      "Domínio lovable.app",
+      "Funcionalidades básicas"
+    ]
   },
   {
-    name: "Dra. Marina Santos",
-    office: "Santos Advocacia",
-    text: "Finalmente consegui implementar IA no meu escritório de forma prática e eficiente. O suporte foi excepcional.",
-    rating: 5
+    name: "Pro",
+    price: "$25/mês",
+    credits: "100 créditos + 5 diários",
+    description: "Perfeito para projetos individuais e pequenos escritórios",
+    features: [
+      "100 créditos mensais",
+      "5 créditos diários (até 150/mês)",
+      "Rollover de créditos não usados",
+      "Domínio personalizado",
+      "Remover badge do Lovable",
+      "Cloud + IA sob demanda"
+    ],
+    recommended: true
   },
   {
-    name: "Dr. Roberto Lima",
-    office: "Lima & Partners",
-    text: "A metodologia a quatro mãos fez toda a diferença. Hoje domino as ferramentas e continuo evoluindo sozinho.",
-    rating: 5
+    name: "Business",
+    price: "$100/mês",
+    credits: "500 créditos + 10 diários",
+    description: "Para equipes e escritórios maiores",
+    features: [
+      "500 créditos mensais",
+      "10 créditos diários (até 300/mês)",
+      "Tudo do Pro",
+      "SSO e gestão de usuários",
+      "Permissões granulares",
+      "Suporte prioritário"
+    ]
   }
 ];
 
@@ -163,12 +194,22 @@ const consultingFaqItems = [
   {
     question: "Qual o investimento para a consultoria?",
     answer: "O investimento varia de acordo com o plano escolhido (duração e intensidade). Entre em contato para conhecer as opções disponíveis e escolher a que melhor se adapta à sua realidade."
+  },
+  {
+    question: "O que é o Lovable e como funciona?",
+    answer: "O Lovable é a plataforma de IA que utilizamos para criar sistemas personalizados para advogados. Ela permite criar aplicações completas usando linguagem natural, sem necessidade de conhecimento de programação. Cada interação consome créditos, que são renovados diariamente e mensalmente."
+  },
+  {
+    question: "Preciso ter uma assinatura do Lovable?",
+    answer: "Sim, para implementar e manter seu sistema você precisará de uma assinatura. Recomendamos o plano Pro ($25/mês) para a maioria dos advogados individuais e pequenos escritórios. Orientamos todo o processo de assinatura e uso da plataforma durante a consultoria."
   }
 ];
 
 export function PublicConsultingPage() {
   const { user } = useAuth();
+  const { isAdmin } = useUserRoles();
   const navigate = useNavigate();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleCadastro = () => {
     if (user) {
@@ -183,43 +224,87 @@ export function PublicConsultingPage() {
       {/* Hero Section */}
       <header className="relative overflow-hidden bg-gradient-to-br from-primary/10 via-background to-primary/5">
         <div className="absolute inset-0 bg-grid-pattern opacity-5" />
-        <nav className="container mx-auto px-4 py-4 flex items-center justify-between relative z-10">
-          <div className="flex items-center gap-3">
-            <Link to="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-              <img 
-                src={logoConsultoria} 
-                alt="Consultoria IDEA" 
-                className="h-10 w-auto object-contain"
-              />
-              <span className="font-bold text-xl">Consultoria IDEA</span>
-            </Link>
-          </div>
-          <div className="flex items-center gap-3">
-            <Button variant="outline" asChild className="gap-2">
-              <Link to="/consultoria/login">
-                <LogIn className="w-4 h-4" />
-                Área do Cliente
+        <nav className="container mx-auto px-4 py-4 relative z-10">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+                <img 
+                  src={logoConsultoria} 
+                  alt="Consultoria IDEA" 
+                  className="h-8 md:h-10 w-auto object-contain"
+                />
+                <span className="font-bold text-lg md:text-xl hidden sm:inline">Consultoria IDEA</span>
               </Link>
-            </Button>
-            <Button asChild>
-              <a href="https://mentoriarafaelegg.com.br/consultoria-idea/" target="_blank" rel="noopener noreferrer">
-                Contratar Consultoria
-              </a>
-            </Button>
+            </div>
+            
+            {/* Desktop Navigation */}
+            <div className="hidden md:flex items-center gap-3">
+              {isAdmin && (
+                <Button variant="ghost" size="icon" asChild className="text-muted-foreground hover:text-foreground">
+                  <Link to="/consultoria" title="Área Administrativa">
+                    <Settings className="w-4 h-4" />
+                  </Link>
+                </Button>
+              )}
+              <Button variant="outline" asChild className="gap-2">
+                <Link to="/consultoria/login">
+                  <LogIn className="w-4 h-4" />
+                  Área do Cliente
+                </Link>
+              </Button>
+              <Button asChild>
+                <a href="https://mentoriarafaelegg.com.br/consultoria-idea/" target="_blank" rel="noopener noreferrer">
+                  Contratar Consultoria
+                </a>
+              </Button>
+            </div>
+
+            {/* Mobile Navigation */}
+            <div className="flex md:hidden items-center gap-2">
+              {isAdmin && (
+                <Button variant="ghost" size="icon" asChild className="text-muted-foreground hover:text-foreground">
+                  <Link to="/consultoria" title="Área Administrativa">
+                    <Settings className="w-4 h-4" />
+                  </Link>
+                </Button>
+              )}
+              <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+                <SheetTrigger asChild>
+                  <Button variant="ghost" size="icon">
+                    <Menu className="w-5 h-5" />
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="right" className="w-72">
+                  <div className="flex flex-col gap-4 mt-8">
+                    <Button variant="outline" asChild className="gap-2 justify-start" onClick={() => setMobileMenuOpen(false)}>
+                      <Link to="/consultoria/login">
+                        <LogIn className="w-4 h-4" />
+                        Área do Cliente
+                      </Link>
+                    </Button>
+                    <Button asChild onClick={() => setMobileMenuOpen(false)}>
+                      <a href="https://mentoriarafaelegg.com.br/consultoria-idea/" target="_blank" rel="noopener noreferrer">
+                        Contratar Consultoria
+                      </a>
+                    </Button>
+                  </div>
+                </SheetContent>
+              </Sheet>
+            </div>
           </div>
         </nav>
         
-        <div className="container mx-auto px-4 py-20 text-center relative z-10">
+        <div className="container mx-auto px-4 py-16 md:py-20 text-center relative z-10">
           <Badge className="mb-4" variant="secondary">
             Consultoria em Inteligência Artificial para Advogados
           </Badge>
           
-          <h1 className="text-4xl md:text-6xl font-bold mb-6 leading-tight">
+          <h1 className="text-3xl md:text-4xl lg:text-6xl font-bold mb-6 leading-tight">
             Transforme seu escritório com{" "}
             <span className="text-primary">Inteligência Artificial</span>
           </h1>
           
-          <p className="text-xl text-muted-foreground max-w-3xl mx-auto mb-8">
+          <p className="text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto mb-8">
             Consultoria personalizada para advogados que querem implementar IA de forma prática e eficiente. 
             Trabalho a quatro mãos, do diagnóstico à autonomia total.
           </p>
@@ -238,7 +323,7 @@ export function PublicConsultingPage() {
             </Button>
           </div>
           
-          <div className="flex flex-wrap justify-center gap-8 mt-12">
+          <div className="flex flex-wrap justify-center gap-4 md:gap-8 mt-12">
             <div className="flex items-center gap-2">
               <CheckCircle2 className="w-5 h-5 text-green-500" />
               <span className="text-sm">Implementação Personalizada</span>
@@ -377,34 +462,108 @@ export function PublicConsultingPage() {
           </div>
         </div>
       </section>
-      
-      {/* Testimonials Section */}
-      <section className="py-20">
+
+      {/* Lovable Plans Section */}
+      <section id="planos-lovable" className="py-20">
         <div className="container mx-auto px-4">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold mb-4">O que dizem nossos clientes</h2>
+            <Badge className="mb-4" variant="secondary">
+              <CreditCard className="w-3 h-3 mr-1" />
+              Plataforma de Desenvolvimento
+            </Badge>
+            <h2 className="text-3xl font-bold mb-4">Como Funciona o Lovable</h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">
-              Advogados que transformaram seus escritórios com a consultoria IDEA
+              O Lovable é a plataforma de IA que utilizamos para criar sistemas personalizados. 
+              Entenda como funcionam os planos e créditos.
             </p>
           </div>
+
+          {/* Explanation Card */}
+          <Card className="mb-8 border-2 border-primary/20 bg-primary/5">
+            <CardContent className="pt-6">
+              <div className="grid md:grid-cols-2 gap-6">
+                <div>
+                  <h3 className="font-semibold text-lg mb-3 flex items-center gap-2">
+                    <Zap className="w-5 h-5 text-primary" />
+                    O que são Créditos?
+                  </h3>
+                  <p className="text-muted-foreground text-sm mb-4">
+                    Cada interação com a IA do Lovable consome créditos. Perguntas simples consomem 1 crédito, 
+                    enquanto tarefas complexas podem consumir mais. Os créditos são sua "moeda" para construir 
+                    e modificar seu sistema.
+                  </p>
+                  <ul className="space-y-2 text-sm text-muted-foreground">
+                    <li className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-green-500" />
+                      Créditos diários renovam a cada 24h
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-green-500" />
+                      Créditos mensais acumulam se não usados (planos pagos)
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-green-500" />
+                      Você pode comprar créditos adicionais se necessário
+                    </li>
+                  </ul>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-lg mb-3 flex items-center gap-2">
+                    <Lightbulb className="w-5 h-5 text-primary" />
+                    Recomendação para Advogados
+                  </h3>
+                  <p className="text-muted-foreground text-sm mb-4">
+                    Para a maioria dos advogados e pequenos escritórios, o <strong>plano Pro ($25/mês)</strong> é 
+                    suficiente para manter e evoluir seu sistema após a consultoria. Você terá 100 créditos 
+                    mensais + 5 diários para fazer ajustes e adicionar funcionalidades.
+                  </p>
+                  <p className="text-muted-foreground text-sm">
+                    Durante a consultoria, orientamos como usar os créditos de forma eficiente e como 
+                    estruturar seus prompts para obter os melhores resultados.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
           
           <div className="grid md:grid-cols-3 gap-6">
-            {testimonials.map((testimonial, index) => (
-              <Card key={index}>
-                <CardContent className="pt-6">
-                  <div className="flex gap-1 mb-4">
-                    {Array.from({ length: testimonial.rating }).map((_, i) => (
-                      <Star key={i} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+            {lovablePlans.map((plan, index) => (
+              <Card key={index} className={`relative ${plan.recommended ? 'border-2 border-primary shadow-lg' : ''}`}>
+                {plan.recommended && (
+                  <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
+                    <Badge className="bg-primary text-primary-foreground">Recomendado</Badge>
+                  </div>
+                )}
+                <CardHeader className="text-center pb-2">
+                  <CardTitle className="text-xl">{plan.name}</CardTitle>
+                  <div className="text-3xl font-bold text-primary">{plan.price}</div>
+                  <p className="text-sm text-muted-foreground">{plan.credits}</p>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground text-center mb-4">{plan.description}</p>
+                  <ul className="space-y-2">
+                    {plan.features.map((feature, i) => (
+                      <li key={i} className="flex items-start gap-2 text-sm">
+                        <CheckCircle2 className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+                        <span>{feature}</span>
+                      </li>
                     ))}
-                  </div>
-                  <p className="text-muted-foreground mb-4">"{testimonial.text}"</p>
-                  <div>
-                    <p className="font-semibold">{testimonial.name}</p>
-                    <p className="text-sm text-muted-foreground">{testimonial.office}</p>
-                  </div>
+                  </ul>
                 </CardContent>
               </Card>
             ))}
+          </div>
+
+          <div className="text-center mt-8">
+            <p className="text-sm text-muted-foreground mb-4">
+              Para mais informações sobre preços e planos, acesse o site oficial do Lovable
+            </p>
+            <Button variant="outline" asChild>
+              <a href="https://lovable.dev/pricing" target="_blank" rel="noopener noreferrer">
+                Ver Preços Atualizados
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </a>
+            </Button>
           </div>
         </div>
       </section>
