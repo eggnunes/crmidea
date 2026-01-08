@@ -15,6 +15,28 @@ interface DiagnosticStep1Props {
   consultantId?: string;
 }
 
+// Função para formatar telefone com máscara
+const formatPhone = (value: string): string => {
+  // Remove tudo que não é número
+  const numbers = value.replace(/\D/g, "");
+  
+  // Limita a 11 dígitos
+  const limited = numbers.slice(0, 11);
+  
+  // Aplica a máscara
+  if (limited.length <= 2) {
+    return limited.length > 0 ? `(${limited}` : "";
+  } else if (limited.length <= 6) {
+    return `(${limited.slice(0, 2)}) ${limited.slice(2)}`;
+  } else if (limited.length <= 10) {
+    // Telefone fixo: (XX) XXXX-XXXX
+    return `(${limited.slice(0, 2)}) ${limited.slice(2, 6)}-${limited.slice(6)}`;
+  } else {
+    // Celular: (XX) XXXXX-XXXX
+    return `(${limited.slice(0, 2)}) ${limited.slice(2, 7)}-${limited.slice(7)}`;
+  }
+};
+
 export function DiagnosticStep1({ formData, updateFormData, consultantId }: DiagnosticStep1Props) {
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const [isGeneratingLogo, setIsGeneratingLogo] = useState(false);
@@ -89,6 +111,11 @@ export function DiagnosticStep1({ formData, updateFormData, consultantId }: Diag
       setIsGeneratingLogo(false);
     }
   };
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatPhone(e.target.value);
+    updateFormData({ phone: formatted });
+  };
   
   return (
     <div className="space-y-6">
@@ -149,7 +176,7 @@ export function DiagnosticStep1({ formData, updateFormData, consultantId }: Diag
       {/* Personal Info */}
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2">
-          <Label htmlFor="full_name">Nome Completo *</Label>
+          <Label htmlFor="full_name">Nome Completo <span className="text-destructive">*</span></Label>
           <Input
             id="full_name"
             value={formData.full_name}
@@ -160,7 +187,7 @@ export function DiagnosticStep1({ formData, updateFormData, consultantId }: Diag
         </div>
         
         <div className="space-y-2">
-          <Label htmlFor="email">E-mail *</Label>
+          <Label htmlFor="email">E-mail <span className="text-destructive">*</span></Label>
           <Input
             id="email"
             type="email"
@@ -172,14 +199,16 @@ export function DiagnosticStep1({ formData, updateFormData, consultantId }: Diag
         </div>
         
         <div className="space-y-2">
-          <Label htmlFor="phone">Telefone/WhatsApp *</Label>
+          <Label htmlFor="phone">Telefone/WhatsApp <span className="text-destructive">*</span></Label>
           <Input
             id="phone"
             value={formData.phone}
-            onChange={(e) => updateFormData({ phone: e.target.value })}
+            onChange={handlePhoneChange}
             placeholder="(11) 99999-9999"
+            maxLength={15}
             required
           />
+          <p className="text-xs text-muted-foreground">Formato: (XX) XXXXX-XXXX</p>
         </div>
         
         <div className="space-y-2">
@@ -196,7 +225,7 @@ export function DiagnosticStep1({ formData, updateFormData, consultantId }: Diag
       {/* Office Info */}
       <div className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="office_name">Nome do Escritório *</Label>
+          <Label htmlFor="office_name">Nome do Escritório <span className="text-destructive">*</span></Label>
           <Input
             id="office_name"
             value={formData.office_name}
@@ -207,7 +236,7 @@ export function DiagnosticStep1({ formData, updateFormData, consultantId }: Diag
         </div>
         
         <div className="space-y-2">
-          <Label htmlFor="office_address">Endereço do Escritório *</Label>
+          <Label htmlFor="office_address">Endereço do Escritório <span className="text-destructive">*</span></Label>
           <Input
             id="office_address"
             value={formData.office_address}
@@ -219,7 +248,7 @@ export function DiagnosticStep1({ formData, updateFormData, consultantId }: Diag
         
         <div className="grid gap-4 md:grid-cols-3">
           <div className="space-y-2">
-            <Label htmlFor="foundation_year">Ano de Fundação</Label>
+            <Label htmlFor="foundation_year">Ano de Fundação <span className="text-destructive">*</span></Label>
             <Input
               id="foundation_year"
               type="number"
@@ -228,11 +257,12 @@ export function DiagnosticStep1({ formData, updateFormData, consultantId }: Diag
               value={formData.foundation_year || ""}
               onChange={(e) => updateFormData({ foundation_year: e.target.value ? parseInt(e.target.value) : null })}
               placeholder="2020"
+              required
             />
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="num_lawyers">Nº de Advogados *</Label>
+            <Label htmlFor="num_lawyers">Nº de Advogados <span className="text-destructive">*</span></Label>
             <Input
               id="num_lawyers"
               type="number"
@@ -244,7 +274,7 @@ export function DiagnosticStep1({ formData, updateFormData, consultantId }: Diag
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="num_employees">Total de Colaboradores *</Label>
+            <Label htmlFor="num_employees">Total de Colaboradores <span className="text-destructive">*</span></Label>
             <Input
               id="num_employees"
               type="number"
@@ -257,16 +287,21 @@ export function DiagnosticStep1({ formData, updateFormData, consultantId }: Diag
         </div>
         
         <div className="space-y-2">
-          <Label htmlFor="practice_areas">Áreas de Atuação</Label>
+          <Label htmlFor="practice_areas">Áreas de Atuação <span className="text-destructive">*</span></Label>
           <Textarea
             id="practice_areas"
             value={formData.practice_areas}
             onChange={(e) => updateFormData({ practice_areas: e.target.value })}
             placeholder="Ex: Direito Civil, Trabalhista, Empresarial, Família..."
             rows={3}
+            required
           />
         </div>
       </div>
+      
+      <p className="text-sm text-muted-foreground">
+        <span className="text-destructive">*</span> Campos obrigatórios
+      </p>
     </div>
   );
 }

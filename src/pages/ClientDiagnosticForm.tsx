@@ -196,7 +196,48 @@ export function ClientDiagnosticForm() {
     setFormData(prev => ({ ...prev, ...updates }));
   };
   
+  // Validação da etapa 1
+  const validateStep1 = (): boolean => {
+    const requiredFields = [
+      { field: 'full_name', label: 'Nome Completo' },
+      { field: 'email', label: 'E-mail' },
+      { field: 'phone', label: 'Telefone/WhatsApp' },
+      { field: 'office_name', label: 'Nome do Escritório' },
+      { field: 'office_address', label: 'Endereço do Escritório' },
+      { field: 'foundation_year', label: 'Ano de Fundação' },
+      { field: 'practice_areas', label: 'Áreas de Atuação' },
+    ];
+
+    for (const { field, label } of requiredFields) {
+      const value = formData[field as keyof DiagnosticFormData];
+      if (!value || (typeof value === 'string' && !value.trim())) {
+        toast.error(`Por favor, preencha o campo "${label}"`);
+        return false;
+      }
+    }
+
+    // Validar formato do telefone (mínimo 14 caracteres para (XX) XXXX-XXXX)
+    if (formData.phone.length < 14) {
+      toast.error('Por favor, preencha o telefone completo');
+      return false;
+    }
+
+    // Validar email básico
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      toast.error('Por favor, insira um e-mail válido');
+      return false;
+    }
+
+    return true;
+  };
+
   const handleNext = async () => {
+    // Validar etapa 1 antes de avançar
+    if (currentStep === 1 && !validateStep1()) {
+      return;
+    }
+
     if (currentStep < STEPS.length) {
       const nextStep = currentStep + 1;
       setCurrentStep(nextStep);
