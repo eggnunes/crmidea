@@ -972,6 +972,59 @@ export type Database = {
         }
         Relationships: []
       }
+      consulting_client_documents: {
+        Row: {
+          client_id: string
+          created_at: string
+          description: string | null
+          document_type: string
+          external_url: string | null
+          file_name: string | null
+          file_size: number | null
+          file_url: string | null
+          id: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          description?: string | null
+          document_type?: string
+          external_url?: string | null
+          file_name?: string | null
+          file_size?: number | null
+          file_url?: string | null
+          id?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          description?: string | null
+          document_type?: string
+          external_url?: string | null
+          file_name?: string | null
+          file_size?: number | null
+          file_url?: string | null
+          id?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "consulting_client_documents_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "consulting_clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       consulting_client_reminders: {
         Row: {
           client_id: string
@@ -1235,6 +1288,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      consulting_settings: {
+        Row: {
+          calendar_booking_url: string | null
+          created_at: string
+          email_notifications_enabled: boolean | null
+          id: string
+          updated_at: string
+          user_id: string
+          whatsapp_notifications_enabled: boolean | null
+        }
+        Insert: {
+          calendar_booking_url?: string | null
+          created_at?: string
+          email_notifications_enabled?: boolean | null
+          id?: string
+          updated_at?: string
+          user_id: string
+          whatsapp_notifications_enabled?: boolean | null
+        }
+        Update: {
+          calendar_booking_url?: string | null
+          created_at?: string
+          email_notifications_enabled?: boolean | null
+          id?: string
+          updated_at?: string
+          user_id?: string
+          whatsapp_notifications_enabled?: boolean | null
+        }
+        Relationships: []
       }
       contact_tags: {
         Row: {
