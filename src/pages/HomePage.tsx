@@ -305,7 +305,7 @@ export function HomePage() {
                   </svg>
                 </a>
                 <a 
-                  href="https://www.youtube.com/channel/UCDQo50DPXM2ZaRBuw7o7ZmQ" 
+                  href="https://youtube.com/@rafaeleggnunes"
                   target="_blank" 
                   rel="noopener noreferrer" 
                   className="p-2 rounded-full bg-slate-800 text-slate-300 hover:text-red-400 hover:bg-slate-700 transition-all duration-300 hover:scale-110 hover:shadow-lg hover:shadow-red-500/20"
@@ -810,7 +810,7 @@ export function HomePage() {
                   </svg>
                 </a>
                 <a 
-                  href="https://www.youtube.com/channel/UCDQo50DPXM2ZaRBuw7o7ZmQ" 
+                  href="https://youtube.com/@rafaeleggnunes" 
                   target="_blank" 
                   rel="noopener noreferrer" 
                   className="p-2 rounded-full bg-slate-800 text-slate-300 hover:text-red-400 hover:bg-slate-700 transition-all duration-300 hover:scale-110"
