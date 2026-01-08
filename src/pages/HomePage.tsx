@@ -410,13 +410,15 @@ export function HomePage() {
                 }`}
               >
                 <CardContent className="p-6">
-                  {product.logo ? (
-                    <div className="h-20 mb-4 flex items-center justify-center">
+                {product.logo ? (
+                    <div className={`mb-4 flex items-center justify-center overflow-hidden ${
+                      product.title === "Curso IDEA" ? "h-32" : "h-20"
+                    }`}>
                       <img 
                         src={product.logo} 
                         alt={product.title} 
-                        className={`w-auto max-w-full object-contain transition-transform duration-300 group-hover:scale-105 ${
-                          product.title === "Curso IDEA" ? "h-20 scale-[3]" : "h-full"
+                        className={`w-auto object-contain ${
+                          product.title === "Curso IDEA" ? "h-32 max-w-full" : "h-full max-w-full transition-transform duration-300 group-hover:scale-105"
                         }`}
                       />
                     </div>
