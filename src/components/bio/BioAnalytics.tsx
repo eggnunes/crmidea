@@ -1,11 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
-import { BarChart3, MousePointerClick, TrendingUp, Calendar, RefreshCw } from "lucide-react";
+import { BarChart3, MousePointerClick, TrendingUp, Calendar, RefreshCw, PieChart } from "lucide-react";
 import { format, subDays, startOfDay, endOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { PieChart as RechartsPie, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 
 interface ClickData {
   link_title: string;
@@ -17,6 +18,12 @@ interface ClickData {
 interface DailyClick {
   date: string;
   count: number;
+}
+
+interface CategoryData {
+  name: string;
+  value: number;
+  color: string;
 }
 
 type CategoryFilter = "all" | "premium" | "ebook" | "projeto";
@@ -104,6 +111,32 @@ export function BioAnalytics() {
   }, [period]);
 
   const maxCount = Math.max(...clicksByLink.map(c => c.click_count), 1);
+
+  // Calculate category distribution for pie chart
+  const categoryDistribution = useMemo(() => {
+    const categoryCounts: Record<string, number> = {};
+    allClicksData.forEach((click) => {
+      categoryCounts[click.category] = (categoryCounts[click.category] || 0) + 1;
+    });
+
+    const categoryColors: Record<string, string> = {
+      premium: "#f59e0b",
+      ebook: "#3b82f6",
+      projeto: "#a855f7"
+    };
+
+    const categoryLabels: Record<string, string> = {
+      premium: "Premium",
+      ebook: "E-books",
+      projeto: "Projetos"
+    };
+
+    return Object.entries(categoryCounts).map(([category, count]) => ({
+      name: categoryLabels[category] || category,
+      value: count,
+      color: categoryColors[category] || "#64748b"
+    }));
+  }, [allClicksData]);
 
   const getCategoryColor = (category: string) => {
     switch (category) {
@@ -233,6 +266,53 @@ export function BioAnalytics() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Pie Chart - Category Distribution */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <PieChart className="w-5 h-5" />
+            Distribuição por Categoria
+          </CardTitle>
+          <CardDescription>Proporção de cliques em cada categoria</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="h-64 flex items-center justify-center text-muted-foreground">
+              Carregando...
+            </div>
+          ) : categoryDistribution.length === 0 ? (
+            <div className="h-64 flex items-center justify-center text-muted-foreground">
+              Nenhum clique registrado no período
+            </div>
+          ) : (
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <RechartsPie>
+                  <Pie
+                    data={categoryDistribution}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={90}
+                    paddingAngle={5}
+                    dataKey="value"
+                    label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
+                  >
+                    {categoryDistribution.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    formatter={(value: number) => [`${value} cliques`, "Total"]}
+                  />
+                  <Legend />
+                </RechartsPie>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Daily Chart */}
       <Card>
