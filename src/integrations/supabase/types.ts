@@ -502,6 +502,53 @@ export type Database = {
         }
         Relationships: []
       }
+      client_progress_feedback: {
+        Row: {
+          achievements: string | null
+          ai_usage_frequency: string | null
+          client_id: string
+          created_at: string
+          help_details: string | null
+          id: string
+          implementation_status: string
+          main_challenges: string | null
+          needs_help: boolean | null
+          user_id: string
+        }
+        Insert: {
+          achievements?: string | null
+          ai_usage_frequency?: string | null
+          client_id: string
+          created_at?: string
+          help_details?: string | null
+          id?: string
+          implementation_status: string
+          main_challenges?: string | null
+          needs_help?: boolean | null
+          user_id: string
+        }
+        Update: {
+          achievements?: string | null
+          ai_usage_frequency?: string | null
+          client_id?: string
+          created_at?: string
+          help_details?: string | null
+          id?: string
+          implementation_status?: string
+          main_challenges?: string | null
+          needs_help?: boolean | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_progress_feedback_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "consulting_clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_sessions: {
         Row: {
           client_id: string
@@ -752,6 +799,54 @@ export type Database = {
           id?: string
           mapping?: Json
           name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      consultant_notification_settings: {
+        Row: {
+          booking_email_notification: boolean | null
+          consultant_email: string | null
+          created_at: string
+          diagnostic_email_notification: boolean | null
+          from_email_address: string | null
+          from_email_name: string | null
+          id: string
+          inactivity_reminder_days: number | null
+          inactivity_reminder_enabled: boolean | null
+          monthly_report_day: number | null
+          monthly_report_enabled: boolean | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          booking_email_notification?: boolean | null
+          consultant_email?: string | null
+          created_at?: string
+          diagnostic_email_notification?: boolean | null
+          from_email_address?: string | null
+          from_email_name?: string | null
+          id?: string
+          inactivity_reminder_days?: number | null
+          inactivity_reminder_enabled?: boolean | null
+          monthly_report_day?: number | null
+          monthly_report_enabled?: boolean | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          booking_email_notification?: boolean | null
+          consultant_email?: string | null
+          created_at?: string
+          diagnostic_email_notification?: boolean | null
+          from_email_address?: string | null
+          from_email_name?: string | null
+          id?: string
+          inactivity_reminder_days?: number | null
+          inactivity_reminder_enabled?: boolean | null
+          monthly_report_day?: number | null
+          monthly_report_enabled?: boolean | null
           updated_at?: string
           user_id?: string
         }

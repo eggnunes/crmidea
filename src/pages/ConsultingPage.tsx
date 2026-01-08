@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Users, 
   Plus, 
@@ -18,7 +19,8 @@ import {
   Sparkles,
   QrCode,
   ExternalLink,
-  MapPin
+  MapPin,
+  Settings
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -26,6 +28,7 @@ import { ConsultingClientDialog } from "@/components/consulting/ConsultingClient
 import { ConsultingClientDetail } from "@/components/consulting/ConsultingClientDetail";
 import { QRCodeGenerator } from "@/components/diagnostic/QRCodeGenerator";
 import { ConsultingReminders } from "@/components/consulting/ConsultingReminders";
+import { ConsultingNotificationSettings } from "@/components/consulting/ConsultingNotificationSettings";
 
 interface ConsultingClientBasic {
   id: string;
@@ -143,146 +146,165 @@ export function ConsultingPage() {
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Total de Clientes</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.total}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Pendentes</CardTitle>
-            <FileText className="h-4 w-4 text-yellow-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">{stats.pending}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Em Andamento</CardTitle>
-            <Sparkles className="h-4 w-4 text-blue-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-600">{stats.inProgress}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Concluídos</CardTitle>
-            <Calendar className="h-4 w-4 text-green-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">{stats.completed}</div>
-          </CardContent>
-        </Card>
-      </div>
+      <Tabs defaultValue="clients" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="clients" className="gap-2">
+            <Users className="w-4 h-4" />
+            Clientes
+          </TabsTrigger>
+          <TabsTrigger value="settings" className="gap-2">
+            <Settings className="w-4 h-4" />
+            Configurações
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Reminders - Clients without recent meetings */}
-      <ConsultingReminders />
-
-      {/* Form Link Card */}
-      {/* QR Code Generator */}
-      <QRCodeGenerator />
-
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input
-          placeholder="Buscar por nome, escritório ou email..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-10"
-        />
-      </div>
-
-      {/* Client List */}
-      {loading ? (
-        <div className="flex items-center justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-        </div>
-      ) : filteredClients.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <Users className="w-12 h-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Nenhum cliente encontrado</h3>
-            <p className="text-muted-foreground text-center mb-4">
-              {searchTerm 
-                ? "Tente uma busca diferente" 
-                : "Comece adicionando seu primeiro cliente de consultoria"
-              }
-            </p>
-            {!searchTerm && (
-              <Button onClick={() => setIsDialogOpen(true)}>
-                <Plus className="w-4 h-4 mr-2" />
-                Adicionar Cliente
-              </Button>
-            )}
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {filteredClients.map((client) => (
-            <Card 
-              key={client.id} 
-              className="cursor-pointer hover:border-primary/50 transition-colors"
-              onClick={() => setSelectedClientId(client.id)}
-            >
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <CardTitle className="text-lg">{client.full_name}</CardTitle>
-                    <CardDescription className="flex items-center gap-1 mt-1">
-                      <Building2 className="w-3 h-3" />
-                      {client.office_name}
-                    </CardDescription>
-                  </div>
-                  <Badge className={statusColors[client.status] || statusColors.pending}>
-                    {statusLabels[client.status] || 'Pendente'}
-                  </Badge>
-                </div>
+        <TabsContent value="clients" className="space-y-6">
+          {/* Stats */}
+          <div className="grid gap-4 md:grid-cols-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">Total de Clientes</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
-              <CardContent className="space-y-2">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Mail className="w-4 h-4" />
-                  {client.email}
-                </div>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Phone className="w-4 h-4" />
-                  {client.phone}
-                </div>
-                {(client.cidade || client.estado) && (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <MapPin className="w-4 h-4" />
-                    {client.cidade}{client.cidade && client.estado ? ' - ' : ''}{client.estado}
-                  </div>
-                )}
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">
-                    {client.num_lawyers} advogado(s) • {client.num_employees} colaborador(es)
-                  </span>
-                </div>
-                <div className="flex items-center justify-between pt-2 border-t">
-                  <span className="text-xs text-muted-foreground">
-                    Cadastro: {format(new Date(client.created_at), "dd/MM/yyyy", { locale: ptBR })}
-                  </span>
-                  {client.generated_prompt && (
-                    <Badge variant="outline" className="text-xs">
-                      <Sparkles className="w-3 h-3 mr-1" />
-                      Prompt gerado
-                    </Badge>
-                  )}
-                </div>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.total}</div>
               </CardContent>
             </Card>
-          ))}
-        </div>
-      )}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">Pendentes</CardTitle>
+                <FileText className="h-4 w-4 text-yellow-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-yellow-600">{stats.pending}</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">Em Andamento</CardTitle>
+                <Sparkles className="h-4 w-4 text-blue-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-blue-600">{stats.inProgress}</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">Concluídos</CardTitle>
+                <Calendar className="h-4 w-4 text-green-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-600">{stats.completed}</div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Reminders - Clients without recent meetings */}
+          <ConsultingReminders />
+
+          {/* Form Link Card */}
+          {/* QR Code Generator */}
+          <QRCodeGenerator />
+
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por nome, escritório ou email..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+
+          {/* Client List */}
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+            </div>
+          ) : filteredClients.length === 0 ? (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <Users className="w-12 h-12 text-muted-foreground mb-4" />
+                <h3 className="text-lg font-semibold mb-2">Nenhum cliente encontrado</h3>
+                <p className="text-muted-foreground text-center mb-4">
+                  {searchTerm 
+                    ? "Tente uma busca diferente" 
+                    : "Comece adicionando seu primeiro cliente de consultoria"
+                  }
+                </p>
+                {!searchTerm && (
+                  <Button onClick={() => setIsDialogOpen(true)}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Adicionar Cliente
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {filteredClients.map((client) => (
+                <Card 
+                  key={client.id} 
+                  className="cursor-pointer hover:border-primary/50 transition-colors"
+                  onClick={() => setSelectedClientId(client.id)}
+                >
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <CardTitle className="text-lg">{client.full_name}</CardTitle>
+                        <CardDescription className="flex items-center gap-1 mt-1">
+                          <Building2 className="w-3 h-3" />
+                          {client.office_name}
+                        </CardDescription>
+                      </div>
+                      <Badge className={statusColors[client.status] || statusColors.pending}>
+                        {statusLabels[client.status] || 'Pendente'}
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Mail className="w-4 h-4" />
+                      {client.email}
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Phone className="w-4 h-4" />
+                      {client.phone}
+                    </div>
+                    {(client.cidade || client.estado) && (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <MapPin className="w-4 h-4" />
+                        {client.cidade}{client.cidade && client.estado ? ' - ' : ''}{client.estado}
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">
+                        {client.num_lawyers} advogado(s) • {client.num_employees} colaborador(es)
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between pt-2 border-t">
+                      <span className="text-xs text-muted-foreground">
+                        Cadastro: {format(new Date(client.created_at), "dd/MM/yyyy", { locale: ptBR })}
+                      </span>
+                      {client.generated_prompt && (
+                        <Badge variant="outline" className="text-xs">
+                          <Sparkles className="w-3 h-3 mr-1" />
+                          Prompt gerado
+                        </Badge>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="settings">
+          <ConsultingNotificationSettings />
+        </TabsContent>
+      </Tabs>
 
       <ConsultingClientDialog 
         open={isDialogOpen} 
