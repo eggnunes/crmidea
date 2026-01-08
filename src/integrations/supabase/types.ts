@@ -1444,6 +1444,47 @@ export type Database = {
         }
         Relationships: []
       }
+      ebook_captures: {
+        Row: {
+          created_at: string
+          email: string
+          email_sent: boolean | null
+          event_source: string | null
+          id: string
+          lead_id: string | null
+          name: string
+          phone: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          email_sent?: boolean | null
+          event_source?: string | null
+          id?: string
+          lead_id?: string | null
+          name: string
+          phone: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          email_sent?: boolean | null
+          event_source?: string | null
+          id?: string
+          lead_id?: string | null
+          name?: string
+          phone?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ebook_captures_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       follow_up_logs: {
         Row: {
           error_message: string | null
@@ -1703,6 +1744,35 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "lead_products_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lead_tags: {
+        Row: {
+          created_at: string
+          id: string
+          lead_id: string
+          tag: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          lead_id: string
+          tag: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          lead_id?: string
+          tag?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_tags_lead_id_fkey"
             columns: ["lead_id"]
             isOneToOne: false
             referencedRelation: "leads"
