@@ -13,70 +13,80 @@ import {
   Instagram,
   Linkedin,
   Youtube,
-  ExternalLink
+  ExternalLink,
+  Loader2
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useBlogPosts } from "@/hooks/useBlogPosts";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+
+// Default articles if no dynamic content exists
+const defaultArticles = [
+  {
+    id: "1",
+    title: "Como a IA está Transformando o Direito em 2025",
+    excerpt: "Descubra as principais tendências de inteligência artificial que estão revolucionando a prática jurídica no Brasil e no mundo.",
+    category: "Tendências",
+    read_time_minutes: 8,
+    published_at: new Date().toISOString(),
+    is_published: true,
+    slug: "ia-transformando-direito-2025"
+  },
+  {
+    id: "2",
+    title: "5 Ferramentas de IA Essenciais para Advogados",
+    excerpt: "Conheça as ferramentas que todo advogado moderno precisa dominar para aumentar sua produtividade e competitividade.",
+    category: "Ferramentas",
+    read_time_minutes: 6,
+    published_at: new Date().toISOString(),
+    is_published: true,
+    slug: "ferramentas-ia-essenciais-advogados"
+  },
+  {
+    id: "3",
+    title: "Prompts Jurídicos: O Guia Completo",
+    excerpt: "Aprenda a criar prompts eficientes para ChatGPT e outras IAs, otimizando a elaboração de peças processuais.",
+    category: "Tutorial",
+    read_time_minutes: 10,
+    published_at: new Date().toISOString(),
+    is_published: true,
+    slug: "prompts-juridicos-guia-completo"
+  },
+  {
+    id: "4",
+    title: "Ética e IA na Advocacia: O que você precisa saber",
+    excerpt: "Uma análise das questões éticas envolvendo o uso de inteligência artificial na prática jurídica.",
+    category: "Ética",
+    read_time_minutes: 7,
+    published_at: new Date().toISOString(),
+    is_published: true,
+    slug: "etica-ia-advocacia"
+  },
+  {
+    id: "5",
+    title: "Automatizando Contratos com Inteligência Artificial",
+    excerpt: "Veja como a IA pode acelerar a análise e elaboração de contratos, reduzindo erros e aumentando a eficiência.",
+    category: "Prática",
+    read_time_minutes: 9,
+    published_at: new Date().toISOString(),
+    is_published: true,
+    slug: "automatizando-contratos-ia"
+  }
+];
 
 export function BlogPage() {
-  const articles = [
-    {
-      id: 1,
-      title: "Como a IA está Transformando o Direito em 2024",
-      excerpt: "Descubra as principais tendências de inteligência artificial que estão revolucionando a prática jurídica no Brasil e no mundo.",
-      author: "Rafael Egg",
-      date: "08 Jan 2025",
-      readTime: "8 min",
-      category: "Tendências",
-      featured: true
-    },
-    {
-      id: 2,
-      title: "5 Ferramentas de IA Essenciais para Advogados",
-      excerpt: "Conheça as ferramentas que todo advogado moderno precisa dominar para aumentar sua produtividade e competitividade.",
-      author: "Rafael Egg",
-      date: "05 Jan 2025",
-      readTime: "6 min",
-      category: "Ferramentas"
-    },
-    {
-      id: 3,
-      title: "Prompts Jurídicos: O Guia Completo",
-      excerpt: "Aprenda a criar prompts eficientes para ChatGPT e outras IAs, otimizando a elaboração de peças processuais.",
-      author: "Rafael Egg",
-      date: "02 Jan 2025",
-      readTime: "10 min",
-      category: "Tutorial"
-    },
-    {
-      id: 4,
-      title: "Ética e IA na Advocacia: O que você precisa saber",
-      excerpt: "Uma análise das questões éticas envolvendo o uso de inteligência artificial na prática jurídica.",
-      author: "Rafael Egg",
-      date: "28 Dez 2024",
-      readTime: "7 min",
-      category: "Ética"
-    },
-    {
-      id: 5,
-      title: "Automatizando Contratos com Inteligência Artificial",
-      excerpt: "Veja como a IA pode acelerar a análise e elaboração de contratos, reduzindo erros e aumentando a eficiência.",
-      author: "Rafael Egg",
-      date: "25 Dez 2024",
-      readTime: "9 min",
-      category: "Prática"
-    },
-    {
-      id: 6,
-      title: "O Futuro da Pesquisa Jurídica com IA",
-      excerpt: "Como as ferramentas de IA estão transformando a forma como advogados pesquisam jurisprudência e doutrina.",
-      author: "Rafael Egg",
-      date: "22 Dez 2024",
-      readTime: "5 min",
-      category: "Tendências"
-    }
-  ];
+  const { data: dynamicPosts, isLoading } = useBlogPosts(true);
+  
+  // Use dynamic posts if available, otherwise use defaults
+  const articles = dynamicPosts && dynamicPosts.length > 0 
+    ? dynamicPosts 
+    : defaultArticles;
 
-  const categories = ["Todos", "Tendências", "Ferramentas", "Tutorial", "Ética", "Prática"];
+  const featuredArticle = articles[0];
+  const otherArticles = articles.slice(1);
+
+  const categories = ["Todos", ...Array.from(new Set(articles.map(a => a.category).filter(Boolean)))];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#1a1f2e] via-[#0f1419] to-[#1a1f2e]">
@@ -132,88 +142,106 @@ export function BlogPage() {
         </div>
       </section>
 
-      {/* Featured Article */}
-      {articles.filter(a => a.featured).map(article => (
-        <section key={article.id} className="container mx-auto px-6 py-8">
-          <Card className="bg-gradient-to-r from-amber-500/10 to-orange-500/10 border-amber-500/30 hover:border-amber-500/50 transition-all duration-300 group overflow-hidden">
-            <CardContent className="p-8 md:p-12">
-              <div className="flex flex-col md:flex-row gap-8 items-center">
-                <div className="flex-1 space-y-4">
-                  <div className="flex items-center gap-3">
-                    <Badge className="bg-amber-500 text-white">
-                      <Sparkles className="w-3 h-3 mr-1" />
-                      Destaque
-                    </Badge>
-                    <Badge variant="outline" className="border-slate-600 text-slate-300">
-                      {article.category}
-                    </Badge>
-                  </div>
-                  <h2 className="text-2xl md:text-3xl font-bold text-white group-hover:text-amber-400 transition-colors duration-300">
-                    {article.title}
-                  </h2>
-                  <p className="text-slate-300 text-lg">{article.excerpt}</p>
-                  <div className="flex items-center gap-4 text-sm text-slate-400">
-                    <span className="flex items-center gap-1">
-                      <User className="w-4 h-4" />
-                      {article.author}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Calendar className="w-4 h-4" />
-                      {article.date}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Clock className="w-4 h-4" />
-                      {article.readTime}
-                    </span>
-                  </div>
-                  <Button className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white mt-4">
-                    Ler Artigo
-                    <ExternalLink className="ml-2 h-4 w-4" />
-                  </Button>
-                </div>
-                <div className="w-full md:w-64 h-48 bg-gradient-to-br from-amber-500/20 to-orange-500/20 rounded-xl flex items-center justify-center">
-                  <Brain className="w-24 h-24 text-amber-500/50" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </section>
-      ))}
-
-      {/* Articles Grid */}
-      <section className="container mx-auto px-6 py-12">
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {articles.filter(a => !a.featured).map(article => (
-            <Card 
-              key={article.id}
-              className="bg-slate-800/50 border-slate-700 hover:border-amber-500/50 transition-all duration-300 group hover:scale-[1.02] hover:shadow-xl hover:shadow-amber-500/10"
-            >
-              <CardContent className="p-6">
-                <div className="h-32 bg-gradient-to-br from-slate-700 to-slate-800 rounded-lg mb-4 flex items-center justify-center">
-                  <Brain className="w-12 h-12 text-amber-500/30 group-hover:text-amber-500/50 transition-colors duration-300" />
-                </div>
-                <Badge variant="outline" className="border-amber-500/30 text-amber-400 mb-3">
-                  {article.category}
-                </Badge>
-                <h3 className="text-lg font-semibold text-white mb-2 group-hover:text-amber-400 transition-colors duration-300 line-clamp-2">
-                  {article.title}
-                </h3>
-                <p className="text-slate-400 text-sm mb-4 line-clamp-2">{article.excerpt}</p>
-                <div className="flex items-center justify-between text-xs text-slate-500">
-                  <span className="flex items-center gap-1">
-                    <Calendar className="w-3 h-3" />
-                    {article.date}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Clock className="w-3 h-3" />
-                    {article.readTime}
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+      {isLoading ? (
+        <div className="flex items-center justify-center py-20">
+          <Loader2 className="w-8 h-8 animate-spin text-amber-500" />
         </div>
-      </section>
+      ) : (
+        <>
+          {/* Featured Article */}
+          {featuredArticle && (
+            <section className="container mx-auto px-6 py-8">
+              <Card className="bg-gradient-to-r from-amber-500/10 to-orange-500/10 border-amber-500/30 hover:border-amber-500/50 transition-all duration-300 group overflow-hidden">
+                <CardContent className="p-8 md:p-12">
+                  <div className="flex flex-col md:flex-row gap-8 items-center">
+                    <div className="flex-1 space-y-4">
+                      <div className="flex items-center gap-3">
+                        <Badge className="bg-amber-500 text-white">
+                          <Sparkles className="w-3 h-3 mr-1" />
+                          Destaque
+                        </Badge>
+                        {featuredArticle.category && (
+                          <Badge variant="outline" className="border-slate-600 text-slate-300">
+                            {featuredArticle.category}
+                          </Badge>
+                        )}
+                      </div>
+                      <h2 className="text-2xl md:text-3xl font-bold text-white group-hover:text-amber-400 transition-colors duration-300">
+                        {featuredArticle.title}
+                      </h2>
+                      <p className="text-slate-300 text-lg">{featuredArticle.excerpt}</p>
+                      <div className="flex items-center gap-4 text-sm text-slate-400">
+                        <span className="flex items-center gap-1">
+                          <User className="w-4 h-4" />
+                          Rafael Egg
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Calendar className="w-4 h-4" />
+                          {featuredArticle.published_at 
+                            ? format(new Date(featuredArticle.published_at), "dd MMM yyyy", { locale: ptBR })
+                            : "Em breve"
+                          }
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Clock className="w-4 h-4" />
+                          {featuredArticle.read_time_minutes} min
+                        </span>
+                      </div>
+                      <Button className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white mt-4">
+                        Ler Artigo
+                        <ExternalLink className="ml-2 h-4 w-4" />
+                      </Button>
+                    </div>
+                    <div className="w-full md:w-64 h-48 bg-gradient-to-br from-amber-500/20 to-orange-500/20 rounded-xl flex items-center justify-center">
+                      <Brain className="w-24 h-24 text-amber-500/50" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </section>
+          )}
+
+          {/* Articles Grid */}
+          <section className="container mx-auto px-6 py-12">
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {otherArticles.map(article => (
+                <Card 
+                  key={article.id}
+                  className="bg-slate-800/50 border-slate-700 hover:border-amber-500/50 transition-all duration-300 group hover:scale-[1.02] hover:shadow-xl hover:shadow-amber-500/10"
+                >
+                  <CardContent className="p-6">
+                    <div className="h-32 bg-gradient-to-br from-slate-700 to-slate-800 rounded-lg mb-4 flex items-center justify-center">
+                      <Brain className="w-12 h-12 text-amber-500/30 group-hover:text-amber-500/50 transition-colors duration-300" />
+                    </div>
+                    {article.category && (
+                      <Badge variant="outline" className="border-amber-500/30 text-amber-400 mb-3">
+                        {article.category}
+                      </Badge>
+                    )}
+                    <h3 className="text-lg font-semibold text-white mb-2 group-hover:text-amber-400 transition-colors duration-300 line-clamp-2">
+                      {article.title}
+                    </h3>
+                    <p className="text-slate-400 text-sm mb-4 line-clamp-2">{article.excerpt}</p>
+                    <div className="flex items-center justify-between text-xs text-slate-500">
+                      <span className="flex items-center gap-1">
+                        <Calendar className="w-3 h-3" />
+                        {article.published_at 
+                          ? format(new Date(article.published_at), "dd MMM yyyy", { locale: ptBR })
+                          : "Em breve"
+                        }
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        {article.read_time_minutes} min
+                      </span>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </section>
+        </>
+      )}
 
       {/* Newsletter CTA */}
       <section className="py-16 bg-gradient-to-r from-amber-600/20 to-orange-600/20">

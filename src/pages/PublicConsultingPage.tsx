@@ -138,12 +138,14 @@ export function PublicConsultingPage() {
         <div className="absolute inset-0 bg-grid-pattern opacity-5" />
         <nav className="container mx-auto px-4 py-4 flex items-center justify-between relative z-10">
           <div className="flex items-center gap-3">
-            <img 
-              src={logoConsultoria} 
-              alt="Consultoria IDEA" 
-              className="h-10 w-auto object-contain"
-            />
-            <span className="font-bold text-xl">Consultoria IDEA</span>
+            <Link to="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+              <img 
+                src={logoConsultoria} 
+                alt="Consultoria IDEA" 
+                className="h-10 w-auto object-contain"
+              />
+              <span className="font-bold text-xl">Consultoria IDEA</span>
+            </Link>
           </div>
           <div className="flex items-center gap-3">
             <Button variant="outline" asChild className="gap-2">
