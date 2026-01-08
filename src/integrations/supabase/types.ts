@@ -643,6 +643,191 @@ export type Database = {
         }
         Relationships: []
       }
+      consulting_clients: {
+        Row: {
+          ai_difficulties: string | null
+          ai_familiarity_level: string | null
+          ai_tasks_used: string | null
+          ai_tools_used: string | null
+          ai_usage_frequency: string | null
+          case_management_flow: string | null
+          case_management_other: string | null
+          case_management_system: string | null
+          client_service_flow: string | null
+          comfortable_with_tech: boolean | null
+          created_at: string
+          custom_features: string | null
+          email: string
+          expected_results: string[] | null
+          expected_results_other: string | null
+          foundation_year: number | null
+          full_name: string
+          generated_prompt: string | null
+          has_chatgpt_app: boolean | null
+          has_chatgpt_paid: boolean | null
+          has_used_ai: boolean | null
+          has_used_chatgpt: boolean | null
+          id: string
+          logo_url: string | null
+          motivations: string[] | null
+          motivations_other: string | null
+          num_employees: number
+          num_lawyers: number
+          office_address: string
+          office_name: string
+          other_ai_tools: string | null
+          phone: string
+          practice_areas: string | null
+          selected_features: number[] | null
+          status: string | null
+          tasks_to_automate: string | null
+          updated_at: string
+          user_id: string
+          website: string | null
+        }
+        Insert: {
+          ai_difficulties?: string | null
+          ai_familiarity_level?: string | null
+          ai_tasks_used?: string | null
+          ai_tools_used?: string | null
+          ai_usage_frequency?: string | null
+          case_management_flow?: string | null
+          case_management_other?: string | null
+          case_management_system?: string | null
+          client_service_flow?: string | null
+          comfortable_with_tech?: boolean | null
+          created_at?: string
+          custom_features?: string | null
+          email: string
+          expected_results?: string[] | null
+          expected_results_other?: string | null
+          foundation_year?: number | null
+          full_name: string
+          generated_prompt?: string | null
+          has_chatgpt_app?: boolean | null
+          has_chatgpt_paid?: boolean | null
+          has_used_ai?: boolean | null
+          has_used_chatgpt?: boolean | null
+          id?: string
+          logo_url?: string | null
+          motivations?: string[] | null
+          motivations_other?: string | null
+          num_employees?: number
+          num_lawyers?: number
+          office_address: string
+          office_name: string
+          other_ai_tools?: string | null
+          phone: string
+          practice_areas?: string | null
+          selected_features?: number[] | null
+          status?: string | null
+          tasks_to_automate?: string | null
+          updated_at?: string
+          user_id: string
+          website?: string | null
+        }
+        Update: {
+          ai_difficulties?: string | null
+          ai_familiarity_level?: string | null
+          ai_tasks_used?: string | null
+          ai_tools_used?: string | null
+          ai_usage_frequency?: string | null
+          case_management_flow?: string | null
+          case_management_other?: string | null
+          case_management_system?: string | null
+          client_service_flow?: string | null
+          comfortable_with_tech?: boolean | null
+          created_at?: string
+          custom_features?: string | null
+          email?: string
+          expected_results?: string[] | null
+          expected_results_other?: string | null
+          foundation_year?: number | null
+          full_name?: string
+          generated_prompt?: string | null
+          has_chatgpt_app?: boolean | null
+          has_chatgpt_paid?: boolean | null
+          has_used_ai?: boolean | null
+          has_used_chatgpt?: boolean | null
+          id?: string
+          logo_url?: string | null
+          motivations?: string[] | null
+          motivations_other?: string | null
+          num_employees?: number
+          num_lawyers?: number
+          office_address?: string
+          office_name?: string
+          other_ai_tools?: string | null
+          phone?: string
+          practice_areas?: string | null
+          selected_features?: number[] | null
+          status?: string | null
+          tasks_to_automate?: string | null
+          updated_at?: string
+          user_id?: string
+          website?: string | null
+        }
+        Relationships: []
+      }
+      consulting_sessions: {
+        Row: {
+          client_id: string
+          created_at: string
+          duration_minutes: number | null
+          id: string
+          next_steps: string | null
+          notes: string | null
+          session_date: string
+          session_type: string | null
+          status: string | null
+          summary: string | null
+          title: string
+          topics: string[] | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          duration_minutes?: number | null
+          id?: string
+          next_steps?: string | null
+          notes?: string | null
+          session_date: string
+          session_type?: string | null
+          status?: string | null
+          summary?: string | null
+          title: string
+          topics?: string[] | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          duration_minutes?: number | null
+          id?: string
+          next_steps?: string | null
+          notes?: string | null
+          session_date?: string
+          session_type?: string | null
+          status?: string | null
+          summary?: string | null
+          title?: string
+          topics?: string[] | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "consulting_sessions_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "consulting_clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contact_tags: {
         Row: {
           color: string | null
