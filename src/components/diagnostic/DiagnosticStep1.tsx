@@ -17,29 +17,148 @@ interface DiagnosticStep1Props {
 
 // Função para formatar telefone com máscara
 const formatPhone = (value: string): string => {
-  // Remove tudo que não é número
   const numbers = value.replace(/\D/g, "");
-  
-  // Limita a 11 dígitos
   const limited = numbers.slice(0, 11);
   
-  // Aplica a máscara
   if (limited.length <= 2) {
     return limited.length > 0 ? `(${limited}` : "";
   } else if (limited.length <= 6) {
     return `(${limited.slice(0, 2)}) ${limited.slice(2)}`;
   } else if (limited.length <= 10) {
-    // Telefone fixo: (XX) XXXX-XXXX
     return `(${limited.slice(0, 2)}) ${limited.slice(2, 6)}-${limited.slice(6)}`;
   } else {
-    // Celular: (XX) XXXXX-XXXX
     return `(${limited.slice(0, 2)}) ${limited.slice(2, 7)}-${limited.slice(7)}`;
   }
+};
+
+// Função para formatar CPF: XXX.XXX.XXX-XX
+const formatCPF = (value: string): string => {
+  const numbers = value.replace(/\D/g, "").slice(0, 11);
+  
+  if (numbers.length <= 3) return numbers;
+  if (numbers.length <= 6) return `${numbers.slice(0, 3)}.${numbers.slice(3)}`;
+  if (numbers.length <= 9) return `${numbers.slice(0, 3)}.${numbers.slice(3, 6)}.${numbers.slice(6)}`;
+  return `${numbers.slice(0, 3)}.${numbers.slice(3, 6)}.${numbers.slice(6, 9)}-${numbers.slice(9)}`;
+};
+
+// Função para formatar CNPJ: XX.XXX.XXX/XXXX-XX
+const formatCNPJ = (value: string): string => {
+  const numbers = value.replace(/\D/g, "").slice(0, 14);
+  
+  if (numbers.length <= 2) return numbers;
+  if (numbers.length <= 5) return `${numbers.slice(0, 2)}.${numbers.slice(2)}`;
+  if (numbers.length <= 8) return `${numbers.slice(0, 2)}.${numbers.slice(2, 5)}.${numbers.slice(5)}`;
+  if (numbers.length <= 12) return `${numbers.slice(0, 2)}.${numbers.slice(2, 5)}.${numbers.slice(5, 8)}/${numbers.slice(8)}`;
+  return `${numbers.slice(0, 2)}.${numbers.slice(2, 5)}.${numbers.slice(5, 8)}/${numbers.slice(8, 12)}-${numbers.slice(12)}`;
+};
+
+// Função para formatar CPF ou CNPJ automaticamente
+const formatCpfCnpj = (value: string): string => {
+  const numbers = value.replace(/\D/g, "");
+  if (numbers.length <= 11) {
+    return formatCPF(numbers);
+  } else {
+    return formatCNPJ(numbers);
+  }
+};
+
+// Validar CPF
+const validateCPF = (cpf: string): boolean => {
+  const numbers = cpf.replace(/\D/g, "");
+  if (numbers.length !== 11) return false;
+  if (/^(\d)\1{10}$/.test(numbers)) return false;
+  
+  let sum = 0;
+  for (let i = 0; i < 9; i++) {
+    sum += parseInt(numbers.charAt(i)) * (10 - i);
+  }
+  let rev = 11 - (sum % 11);
+  if (rev === 10 || rev === 11) rev = 0;
+  if (rev !== parseInt(numbers.charAt(9))) return false;
+  
+  sum = 0;
+  for (let i = 0; i < 10; i++) {
+    sum += parseInt(numbers.charAt(i)) * (11 - i);
+  }
+  rev = 11 - (sum % 11);
+  if (rev === 10 || rev === 11) rev = 0;
+  if (rev !== parseInt(numbers.charAt(10))) return false;
+  
+  return true;
+};
+
+// Validar CNPJ
+const validateCNPJ = (cnpj: string): boolean => {
+  const numbers = cnpj.replace(/\D/g, "");
+  if (numbers.length !== 14) return false;
+  if (/^(\d)\1{13}$/.test(numbers)) return false;
+  
+  let size = numbers.length - 2;
+  let nums = numbers.substring(0, size);
+  const digits = numbers.substring(size);
+  let sum = 0;
+  let pos = size - 7;
+  
+  for (let i = size; i >= 1; i--) {
+    sum += parseInt(nums.charAt(size - i)) * pos--;
+    if (pos < 2) pos = 9;
+  }
+  
+  let result = sum % 11 < 2 ? 0 : 11 - (sum % 11);
+  if (result !== parseInt(digits.charAt(0))) return false;
+  
+  size = size + 1;
+  nums = numbers.substring(0, size);
+  sum = 0;
+  pos = size - 7;
+  
+  for (let i = size; i >= 1; i--) {
+    sum += parseInt(nums.charAt(size - i)) * pos--;
+    if (pos < 2) pos = 9;
+  }
+  
+  result = sum % 11 < 2 ? 0 : 11 - (sum % 11);
+  if (result !== parseInt(digits.charAt(1))) return false;
+  
+  return true;
+};
+
+// Validar CPF ou CNPJ
+export const validateCpfCnpj = (value: string): { valid: boolean; type: 'cpf' | 'cnpj' | null } => {
+  const numbers = value.replace(/\D/g, "");
+  if (numbers.length === 0) return { valid: true, type: null }; // Campo opcional
+  if (numbers.length === 11) return { valid: validateCPF(numbers), type: 'cpf' };
+  if (numbers.length === 14) return { valid: validateCNPJ(numbers), type: 'cnpj' };
+  return { valid: false, type: null };
+};
+
+// Formatar número da OAB: XXXXXX/UF
+const formatOAB = (value: string): string => {
+  // Separa números e letras
+  const cleaned = value.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  const numbers = cleaned.replace(/[A-Z]/g, "").slice(0, 6);
+  const letters = cleaned.replace(/[0-9]/g, "").slice(0, 2);
+  
+  if (numbers && letters) {
+    return `${numbers}/${letters}`;
+  } else if (numbers) {
+    return numbers;
+  }
+  return "";
+};
+
+// Validar OAB básico (6 dígitos + barra + 2 letras de UF)
+export const validateOAB = (value: string): boolean => {
+  if (!value) return true; // Campo opcional
+  const regex = /^\d{1,6}\/[A-Z]{2}$/;
+  return regex.test(value);
 };
 
 export function DiagnosticStep1({ formData, updateFormData, consultantId }: DiagnosticStep1Props) {
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const [isGeneratingLogo, setIsGeneratingLogo] = useState(false);
+  const [cpfCnpjError, setCpfCnpjError] = useState<string | null>(null);
+  const [oabError, setOabError] = useState<string | null>(null);
   
   const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -115,6 +234,56 @@ export function DiagnosticStep1({ formData, updateFormData, consultantId }: Diag
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const formatted = formatPhone(e.target.value);
     updateFormData({ phone: formatted });
+  };
+
+  const handleCpfCnpjChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatCpfCnpj(e.target.value);
+    updateFormData({ cpf_cnpj: formatted });
+    
+    // Validar quando completo
+    const numbers = formatted.replace(/\D/g, "");
+    if (numbers.length === 11 || numbers.length === 14) {
+      const result = validateCpfCnpj(formatted);
+      if (!result.valid) {
+        setCpfCnpjError(`${result.type === 'cpf' ? 'CPF' : 'CNPJ'} inválido`);
+      } else {
+        setCpfCnpjError(null);
+      }
+    } else if (numbers.length > 0 && numbers.length < 11) {
+      setCpfCnpjError(null); // Ainda digitando
+    } else {
+      setCpfCnpjError(null);
+    }
+  };
+
+  const handleOabChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.toUpperCase();
+    // Permite números, letras e barra
+    const cleaned = value.replace(/[^A-Z0-9/]/g, "");
+    
+    // Formata automaticamente
+    const numbers = cleaned.replace(/[^0-9]/g, "").slice(0, 6);
+    const letters = cleaned.replace(/[^A-Z]/g, "").slice(0, 2);
+    
+    let formatted = numbers;
+    if (numbers.length >= 1 && letters.length > 0) {
+      formatted = `${numbers}/${letters}`;
+    } else if (cleaned.includes("/")) {
+      formatted = `${numbers}/`;
+    }
+    
+    updateFormData({ oab_number: formatted });
+    
+    // Validar
+    if (formatted && formatted.includes("/")) {
+      if (!validateOAB(formatted)) {
+        setOabError("Formato inválido. Use: XXXXXX/UF");
+      } else {
+        setOabError(null);
+      }
+    } else {
+      setOabError(null);
+    }
   };
   
   return (
@@ -209,6 +378,40 @@ export function DiagnosticStep1({ formData, updateFormData, consultantId }: Diag
             required
           />
           <p className="text-xs text-muted-foreground">Formato: (XX) XXXXX-XXXX</p>
+        </div>
+        
+        <div className="space-y-2">
+          <Label htmlFor="cpf_cnpj">CPF ou CNPJ</Label>
+          <Input
+            id="cpf_cnpj"
+            value={formData.cpf_cnpj}
+            onChange={handleCpfCnpjChange}
+            placeholder="000.000.000-00 ou 00.000.000/0000-00"
+            maxLength={18}
+            className={cpfCnpjError ? "border-destructive" : ""}
+          />
+          {cpfCnpjError ? (
+            <p className="text-xs text-destructive">{cpfCnpjError}</p>
+          ) : (
+            <p className="text-xs text-muted-foreground">Opcional - CPF ou CNPJ do responsável/escritório</p>
+          )}
+        </div>
+        
+        <div className="space-y-2">
+          <Label htmlFor="oab_number">Número da OAB</Label>
+          <Input
+            id="oab_number"
+            value={formData.oab_number}
+            onChange={handleOabChange}
+            placeholder="123456/SP"
+            maxLength={9}
+            className={oabError ? "border-destructive" : ""}
+          />
+          {oabError ? (
+            <p className="text-xs text-destructive">{oabError}</p>
+          ) : (
+            <p className="text-xs text-muted-foreground">Formato: XXXXXX/UF (opcional)</p>
+          )}
         </div>
         
         <div className="space-y-2">

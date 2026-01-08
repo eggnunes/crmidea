@@ -21,6 +21,8 @@ const initialFormData: DiagnosticFormData = {
   full_name: "",
   email: "",
   phone: "",
+  cpf_cnpj: "",
+  oab_number: "",
   office_name: "",
   office_address: "",
   website: "",
