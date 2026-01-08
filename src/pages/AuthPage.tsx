@@ -43,7 +43,7 @@ export function AuthPage() {
   }
 
   if (user) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/metodo-idea" replace />;
   }
 
   const handleLogin = async (e: React.FormEvent) => {
