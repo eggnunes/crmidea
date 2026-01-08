@@ -117,36 +117,36 @@ export function HomePage() {
 
   const faqItems = [
     {
-      question: "O que é a Consultoria IDEA?",
-      answer: "A Consultoria IDEA é um serviço personalizado de implementação de Inteligência Artificial em escritórios de advocacia. Trabalhamos a quatro mãos para implantar soluções de IA que aumentam a produtividade e eficiência do seu escritório."
+      question: "Quais produtos e serviços vocês oferecem?",
+      answer: "Oferecemos uma gama completa de soluções para advogados: Consultoria IDEA (implementação personalizada de IA), Mentoria Coletiva e Individual, Curso IDEA (formação completa em IA), Guia de IA para Advogados, Código de Prompts e Combo de E-books. Cada produto atende diferentes necessidades e níveis de experiência."
     },
     {
-      question: "Quanto tempo dura a consultoria?",
-      answer: "A duração varia de acordo com o plano escolhido e as necessidades do seu escritório. Temos opções que vão de 3 a 12 meses de acompanhamento, sempre focando em garantir sua autonomia total ao final do processo."
+      question: "Qual a diferença entre consultoria, mentoria e curso?",
+      answer: "O Curso IDEA ensina conceitos e técnicas de forma estruturada. A Mentoria oferece acompanhamento em grupo ou individual para tirar dúvidas e evoluir. A Consultoria é a implementação prática e personalizada de IA diretamente no seu escritório, trabalhando a quatro mãos."
     },
     {
       question: "Preciso ter conhecimento prévio em tecnologia?",
-      answer: "Não! A consultoria é projetada para advogados de todos os níveis de familiaridade com tecnologia. Começamos do básico e evoluímos juntos, sempre respeitando seu ritmo de aprendizado."
+      answer: "Não! Todos os produtos são projetados para advogados de qualquer nível de familiaridade com tecnologia. Começamos do básico e evoluímos juntos, sempre respeitando seu ritmo de aprendizado."
     },
     {
-      question: "Quais são os resultados esperados?",
-      answer: "Nossos clientes relatam aumento de até 60% na produtividade, redução significativa no tempo de elaboração de peças, melhoria no atendimento ao cliente e maior organização do escritório."
+      question: "Os e-books podem ser adquiridos separadamente?",
+      answer: "Sim! Os e-books estão disponíveis tanto individualmente quanto em combo com desconto. São excelentes para quem quer começar a estudar IA na advocacia de forma autodidata e no seu próprio ritmo."
     },
     {
-      question: "Como funcionam as sessões de consultoria?",
-      answer: "As sessões são realizadas online, em horários flexíveis. Cada encontro é focado em implementar funcionalidades específicas no seu escritório, com acompanhamento prático e suporte contínuo."
+      question: "Quais resultados posso esperar?",
+      answer: "Nossos clientes relatam aumento de até 60% na produtividade, redução significativa no tempo de elaboração de peças, melhoria no atendimento ao cliente e maior organização do escritório com o uso de IA."
     },
     {
-      question: "Qual a diferença entre a consultoria e o curso?",
-      answer: "O curso ensina conceitos e técnicas de IA para advocacia. A consultoria vai além: implementamos as soluções diretamente no seu escritório, personalizando cada ferramenta para sua realidade específica."
+      question: "Como escolher o produto ideal para mim?",
+      answer: "Para iniciantes, recomendamos os e-books ou o Curso IDEA. Para quem quer acompanhamento, a Mentoria é ideal. Para implementação completa e personalizada, a Consultoria IDEA oferece o melhor custo-benefício a longo prazo."
     },
     {
-      question: "Posso adquirir os e-books separadamente?",
-      answer: "Sim! Os e-books estão disponíveis tanto individualmente quanto em combo. Eles são excelentes para quem quer começar a estudar IA na advocacia de forma autodidata."
+      question: "Vocês oferecem suporte?",
+      answer: "Sim! Todos os produtos incluem canais de suporte para tirar dúvidas. Na consultoria e mentoria, o acompanhamento é contínuo durante todo o período contratado."
     },
     {
-      question: "Vocês oferecem suporte após a consultoria?",
-      answer: "Sim! Oferecemos canais de suporte para tirar dúvidas mesmo após o término da consultoria. Nosso objetivo é garantir que você tenha autonomia total para continuar evoluindo."
+      question: "Como funciona o pagamento?",
+      answer: "Oferecemos diversas formas de pagamento, incluindo cartão de crédito parcelado, PIX e boleto. Para consultorias e mentorias, também trabalhamos com planos mensais."
     }
   ];
 
@@ -444,7 +444,6 @@ export function HomePage() {
       <section id="projetos" className="py-20 bg-slate-900/50 scroll-mt-20">
         <div className="container mx-auto px-6">
           <div className="text-center mb-12">
-            <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 mb-4 transition-all duration-300 hover:scale-105">Ecossistema</Badge>
             <h2 className="text-3xl md:text-4xl font-bold text-white tracking-tight">Outros Projetos</h2>
             <p className="text-slate-400 mt-4 max-w-2xl mx-auto">
               Conheça outras iniciativas e plataformas que desenvolvi para o universo jurídico
@@ -547,13 +546,13 @@ export function HomePage() {
                     <Award className="h-8 w-8 text-amber-400" />
                   </div>
                   <div>
-                    <h3 className="text-xl font-semibold text-white">Egg Nunes Advocacia</h3>
+                    <h3 className="text-xl font-semibold text-white">EGG Nunes Advogados Associados</h3>
                     <p className="text-amber-400 text-sm">eggnunes.com.br</p>
                   </div>
                 </div>
                 <p className="text-slate-400 mb-4">
-                  Escritório de advocacia referência desde 1994 com atuação em todo Brasil. 
-                  Especializado em diversas áreas do Direito, oferecendo assessoria jurídica completa e personalizada.
+                  Escritório de advocacia referência desde 1994 com atuação em todo Brasil, especializado em 
+                  Direito do Servidor Público. Atuamos em isenção de IR para aposentados, férias-prêmio, direito previdenciário militar e concursos públicos.
                 </p>
                 <Button 
                   variant="ghost" 

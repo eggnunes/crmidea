@@ -20,7 +20,8 @@ import {
   GraduationCap,
   UserPlus,
   ChevronDown,
-  LogIn
+  LogIn,
+  HelpCircle
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -116,6 +117,49 @@ const testimonials = [
     office: "Lima & Partners",
     text: "A metodologia a quatro mãos fez toda a diferença. Hoje domino as ferramentas e continuo evoluindo sozinho.",
     rating: 5
+  }
+];
+
+const consultingFaqItems = [
+  {
+    question: "O que é a Consultoria IDEA?",
+    answer: "A Consultoria IDEA é um serviço personalizado de implementação de Inteligência Artificial em escritórios de advocacia. Trabalhamos a quatro mãos para implantar soluções de IA que aumentam a produtividade e eficiência do seu escritório."
+  },
+  {
+    question: "Quanto tempo dura a consultoria?",
+    answer: "A duração varia de acordo com o plano escolhido e as necessidades do seu escritório. Temos opções que vão de 3 a 12 meses de acompanhamento, sempre focando em garantir sua autonomia total ao final do processo."
+  },
+  {
+    question: "Preciso ter conhecimento prévio em tecnologia?",
+    answer: "Não! A consultoria é projetada para advogados de todos os níveis de familiaridade com tecnologia. Começamos do básico e evoluímos juntos, sempre respeitando seu ritmo de aprendizado."
+  },
+  {
+    question: "Como funcionam as sessões de consultoria?",
+    answer: "As sessões são realizadas online, em horários flexíveis. Cada encontro é focado em implementar funcionalidades específicas no seu escritório, com acompanhamento prático e suporte contínuo entre as sessões."
+  },
+  {
+    question: "Quais são os resultados esperados?",
+    answer: "Nossos clientes relatam aumento de até 60% na produtividade, redução significativa no tempo de elaboração de peças, melhoria no atendimento ao cliente e maior organização do escritório."
+  },
+  {
+    question: "O que está incluído na consultoria?",
+    answer: "A consultoria inclui: diagnóstico inicial completo, plano personalizado de implementação, sessões de trabalho conjunto, treinamento prático, suporte contínuo via WhatsApp, acesso à área exclusiva do cliente e materiais complementares."
+  },
+  {
+    question: "Posso escolher quais funcionalidades implementar?",
+    answer: "Sim! Você participa ativamente da escolha das funcionalidades. Com base no diagnóstico inicial, identificamos as prioridades do seu escritório e criamos um plano personalizado com as funcionalidades mais relevantes para você."
+  },
+  {
+    question: "Vocês oferecem suporte após a consultoria?",
+    answer: "Sim! Oferecemos canais de suporte para tirar dúvidas mesmo após o término da consultoria. Nosso objetivo é garantir que você tenha autonomia total para continuar evoluindo sozinho."
+  },
+  {
+    question: "Como faço para contratar?",
+    answer: "Você pode contratar diretamente pelo botão 'Contratar Consultoria' nesta página. Após a contratação, você terá acesso à área do cliente e preencherá o formulário de diagnóstico para iniciarmos o trabalho."
+  },
+  {
+    question: "Qual o investimento para a consultoria?",
+    answer: "O investimento varia de acordo com o plano escolhido (duração e intensidade). Entre em contato para conhecer as opções disponíveis e escolher a que melhor se adapta à sua realidade."
   }
 ];
 
@@ -362,6 +406,41 @@ export function PublicConsultingPage() {
         </div>
       </section>
       
+      {/* FAQ Section */}
+      <section id="faq" className="py-20 bg-muted/30">
+        <div className="container mx-auto px-4">
+          <div className="max-w-3xl mx-auto">
+            <div className="text-center mb-12">
+              <Badge className="mb-4" variant="secondary">
+                <HelpCircle className="w-3 h-3 mr-1" />
+                Perguntas Frequentes
+              </Badge>
+              <h2 className="text-3xl font-bold mb-4">Tire suas Dúvidas sobre a Consultoria</h2>
+              <p className="text-muted-foreground">
+                Respostas para as perguntas mais comuns sobre a Consultoria IDEA
+              </p>
+            </div>
+
+            <Accordion type="single" collapsible className="space-y-4">
+              {consultingFaqItems.map((item, index) => (
+                <AccordionItem 
+                  key={index} 
+                  value={`item-${index}`}
+                  className="bg-background border rounded-xl px-6"
+                >
+                  <AccordionTrigger className="hover:no-underline py-4 text-left">
+                    {item.question}
+                  </AccordionTrigger>
+                  <AccordionContent className="text-muted-foreground pb-4">
+                    {item.answer}
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
+          </div>
+        </div>
+      </section>
+
       {/* CTA Section */}
       <section className="py-20 bg-primary text-primary-foreground">
         <div className="container mx-auto px-4 text-center">
