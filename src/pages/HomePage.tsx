@@ -29,7 +29,8 @@ import {
   HelpCircle,
   Send,
   Loader2,
-  Phone
+  Phone,
+  Shield
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -43,7 +44,6 @@ import logoComboEbooks from "@/assets/logo-combo-ebooks-new.png";
 import logoEggNunes from "@/assets/logo-eggnunes.png";
 import logoRobodetoga from "@/assets/logo-robodetoga.png";
 import logoVagasjuridicas from "@/assets/logo-vagasjuridicas.png";
-import logoAntigolpe from "@/assets/logo-antigolpe.png";
 import fotoRafael from "@/assets/foto-rafael.jpg";
 
 export function HomePage() {
@@ -459,8 +459,8 @@ export function HomePage() {
             <Card className="bg-slate-800/50 border-slate-700 hover:border-blue-500/50 transition-all duration-300 group hover:scale-[1.02] hover:shadow-xl hover:shadow-blue-500/10">
               <CardContent className="p-8">
                 <div className="flex items-center gap-4 mb-4">
-                  <div className="h-12 w-auto flex items-center">
-                    <img src={logoAntigolpe} alt="Antigolpe Advogado" className="h-full w-auto object-contain" />
+                  <div className="p-3 bg-blue-500/20 rounded-xl">
+                    <Shield className="h-8 w-8 text-blue-500" />
                   </div>
                   <div>
                     <h3 className="text-xl font-semibold text-white">Antigolpe Advogado</h3>
