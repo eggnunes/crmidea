@@ -19,12 +19,16 @@ interface DailyClick {
   count: number;
 }
 
+type CategoryFilter = "all" | "premium" | "ebook" | "projeto";
+
 export function BioAnalytics() {
   const [clicksByLink, setClicksByLink] = useState<ClickData[]>([]);
+  const [allClicksData, setAllClicksData] = useState<{ link_title: string; link_url: string; category: string; clicked_at: string }[]>([]);
   const [dailyClicks, setDailyClicks] = useState<DailyClick[]>([]);
   const [totalClicks, setTotalClicks] = useState(0);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<7 | 30>(7);
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
 
   const fetchAnalytics = async () => {
     setLoading(true);
@@ -41,50 +45,59 @@ export function BioAnalytics() {
 
       if (clicksError) throw clicksError;
 
-      // Group by link
-      const linkCounts: Record<string, ClickData> = {};
-      const dailyCounts: Record<string, number> = {};
-
-      clicksData?.forEach((click) => {
-        // Group by link
-        const key = click.link_title;
-        if (!linkCounts[key]) {
-          linkCounts[key] = {
-            link_title: click.link_title,
-            link_url: click.link_url,
-            category: click.category,
-            click_count: 0
-          };
-        }
-        linkCounts[key].click_count++;
-
-        // Group by day
-        const dayKey = format(new Date(click.clicked_at), "yyyy-MM-dd");
-        dailyCounts[dayKey] = (dailyCounts[dayKey] || 0) + 1;
-      });
-
-      // Sort by clicks descending
-      const sortedLinks = Object.values(linkCounts).sort((a, b) => b.click_count - a.click_count);
-      setClicksByLink(sortedLinks);
-
-      // Create daily data for the chart
-      const dailyData: DailyClick[] = [];
-      for (let i = period - 1; i >= 0; i--) {
-        const date = format(subDays(new Date(), i), "yyyy-MM-dd");
-        dailyData.push({
-          date: format(subDays(new Date(), i), "dd/MM", { locale: ptBR }),
-          count: dailyCounts[date] || 0
-        });
-      }
-      setDailyClicks(dailyData);
-
-      setTotalClicks(clicksData?.length || 0);
+      setAllClicksData(clicksData || []);
     } catch (error) {
       console.error("Error fetching analytics:", error);
     } finally {
       setLoading(false);
     }
   };
+
+  // Process data based on category filter
+  useEffect(() => {
+    const filteredData = categoryFilter === "all" 
+      ? allClicksData 
+      : allClicksData.filter(click => click.category === categoryFilter);
+
+    // Group by link
+    const linkCounts: Record<string, ClickData> = {};
+    const dailyCounts: Record<string, number> = {};
+
+    filteredData.forEach((click) => {
+      // Group by link
+      const key = click.link_title;
+      if (!linkCounts[key]) {
+        linkCounts[key] = {
+          link_title: click.link_title,
+          link_url: click.link_url,
+          category: click.category,
+          click_count: 0
+        };
+      }
+      linkCounts[key].click_count++;
+
+      // Group by day
+      const dayKey = format(new Date(click.clicked_at), "yyyy-MM-dd");
+      dailyCounts[dayKey] = (dailyCounts[dayKey] || 0) + 1;
+    });
+
+    // Sort by clicks descending
+    const sortedLinks = Object.values(linkCounts).sort((a, b) => b.click_count - a.click_count);
+    setClicksByLink(sortedLinks);
+
+    // Create daily data for the chart
+    const dailyData: DailyClick[] = [];
+    for (let i = period - 1; i >= 0; i--) {
+      const date = format(subDays(new Date(), i), "yyyy-MM-dd");
+      dailyData.push({
+        date: format(subDays(new Date(), i), "dd/MM", { locale: ptBR }),
+        count: dailyCounts[date] || 0
+      });
+    }
+    setDailyClicks(dailyData);
+
+    setTotalClicks(filteredData.length);
+  }, [allClicksData, categoryFilter, period]);
 
   useEffect(() => {
     fetchAnalytics();
@@ -105,9 +118,36 @@ export function BioAnalytics() {
     }
   };
 
+  const getCategoryDotColor = (category: CategoryFilter) => {
+    switch (category) {
+      case "all": return "bg-slate-400";
+      case "premium": return "bg-amber-500";
+      case "ebook": return "bg-blue-500";
+      case "projeto": return "bg-purple-500";
+    }
+  };
+
+  const getCategoryButtonStyle = (category: CategoryFilter) => {
+    switch (category) {
+      case "premium": return "hover:border-amber-500 hover:text-amber-600";
+      case "ebook": return "hover:border-blue-500 hover:text-blue-600";
+      case "projeto": return "hover:border-purple-500 hover:text-purple-600";
+      default: return "";
+    }
+  };
+
+  const getCategoryLabel = (category: CategoryFilter) => {
+    switch (category) {
+      case "all": return "Todos";
+      case "premium": return "Premium";
+      case "ebook": return "E-books";
+      case "projeto": return "Projetos";
+    }
+  };
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold flex items-center gap-2">
             <BarChart3 className="w-6 h-6" />
@@ -115,7 +155,7 @@ export function BioAnalytics() {
           </h2>
           <p className="text-muted-foreground">Acompanhe os cliques nos links da sua página Bio</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Button 
             variant={period === 7 ? "default" : "outline"} 
             size="sm"
@@ -134,6 +174,22 @@ export function BioAnalytics() {
             <RefreshCw className="w-4 h-4" />
           </Button>
         </div>
+      </div>
+
+      {/* Category Filters */}
+      <div className="flex flex-wrap gap-2">
+        {(["all", "premium", "ebook", "projeto"] as CategoryFilter[]).map((cat) => (
+          <Button
+            key={cat}
+            variant={categoryFilter === cat ? "default" : "outline"}
+            size="sm"
+            onClick={() => setCategoryFilter(cat)}
+            className={categoryFilter === cat ? "" : getCategoryButtonStyle(cat)}
+          >
+            <span className={`w-2 h-2 rounded-full mr-2 ${getCategoryDotColor(cat)}`} />
+            {getCategoryLabel(cat)}
+          </Button>
+        ))}
       </div>
 
       {/* Summary Cards */}
