@@ -4,11 +4,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Upload, Sparkles, Building2, Loader2, Search } from "lucide-react";
+import { Upload, Sparkles, Building2, Loader2, Search, Check, X, RefreshCw, MessageSquare } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { DiagnosticFormData } from "@/pages/PublicDiagnosticForm";
-
 interface DiagnosticStep1Props {
   formData: DiagnosticFormData;
   updateFormData: (updates: Partial<DiagnosticFormData>) => void;
@@ -179,6 +178,12 @@ export function DiagnosticStep1({ formData, updateFormData, consultantId }: Diag
   const [cpfCnpjError, setCpfCnpjError] = useState<string | null>(null);
   const [oabError, setOabError] = useState<string | null>(null);
   const [cep, setCep] = useState("");
+  
+  // Estados para preview e aprovação de logo gerada
+  const [generatedLogoPreview, setGeneratedLogoPreview] = useState<string | null>(null);
+  const [showLogoApproval, setShowLogoApproval] = useState(false);
+  const [logoFeedback, setLogoFeedback] = useState("");
+  const [showFeedbackInput, setShowFeedbackInput] = useState(false);
 
   const handleCepSearch = async (cepValue: string) => {
     const numbers = cepValue.replace(/\D/g, "");
@@ -266,27 +271,31 @@ export function DiagnosticStep1({ formData, updateFormData, consultantId }: Diag
     }
   };
   
-  const handleGenerateLogo = async () => {
+  const handleGenerateLogo = async (customPrompt?: string) => {
     if (!formData.office_name.trim()) {
       toast.error("Preencha o nome do escritório para gerar o logo");
       return;
     }
     
     setIsGeneratingLogo(true);
+    setShowFeedbackInput(false);
     
     try {
       const response = await supabase.functions.invoke("generate-logo", {
         body: {
           office_name: formData.office_name,
           practice_areas: formData.practice_areas,
+          custom_instructions: customPrompt || undefined,
         },
       });
       
       if (response.error) throw response.error;
       
       if (response.data?.logo_url) {
-        updateFormData({ logo_url: response.data.logo_url });
-        toast.success("Logo gerado com sucesso!");
+        // Mostra o preview ao invés de inserir diretamente
+        setGeneratedLogoPreview(response.data.logo_url);
+        setShowLogoApproval(true);
+        toast.success("Logo gerada! Aprove ou solicite alterações.");
       }
     } catch (error) {
       console.error("Error generating logo:", error);
@@ -294,6 +303,31 @@ export function DiagnosticStep1({ formData, updateFormData, consultantId }: Diag
     } finally {
       setIsGeneratingLogo(false);
     }
+  };
+  
+  const handleApproveLogo = () => {
+    if (generatedLogoPreview) {
+      updateFormData({ logo_url: generatedLogoPreview });
+      setShowLogoApproval(false);
+      setGeneratedLogoPreview(null);
+      setLogoFeedback("");
+      toast.success("Logo inserida com sucesso!");
+    }
+  };
+  
+  const handleRejectLogo = () => {
+    setShowFeedbackInput(true);
+  };
+  
+  const handleRegenerateLogo = () => {
+    setShowFeedbackInput(false);
+    handleGenerateLogo(logoFeedback || undefined);
+    setLogoFeedback("");
+  };
+  
+  const handleGenerateNewOption = () => {
+    setShowFeedbackInput(false);
+    handleGenerateLogo();
   };
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -370,12 +404,110 @@ export function DiagnosticStep1({ formData, updateFormData, consultantId }: Diag
 
       {/* Logo Section */}
       <div className="flex flex-col items-center gap-4 p-6 border-2 border-dashed rounded-lg bg-muted/30">
+        {/* Logo Approval Preview */}
+        {showLogoApproval && generatedLogoPreview && (
+          <div className="w-full space-y-4 p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
+            <div className="text-center">
+              <p className="text-sm font-medium text-amber-800 dark:text-amber-200 mb-2">
+                Prévia da Logo Gerada
+              </p>
+              <div className="flex justify-center">
+                <Avatar className="w-32 h-32">
+                  <AvatarImage src={generatedLogoPreview} />
+                  <AvatarFallback className="bg-primary/10">
+                    <Building2 className="w-12 h-12 text-primary" />
+                  </AvatarFallback>
+                </Avatar>
+              </div>
+            </div>
+            
+            {!showFeedbackInput ? (
+              <div className="flex flex-col sm:flex-row gap-2 justify-center">
+                <Button
+                  type="button"
+                  variant="default"
+                  size="sm"
+                  onClick={handleApproveLogo}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  <Check className="w-4 h-4 mr-2" />
+                  Aprovar Logo
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRejectLogo}
+                >
+                  <MessageSquare className="w-4 h-4 mr-2" />
+                  Solicitar Alterações
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleGenerateNewOption}
+                  disabled={isGeneratingLogo}
+                >
+                  <RefreshCw className={`w-4 h-4 mr-2 ${isGeneratingLogo ? 'animate-spin' : ''}`} />
+                  Nova Opção
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div>
+                  <Label htmlFor="logo-feedback" className="text-sm text-amber-800 dark:text-amber-200">
+                    O que gostaria de alterar?
+                  </Label>
+                  <Textarea
+                    id="logo-feedback"
+                    value={logoFeedback}
+                    onChange={(e) => setLogoFeedback(e.target.value)}
+                    placeholder="Ex: Quero cores mais escuras, adicione um ícone de balança, use uma fonte mais moderna..."
+                    className="mt-1"
+                    rows={3}
+                  />
+                </div>
+                <div className="flex flex-col sm:flex-row gap-2 justify-center">
+                  <Button
+                    type="button"
+                    variant="default"
+                    size="sm"
+                    onClick={handleRegenerateLogo}
+                    disabled={isGeneratingLogo}
+                  >
+                    {isGeneratingLogo ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Sparkles className="w-4 h-4 mr-2" />
+                    )}
+                    Gerar com Alterações
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowFeedbackInput(false)}
+                  >
+                    <X className="w-4 h-4 mr-2" />
+                    Cancelar
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         <Avatar className="w-24 h-24">
           <AvatarImage src={formData.logo_url || undefined} />
           <AvatarFallback className="bg-primary/10">
             <Building2 className="w-10 h-10 text-primary" />
           </AvatarFallback>
         </Avatar>
+        
+        {formData.logo_url && (
+          <p className="text-xs text-green-600 font-medium">✓ Logo inserida</p>
+        )}
         
         {/* Upload section */}
         <div className="w-full text-center space-y-3">
@@ -418,7 +550,7 @@ export function DiagnosticStep1({ formData, updateFormData, consultantId }: Diag
               type="button"
               variant="secondary"
               disabled={isGeneratingLogo || !formData.office_name.trim()}
-              onClick={handleGenerateLogo}
+              onClick={() => handleGenerateLogo()}
               className="w-full max-w-xs"
             >
               {isGeneratingLogo ? (
