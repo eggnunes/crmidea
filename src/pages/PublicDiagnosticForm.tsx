@@ -25,6 +25,8 @@ export interface DiagnosticFormData {
   oab_number: string;
   office_name: string;
   office_address: string;
+  address_number: string;
+  address_complement: string;
   website: string;
   foundation_year: number | null;
   num_lawyers: number;
@@ -74,6 +76,8 @@ const initialFormData: DiagnosticFormData = {
   oab_number: "",
   office_name: "",
   office_address: "",
+  address_number: "",
+  address_complement: "",
   website: "",
   foundation_year: null,
   num_lawyers: 1,
@@ -160,6 +164,8 @@ export function PublicDiagnosticForm() {
           oab_number: formData.oab_number || null,
           office_name: formData.office_name,
           office_address: formData.office_address,
+          address_number: formData.address_number || null,
+          address_complement: formData.address_complement || null,
           website: formData.website || null,
           foundation_year: formData.foundation_year,
           num_lawyers: formData.num_lawyers,

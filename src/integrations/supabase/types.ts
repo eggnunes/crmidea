@@ -759,6 +759,8 @@ export type Database = {
       }
       consulting_clients: {
         Row: {
+          address_complement: string | null
+          address_number: string | null
           ai_difficulties: string | null
           ai_familiarity_level: string | null
           ai_tasks_used: string | null
@@ -802,6 +804,8 @@ export type Database = {
           website: string | null
         }
         Insert: {
+          address_complement?: string | null
+          address_number?: string | null
           ai_difficulties?: string | null
           ai_familiarity_level?: string | null
           ai_tasks_used?: string | null
@@ -845,6 +849,8 @@ export type Database = {
           website?: string | null
         }
         Update: {
+          address_complement?: string | null
+          address_number?: string | null
           ai_difficulties?: string | null
           ai_familiarity_level?: string | null
           ai_tasks_used?: string | null
