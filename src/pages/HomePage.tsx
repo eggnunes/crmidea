@@ -40,6 +40,7 @@ import logoConsultoria from "@/assets/logo-consultoria-new.png";
 import logoGuiaIA from "@/assets/logo-guia-ia-new.png";
 import logoCodigoPrompts from "@/assets/logo-codigo-prompts-new.png";
 import logoComboEbooks from "@/assets/logo-combo-ebooks-new.png";
+import logoEggNunes from "@/assets/logo-eggnunes.png";
 import fotoRafael from "@/assets/foto-rafael.jpg";
 
 export function HomePage() {
@@ -522,8 +523,9 @@ export function HomePage() {
                   </div>
                 </div>
                 <p className="text-slate-400 mb-4">
-                  Portal de Inteligência Artificial para o Direito. Descubra as últimas notícias sobre IA no Direito, 
-                  acesse ferramentas gratuitas, explore agentes especializados e aprenda com conteúdos práticos.
+                  Portal completo de IA para advogados com notícias atualizadas diariamente, ferramentas gratuitas 
+                  (conversor PDF, OCR, calculadora de prazos), agentes IA especializados, pesquisa jurisprudencial 
+                  e gerador de petições. Seu hub de informação e automação jurídica.
                 </p>
                 <Button 
                   variant="ghost" 
@@ -542,11 +544,11 @@ export function HomePage() {
             <Card className="bg-slate-800/50 border-slate-700 hover:border-amber-500/50 transition-all duration-300 group hover:scale-[1.02] hover:shadow-xl hover:shadow-amber-500/10">
               <CardContent className="p-8">
                 <div className="flex items-center gap-4 mb-4">
-                  <div className="p-3 bg-amber-500/20 rounded-xl">
-                    <Award className="h-8 w-8 text-amber-400" />
+                  <div className="h-12 w-auto flex items-center">
+                    <img src={logoEggNunes} alt="EGG Nunes Advogados" className="h-full w-auto object-contain" />
                   </div>
                   <div>
-                    <h3 className="text-xl font-semibold text-white">EGG Nunes Advogados Associados</h3>
+                    <h3 className="text-xl font-semibold text-white">Egg Nunes Advogados Associados</h3>
                     <p className="text-amber-400 text-sm">eggnunes.com.br</p>
                   </div>
                 </div>
