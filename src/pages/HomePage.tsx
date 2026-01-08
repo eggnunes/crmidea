@@ -57,6 +57,15 @@ export function HomePage() {
 
   const products = [
     {
+      title: "Consultoria IDEA",
+      description: "Consultoria personalizada em IA para escritórios de advocacia",
+      icon: Target,
+      link: "https://mentoriarafaelegg.com.br/consultoria-idea/",
+      logo: logoConsultoria,
+      highlight: true,
+      external: true
+    },
+    {
       title: "Mentoria",
       description: "Acompanhamento personalizado para advogados que querem dominar a IA",
       icon: Users,
@@ -71,15 +80,6 @@ export function HomePage() {
       icon: GraduationCap,
       link: "https://mentoriarafaelegg.com.br/curso-idea/",
       logo: logoCursoIdea,
-      highlight: true,
-      external: true
-    },
-    {
-      title: "Consultoria IDEA",
-      description: "Consultoria personalizada em IA para escritórios de advocacia",
-      icon: Target,
-      link: "https://mentoriarafaelegg.com.br/consultoria-idea/",
-      logo: logoConsultoria,
       highlight: true,
       external: true
     },
@@ -516,11 +516,11 @@ export function HomePage() {
             {/* Robô de Toga */}
             <Card className="bg-slate-800/50 border-slate-700 hover:border-purple-500/50 transition-all duration-300 group hover:scale-[1.02] hover:shadow-xl hover:shadow-purple-500/10">
               <CardContent className="p-8">
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="h-24 w-auto flex items-center">
+                <div className="flex items-start gap-4 mb-4">
+                  <div className="h-24 w-auto flex-shrink-0 flex items-center">
                     <img src={logoRobodetoga} alt="Robô de Toga" className="h-full w-auto object-contain" />
                   </div>
-                  <div>
+                  <div className="pt-2">
                     <h3 className="text-xl font-semibold text-white">Robô de Toga</h3>
                     <p className="text-purple-400 text-sm">robodetoga.com.br</p>
                   </div>
