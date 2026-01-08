@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { 
   Zap, 
@@ -18,10 +18,14 @@ import {
   Lightbulb,
   Handshake,
   GraduationCap,
-  UserPlus
+  UserPlus,
+  ChevronDown
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { CONSULTING_FEATURES, FEATURE_CATEGORIES } from "@/data/consultingFeatures";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { useState } from "react";
 
 // ID do consultor padrão - em produção, isso poderia ser dinâmico
 const DEFAULT_CONSULTANT_ID = "default";
@@ -57,19 +61,6 @@ const benefits = [
     title: "Resultados Mensuráveis",
     description: "Métricas claras de evolução do seu escritório ao longo da consultoria."
   }
-];
-
-const features = [
-  "Assistente virtual inteligente para atendimento 24h",
-  "Geração automática de petições e documentos",
-  "Pesquisa de jurisprudência com IA",
-  "Gestão de processos automatizada",
-  "Controle financeiro inteligente",
-  "Comunicação automatizada com clientes",
-  "Dashboard de métricas e KPIs",
-  "Gestão de equipe e colaboradores",
-  "Integração com sistemas jurídicos",
-  "Organização automática de documentos"
 ];
 
 const steps = [
@@ -261,69 +252,69 @@ export function PublicConsultingPage() {
         </div>
       </section>
       
-      {/* Features Section */}
-      <section className="py-20 bg-primary/5">
+      {/* All 50 Features Section */}
+      <section id="funcionalidades" className="py-20 bg-primary/5">
         <div className="container mx-auto px-4">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <div>
-              <h2 className="text-3xl font-bold mb-4">
-                O que você pode implementar no seu escritório
-              </h2>
-              <p className="text-muted-foreground mb-8">
-                Funcionalidades testadas e aprovadas em escritórios de advocacia reais. 
-                Você escolhe o que faz sentido para sua realidade.
-              </p>
-              
-              <div className="grid sm:grid-cols-2 gap-3">
-                {features.map((feature, index) => (
-                  <div key={index} className="flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0" />
-                    <span className="text-sm">{feature}</span>
-                  </div>
-                ))}
-              </div>
-              
-              <Button className="mt-8 gap-2" asChild>
-                <a href="https://crmidea.lovable.app" target="_blank" rel="noopener noreferrer">
-                  Ver Todas as Funcionalidades
-                  <ArrowRight className="w-4 h-4" />
-                </a>
-              </Button>
-            </div>
-            
-            <div className="bg-gradient-to-br from-primary/20 to-primary/5 rounded-2xl p-8">
-              <div className="space-y-6">
-                <div className="flex items-center gap-4">
-                  <div className="w-14 h-14 rounded-xl bg-background flex items-center justify-center">
-                    <MessageSquare className="w-7 h-7 text-primary" />
-                  </div>
-                  <div>
-                    <h4 className="font-semibold">Atendimento Automatizado</h4>
-                    <p className="text-sm text-muted-foreground">Responda clientes 24h com IA</p>
-                  </div>
-                </div>
-                
-                <div className="flex items-center gap-4">
-                  <div className="w-14 h-14 rounded-xl bg-background flex items-center justify-center">
-                    <FileText className="w-7 h-7 text-primary" />
-                  </div>
-                  <div>
-                    <h4 className="font-semibold">Petições com IA</h4>
-                    <p className="text-sm text-muted-foreground">Gere documentos em minutos</p>
-                  </div>
-                </div>
-                
-                <div className="flex items-center gap-4">
-                  <div className="w-14 h-14 rounded-xl bg-background flex items-center justify-center">
-                    <Calendar className="w-7 h-7 text-primary" />
-                  </div>
-                  <div>
-                    <h4 className="font-semibold">Gestão Inteligente</h4>
-                    <p className="text-sm text-muted-foreground">Prazos e processos sob controle</p>
-                  </div>
-                </div>
-              </div>
-            </div>
+          <div className="text-center mb-12">
+            <Badge className="mb-4" variant="secondary">
+              50 Funcionalidades Disponíveis
+            </Badge>
+            <h2 className="text-3xl font-bold mb-4">
+              Tudo que você pode implementar no seu escritório
+            </h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto">
+              Escolha as funcionalidades que fazem sentido para sua realidade. 
+              Cada uma é implementada de forma personalizada para seu escritório.
+            </p>
+          </div>
+          
+          <Accordion type="multiple" className="space-y-4">
+            {FEATURE_CATEGORIES.map((category) => {
+              const categoryFeatures = CONSULTING_FEATURES.filter(f => f.category === category.id);
+              return (
+                <AccordionItem 
+                  key={category.id} 
+                  value={category.id}
+                  className="bg-background rounded-lg border px-4"
+                >
+                  <AccordionTrigger className="hover:no-underline py-4">
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">{category.icon}</span>
+                      <div className="text-left">
+                        <h3 className="font-semibold text-lg">{category.name}</h3>
+                        <p className="text-sm text-muted-foreground">{categoryFeatures.length} funcionalidades</p>
+                      </div>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="grid md:grid-cols-2 gap-4 pb-4">
+                      {categoryFeatures.map((feature) => (
+                        <Card key={feature.id} className="border-l-4 border-l-primary/50">
+                          <CardContent className="pt-4">
+                            <div className="flex items-start gap-3">
+                              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 text-sm font-bold text-primary">
+                                {feature.id}
+                              </div>
+                              <div>
+                                <h4 className="font-semibold text-sm mb-1">{feature.name}</h4>
+                                <p className="text-xs text-muted-foreground">{feature.description}</p>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              );
+            })}
+          </Accordion>
+          
+          <div className="text-center mt-8">
+            <Button size="lg" className="gap-2" onClick={handleCadastro}>
+              <UserPlus className="w-4 h-4" />
+              Começar Agora
+            </Button>
           </div>
         </div>
       </section>

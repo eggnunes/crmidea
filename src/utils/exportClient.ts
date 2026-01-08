@@ -1,5 +1,5 @@
 import { jsPDF } from 'jspdf';
-import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } from 'docx';
+import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, ImageRun } from 'docx';
 import { saveAs } from 'file-saver';
 import { CONSULTING_FEATURES } from '@/data/consultingFeatures';
 import { format } from 'date-fns';
@@ -47,6 +47,7 @@ interface ConsultingClientExport {
   expected_results?: string[] | null;
   expected_results_other?: string | null;
   tasks_to_automate?: string | null;
+  logo_url?: string | null;
 }
 
 const formatBoolean = (value: boolean | null | undefined): string => {
@@ -73,13 +74,52 @@ const getSelectedFeatureNames = (selectedIds: number[] | null | undefined): stri
     .map(f => `• ${f!.name}`);
 };
 
-export const exportClientToPDF = (client: ConsultingClientExport): void => {
+const loadImageAsBase64 = async (url: string): Promise<string | null> => {
+  try {
+    const response = await fetch(url);
+    const blob = await response.blob();
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+};
+
+const loadImageAsArrayBuffer = async (url: string): Promise<ArrayBuffer | null> => {
+  try {
+    const response = await fetch(url);
+    return await response.arrayBuffer();
+  } catch {
+    return null;
+  }
+};
+
+export const exportClientToPDF = async (client: ConsultingClientExport): Promise<void> => {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
   let y = 20;
   const lineHeight = 7;
   const marginLeft = 20;
   const maxWidth = pageWidth - 40;
+
+  // Add logo if available
+  if (client.logo_url) {
+    try {
+      const logoBase64 = await loadImageAsBase64(client.logo_url);
+      if (logoBase64) {
+        const logoHeight = 25;
+        const logoWidth = 50;
+        doc.addImage(logoBase64, 'PNG', pageWidth / 2 - logoWidth / 2, y, logoWidth, logoHeight);
+        y += logoHeight + 10;
+      }
+    } catch (e) {
+      console.log('Could not load logo for PDF');
+    }
+  }
 
   const addTitle = (text: string) => {
     if (y > 260) {
@@ -266,16 +306,49 @@ export const exportClientToDOCX = async (client: ConsultingClientExport): Promis
     });
   };
 
+  // Build header children array
+  const headerChildren: Paragraph[] = [];
+  
+  // Try to add logo
+  if (client.logo_url) {
+    try {
+      const logoBuffer = await loadImageAsArrayBuffer(client.logo_url);
+      if (logoBuffer) {
+        headerChildren.push(
+          new Paragraph({
+            children: [
+              new ImageRun({
+                data: logoBuffer,
+                transformation: {
+                  width: 150,
+                  height: 75,
+                },
+                type: 'png',
+              }),
+            ],
+            alignment: AlignmentType.CENTER,
+            spacing: { after: 200 },
+          })
+        );
+      }
+    } catch (e) {
+      console.log('Could not load logo for DOCX');
+    }
+  }
+
+  headerChildren.push(
+    new Paragraph({
+      text: 'DIAGNÓSTICO ESTRATÉGICO',
+      heading: HeadingLevel.TITLE,
+      alignment: AlignmentType.CENTER,
+    })
+  );
+
   const doc = new Document({
     sections: [{
       properties: {},
       children: [
-        // Header
-        new Paragraph({
-          text: 'DIAGNÓSTICO ESTRATÉGICO',
-          heading: HeadingLevel.TITLE,
-          alignment: AlignmentType.CENTER,
-        }),
+        ...headerChildren,
         new Paragraph({
           text: `Consultoria IDEA - ${client.office_name}`,
           heading: HeadingLevel.HEADING_1,
