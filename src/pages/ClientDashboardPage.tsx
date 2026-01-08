@@ -37,6 +37,7 @@ import { User as SupabaseUser } from "@supabase/supabase-js";
 import { ClientProgressFeedback } from "@/components/clients/ClientProgressFeedback";
 import { ClientBadges } from "@/components/clients/ClientBadges";
 import { ClientProgressCharts } from "@/components/clients/ClientProgressCharts";
+import { ClientFormResponses } from "@/components/clients/ClientFormResponses";
 
 interface ClientProfile {
   id: string;
@@ -459,6 +460,10 @@ export function ClientDashboardPage() {
         <Tabs defaultValue="sessions" className="space-y-4">
           <TabsList className="flex-wrap h-auto gap-1">
             <TabsTrigger value="sessions">Reuniões</TabsTrigger>
+            <TabsTrigger value="responses" className="gap-2">
+              <ClipboardList className="w-4 h-4" />
+              Minhas Respostas
+            </TabsTrigger>
             <TabsTrigger value="progress" className="gap-2">
               <Send className="w-4 h-4" />
               Meu Progresso
@@ -474,6 +479,33 @@ export function ClientDashboardPage() {
             <TabsTrigger value="timeline">Timeline</TabsTrigger>
             <TabsTrigger value="prompt">Prompt Gerado</TabsTrigger>
           </TabsList>
+
+          {/* Form Responses Tab */}
+          <TabsContent value="responses">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <ClipboardList className="w-5 h-5" />
+                  Minhas Respostas do Diagnóstico
+                </CardTitle>
+                <CardDescription>
+                  Visualize todas as informações que você forneceu no formulário de diagnóstico
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {formProgress?.is_completed ? (
+                  <ClientFormResponses clientEmail={profile.email} />
+                ) : (
+                  <div className="text-center py-8">
+                    <ClipboardList className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-muted-foreground">
+                      Complete o diagnóstico para visualizar suas respostas aqui.
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
 
           {/* Progress Feedback Tab */}
           <TabsContent value="progress">
