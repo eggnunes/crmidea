@@ -2,6 +2,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { 
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger
+} from "@/components/ui/accordion";
+import { 
   BookOpen, 
   GraduationCap, 
   Users, 
@@ -15,7 +21,8 @@ import {
   Brain,
   Award,
   Target,
-  Sparkles
+  Sparkles,
+  HelpCircle
 } from "lucide-react";
 import logoMetodoIdeia from "@/assets/logo-metodo-ideia.png";
 import logoConsultoria from "@/assets/logo-consultoria.png";
@@ -32,7 +39,7 @@ export function HomePage() {
       external: true
     },
     {
-      title: "Curso IDEIA",
+      title: "Curso IDEA",
       description: "Formação completa em Inteligência de Dados e Artificial para advogados",
       icon: GraduationCap,
       link: "https://mentoriarafaelegg.com.br/curso-idea/",
@@ -41,7 +48,7 @@ export function HomePage() {
       external: true
     },
     {
-      title: "Consultoria IDEIA",
+      title: "Consultoria IDEA",
       description: "Consultoria personalizada em IA para escritórios de advocacia",
       icon: Target,
       link: "https://mentoriarafaelegg.com.br/consultoria-idea/",
@@ -78,9 +85,53 @@ export function HomePage() {
   const achievements = [
     { number: "3", label: "E-books Publicados" },
     { number: "500+", label: "Advogados Capacitados" },
-    { number: "10+", label: "Anos de Advocacia" },
+    { number: "15+", label: "Anos de Advocacia" },
     { number: "50+", label: "Escritórios Atendidos" }
   ];
+
+  const faqItems = [
+    {
+      question: "O que é a Consultoria IDEA?",
+      answer: "A Consultoria IDEA é um serviço personalizado de implementação de Inteligência Artificial em escritórios de advocacia. Trabalhamos a quatro mãos para implantar soluções de IA que aumentam a produtividade e eficiência do seu escritório."
+    },
+    {
+      question: "Quanto tempo dura a consultoria?",
+      answer: "A duração varia de acordo com o plano escolhido e as necessidades do seu escritório. Temos opções que vão de 3 a 12 meses de acompanhamento, sempre focando em garantir sua autonomia total ao final do processo."
+    },
+    {
+      question: "Preciso ter conhecimento prévio em tecnologia?",
+      answer: "Não! A consultoria é projetada para advogados de todos os níveis de familiaridade com tecnologia. Começamos do básico e evoluímos juntos, sempre respeitando seu ritmo de aprendizado."
+    },
+    {
+      question: "Quais são os resultados esperados?",
+      answer: "Nossos clientes relatam aumento de até 60% na produtividade, redução significativa no tempo de elaboração de peças, melhoria no atendimento ao cliente e maior organização do escritório."
+    },
+    {
+      question: "Como funcionam as sessões de consultoria?",
+      answer: "As sessões são realizadas online, em horários flexíveis. Cada encontro é focado em implementar funcionalidades específicas no seu escritório, com acompanhamento prático e suporte contínuo."
+    },
+    {
+      question: "Qual a diferença entre a consultoria e o curso?",
+      answer: "O curso ensina conceitos e técnicas de IA para advocacia. A consultoria vai além: implementamos as soluções diretamente no seu escritório, personalizando cada ferramenta para sua realidade específica."
+    },
+    {
+      question: "Posso adquirir os e-books separadamente?",
+      answer: "Sim! Os e-books estão disponíveis tanto individualmente quanto em combo. Eles são excelentes para quem quer começar a estudar IA na advocacia de forma autodidata."
+    },
+    {
+      question: "Vocês oferecem suporte após a consultoria?",
+      answer: "Sim! Oferecemos canais de suporte para tirar dúvidas mesmo após o término da consultoria. Nosso objetivo é garantir que você tenha autonomia total para continuar evoluindo."
+    }
+  ];
+
+  // Smooth scroll handler
+  const handleSmoothScroll = (e: React.MouseEvent<HTMLAnchorElement>, targetId: string) => {
+    e.preventDefault();
+    const element = document.getElementById(targetId);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#1a1f2e] via-[#0f1419] to-[#1a1f2e]">
@@ -96,21 +147,43 @@ export function HomePage() {
               <span className="text-2xl font-bold text-white tracking-tight">Rafael Egg</span>
             </div>
             <div className="hidden md:flex items-center gap-6">
-              <a href="#sobre" className="text-slate-300 hover:text-white transition-colors font-medium">Sobre</a>
-              <a href="#produtos" className="text-slate-300 hover:text-white transition-colors font-medium">Produtos</a>
-              <a href="#contato" className="text-slate-300 hover:text-white transition-colors font-medium">Contato</a>
-              <Button asChild variant="outline" className="border-amber-500 text-amber-500 hover:bg-amber-500 hover:text-white">
-                <a href="/consultoria">Área do Cliente</a>
-              </Button>
+              <a 
+                href="#sobre" 
+                onClick={(e) => handleSmoothScroll(e, 'sobre')}
+                className="text-slate-300 hover:text-amber-400 transition-colors duration-300 font-medium relative after:absolute after:bottom-0 after:left-0 after:w-full after:h-0.5 after:bg-amber-400 after:scale-x-0 hover:after:scale-x-100 after:transition-transform after:duration-300"
+              >
+                Sobre
+              </a>
+              <a 
+                href="#produtos" 
+                onClick={(e) => handleSmoothScroll(e, 'produtos')}
+                className="text-slate-300 hover:text-amber-400 transition-colors duration-300 font-medium relative after:absolute after:bottom-0 after:left-0 after:w-full after:h-0.5 after:bg-amber-400 after:scale-x-0 hover:after:scale-x-100 after:transition-transform after:duration-300"
+              >
+                Produtos
+              </a>
+              <a 
+                href="#faq" 
+                onClick={(e) => handleSmoothScroll(e, 'faq')}
+                className="text-slate-300 hover:text-amber-400 transition-colors duration-300 font-medium relative after:absolute after:bottom-0 after:left-0 after:w-full after:h-0.5 after:bg-amber-400 after:scale-x-0 hover:after:scale-x-100 after:transition-transform after:duration-300"
+              >
+                FAQ
+              </a>
+              <a 
+                href="#contato" 
+                onClick={(e) => handleSmoothScroll(e, 'contato')}
+                className="text-slate-300 hover:text-amber-400 transition-colors duration-300 font-medium relative after:absolute after:bottom-0 after:left-0 after:w-full after:h-0.5 after:bg-amber-400 after:scale-x-0 hover:after:scale-x-100 after:transition-transform after:duration-300"
+              >
+                Contato
+              </a>
             </div>
           </div>
         </nav>
 
         <div className="relative z-10 container mx-auto px-6 py-16 md:py-24">
           <div className="grid md:grid-cols-2 gap-12 items-center">
-            <div className="space-y-8">
+            <div className="space-y-8 animate-fade-in">
               <div className="space-y-4">
-                <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 hover:bg-amber-500/30 font-semibold">
+                <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 hover:bg-amber-500/30 font-semibold transition-all duration-300 hover:scale-105">
                   <Sparkles className="w-3 h-3 mr-1" />
                   Mentor em IA para Advocacia
                 </Badge>
@@ -124,48 +197,79 @@ export function HomePage() {
               </div>
               
               <div className="flex flex-wrap gap-4">
-                <Button size="lg" className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white shadow-lg shadow-amber-500/25 font-semibold" asChild>
-                  <a href="/consultoria">
-                    Iniciar Consultoria
+                <Button 
+                  size="lg" 
+                  className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white shadow-lg shadow-amber-500/25 font-semibold transition-all duration-300 hover:scale-105 hover:shadow-amber-500/40" 
+                  asChild
+                >
+                  <a href="#produtos" onClick={(e) => handleSmoothScroll(e, 'produtos')}>
+                    Conhecer Produtos
                     <ExternalLink className="ml-2 h-4 w-4" />
                   </a>
                 </Button>
-                <Button size="lg" variant="outline" className="border-slate-600 text-slate-300 hover:bg-slate-800" asChild>
-                  <a href="#produtos">Conhecer Produtos</a>
+                <Button 
+                  size="lg" 
+                  variant="outline" 
+                  className="border-slate-600 text-slate-300 hover:bg-slate-800 transition-all duration-300 hover:scale-105 hover:border-amber-500/50" 
+                  asChild
+                >
+                  <a href="#sobre" onClick={(e) => handleSmoothScroll(e, 'sobre')}>Sobre Mim</a>
                 </Button>
               </div>
 
               <div className="flex items-center gap-4 pt-4">
-                <a href="https://www.instagram.com/rafaelegg/" target="_blank" rel="noopener noreferrer" className="p-2 rounded-full bg-slate-800 text-slate-300 hover:text-pink-400 hover:bg-slate-700 transition-all">
+                <a 
+                  href="https://www.instagram.com/rafaelegg/" 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="p-2 rounded-full bg-slate-800 text-slate-300 hover:text-pink-400 hover:bg-slate-700 transition-all duration-300 hover:scale-110 hover:shadow-lg hover:shadow-pink-500/20"
+                >
                   <Instagram className="h-5 w-5" />
                 </a>
-                <a href="https://www.linkedin.com/in/rafaelegg/" target="_blank" rel="noopener noreferrer" className="p-2 rounded-full bg-slate-800 text-slate-300 hover:text-blue-400 hover:bg-slate-700 transition-all">
+                <a 
+                  href="https://www.linkedin.com/in/rafaelegg/" 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="p-2 rounded-full bg-slate-800 text-slate-300 hover:text-blue-400 hover:bg-slate-700 transition-all duration-300 hover:scale-110 hover:shadow-lg hover:shadow-blue-500/20"
+                >
                   <Linkedin className="h-5 w-5" />
                 </a>
-                <a href="https://www.youtube.com/@rafaelegg" target="_blank" rel="noopener noreferrer" className="p-2 rounded-full bg-slate-800 text-slate-300 hover:text-red-400 hover:bg-slate-700 transition-all">
+                <a 
+                  href="https://www.youtube.com/@rafaelegg" 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="p-2 rounded-full bg-slate-800 text-slate-300 hover:text-red-400 hover:bg-slate-700 transition-all duration-300 hover:scale-110 hover:shadow-lg hover:shadow-red-500/20"
+                >
                   <Youtube className="h-5 w-5" />
                 </a>
-                <a href="mailto:contato@rafaelegg.com" className="p-2 rounded-full bg-slate-800 text-slate-300 hover:text-amber-400 hover:bg-slate-700 transition-all">
+                <a 
+                  href="mailto:contato@rafaelegg.com" 
+                  className="p-2 rounded-full bg-slate-800 text-slate-300 hover:text-amber-400 hover:bg-slate-700 transition-all duration-300 hover:scale-110 hover:shadow-lg hover:shadow-amber-500/20"
+                >
                   <Mail className="h-5 w-5" />
                 </a>
               </div>
             </div>
 
-            <div className="relative flex flex-col items-center gap-8">
+            <div className="relative flex flex-col items-center gap-8 animate-fade-in" style={{ animationDelay: '0.2s' }}>
               {/* Foto profissional */}
-              <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-r from-amber-500 to-orange-600 rounded-2xl blur-2xl opacity-30 scale-110" />
+              <div className="relative group">
+                <div className="absolute inset-0 bg-gradient-to-r from-amber-500 to-orange-600 rounded-2xl blur-2xl opacity-30 scale-110 group-hover:opacity-50 transition-opacity duration-500" />
                 <img 
                   src={fotoRafael} 
                   alt="Rafael Egg - Mentor em IA para Advocacia"
-                  className="relative w-64 h-80 md:w-72 md:h-96 object-cover object-top rounded-2xl shadow-2xl border-2 border-amber-500/30"
+                  className="relative w-64 h-80 md:w-72 md:h-96 object-cover object-top rounded-2xl shadow-2xl border-2 border-amber-500/30 transition-all duration-500 group-hover:scale-[1.02] group-hover:border-amber-500/60"
                 />
               </div>
 
               {/* Achievements grid - only on desktop */}
               <div className="hidden md:grid grid-cols-2 gap-4 w-full max-w-sm">
                 {achievements.map((item, index) => (
-                  <div key={index} className="text-center p-4 bg-slate-800/50 rounded-xl border border-slate-700">
+                  <div 
+                    key={index} 
+                    className="text-center p-4 bg-slate-800/50 rounded-xl border border-slate-700 transition-all duration-300 hover:scale-105 hover:border-amber-500/50 hover:bg-slate-800/80"
+                    style={{ animationDelay: `${0.3 + index * 0.1}s` }}
+                  >
                     <div className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-orange-500">
                       {item.number}
                     </div>
@@ -179,44 +283,44 @@ export function HomePage() {
       </header>
 
       {/* Sobre Section */}
-      <section id="sobre" className="py-20 bg-slate-900/50">
+      <section id="sobre" className="py-20 bg-slate-900/50 scroll-mt-20">
         <div className="container mx-auto px-6">
           <div className="max-w-4xl mx-auto">
             <div className="text-center mb-12">
-              <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 mb-4">Sobre</Badge>
+              <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 mb-4 transition-all duration-300 hover:scale-105">Sobre</Badge>
               <h2 className="text-3xl md:text-4xl font-bold text-white tracking-tight">Quem é Rafael Egg</h2>
             </div>
             
             <div className="grid md:grid-cols-3 gap-8">
-              <Card className="bg-slate-800/50 border-slate-700 hover:border-amber-500/50 transition-all">
+              <Card className="bg-slate-800/50 border-slate-700 hover:border-amber-500/50 transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-amber-500/10 group">
                 <CardContent className="p-6 text-center">
-                  <Scale className="h-12 w-12 text-amber-500 mx-auto mb-4" />
+                  <Scale className="h-12 w-12 text-amber-500 mx-auto mb-4 transition-transform duration-300 group-hover:scale-110" />
                   <h3 className="text-lg font-semibold text-white mb-2">Advogado</h3>
-                  <p className="text-slate-400">Mais de 10 anos de experiência no mercado jurídico brasileiro</p>
+                  <p className="text-slate-400">Mais de 15 anos de experiência no mercado jurídico brasileiro</p>
                 </CardContent>
               </Card>
               
-              <Card className="bg-slate-800/50 border-slate-700 hover:border-amber-500/50 transition-all">
+              <Card className="bg-slate-800/50 border-slate-700 hover:border-amber-500/50 transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-orange-500/10 group">
                 <CardContent className="p-6 text-center">
-                  <Brain className="h-12 w-12 text-orange-500 mx-auto mb-4" />
+                  <Brain className="h-12 w-12 text-orange-500 mx-auto mb-4 transition-transform duration-300 group-hover:scale-110" />
                   <h3 className="text-lg font-semibold text-white mb-2">Especialista em IA</h3>
                   <p className="text-slate-400">Pioneiro na aplicação de inteligência artificial na advocacia</p>
                 </CardContent>
               </Card>
               
-              <Card className="bg-slate-800/50 border-slate-700 hover:border-amber-500/50 transition-all">
+              <Card className="bg-slate-800/50 border-slate-700 hover:border-amber-500/50 transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-amber-400/10 group">
                 <CardContent className="p-6 text-center">
-                  <Award className="h-12 w-12 text-amber-400 mx-auto mb-4" />
+                  <Award className="h-12 w-12 text-amber-400 mx-auto mb-4 transition-transform duration-300 group-hover:scale-110" />
                   <h3 className="text-lg font-semibold text-white mb-2">Mentor & Autor</h3>
                   <p className="text-slate-400">3 e-books publicados e centenas de advogados capacitados</p>
                 </CardContent>
               </Card>
             </div>
 
-            <div className="mt-12 bg-gradient-to-r from-amber-500/10 to-orange-500/10 rounded-2xl p-8 border border-amber-500/20">
+            <div className="mt-12 bg-gradient-to-r from-amber-500/10 to-orange-500/10 rounded-2xl p-8 border border-amber-500/20 transition-all duration-300 hover:border-amber-500/40">
               <p className="text-lg text-slate-300 leading-relaxed">
                 Sou advogado e mentor especializado em ajudar escritórios de advocacia a implementarem 
-                soluções de Inteligência Artificial em suas rotinas. Através do <strong className="text-amber-400">Método IDEIA</strong> 
+                soluções de Inteligência Artificial em suas rotinas. Através do <strong className="text-amber-400">Método IDEA</strong> 
                 (Inteligência de Dados e Artificial), desenvolvo metodologias práticas que permitem 
                 advogados aumentarem sua produtividade, reduzirem custos operacionais e entregarem 
                 mais valor aos seus clientes.
@@ -231,10 +335,10 @@ export function HomePage() {
       </section>
 
       {/* Produtos Section */}
-      <section id="produtos" className="py-20">
+      <section id="produtos" className="py-20 scroll-mt-20">
         <div className="container mx-auto px-6">
           <div className="text-center mb-12">
-            <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 mb-4">Produtos & Serviços</Badge>
+            <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 mb-4 transition-all duration-300 hover:scale-105">Produtos & Serviços</Badge>
             <h2 className="text-3xl md:text-4xl font-bold text-white tracking-tight">Soluções para sua Advocacia</h2>
             <p className="text-slate-400 mt-4 max-w-2xl mx-auto">
               Conheça as ferramentas e serviços que vão transformar a forma como você pratica advocacia
@@ -245,7 +349,7 @@ export function HomePage() {
             {products.map((product, index) => (
               <Card 
                 key={index} 
-                className={`bg-slate-800/50 border-slate-700 hover:border-amber-500/50 transition-all duration-300 group ${
+                className={`bg-slate-800/50 border-slate-700 hover:border-amber-500/50 transition-all duration-300 group hover:scale-[1.02] hover:shadow-xl hover:shadow-amber-500/10 ${
                   product.highlight ? 'ring-2 ring-amber-500/30' : ''
                 }`}
               >
@@ -255,17 +359,17 @@ export function HomePage() {
                       <img 
                         src={product.logo} 
                         alt={product.title} 
-                        className="h-full w-auto object-contain"
+                        className="h-full w-auto object-contain transition-transform duration-300 group-hover:scale-105"
                       />
                     </div>
                   ) : (
-                    <product.icon className="h-12 w-12 text-amber-500 mb-4 group-hover:text-orange-500 transition-colors" />
+                    <product.icon className="h-12 w-12 text-amber-500 mb-4 group-hover:text-orange-500 transition-all duration-300 group-hover:scale-110" />
                   )}
                   <h3 className="text-xl font-semibold text-white mb-2">{product.title}</h3>
                   <p className="text-slate-400 mb-4">{product.description}</p>
                   <Button 
                     variant="ghost" 
-                    className="text-amber-500 hover:text-orange-500 hover:bg-amber-500/10 p-0"
+                    className="text-amber-500 hover:text-orange-500 hover:bg-amber-500/10 p-0 transition-all duration-300 group-hover:translate-x-1"
                     asChild
                   >
                     <a href={product.link} target={product.external ? "_blank" : undefined} rel={product.external ? "noopener noreferrer" : undefined}>
@@ -280,6 +384,41 @@ export function HomePage() {
         </div>
       </section>
 
+      {/* FAQ Section */}
+      <section id="faq" className="py-20 bg-slate-900/50 scroll-mt-20">
+        <div className="container mx-auto px-6">
+          <div className="max-w-3xl mx-auto">
+            <div className="text-center mb-12">
+              <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 mb-4 transition-all duration-300 hover:scale-105">
+                <HelpCircle className="w-3 h-3 mr-1" />
+                Perguntas Frequentes
+              </Badge>
+              <h2 className="text-3xl md:text-4xl font-bold text-white tracking-tight">Tire suas Dúvidas</h2>
+              <p className="text-slate-400 mt-4">
+                Respostas para as perguntas mais comuns sobre a consultoria e os produtos
+              </p>
+            </div>
+
+            <Accordion type="single" collapsible className="space-y-4">
+              {faqItems.map((item, index) => (
+                <AccordionItem 
+                  key={index} 
+                  value={`item-${index}`}
+                  className="bg-slate-800/50 border border-slate-700 rounded-xl px-6 transition-all duration-300 hover:border-amber-500/50 data-[state=open]:border-amber-500/50 data-[state=open]:shadow-lg data-[state=open]:shadow-amber-500/10"
+                >
+                  <AccordionTrigger className="text-white hover:text-amber-400 transition-colors duration-300 py-4 text-left">
+                    {item.question}
+                  </AccordionTrigger>
+                  <AccordionContent className="text-slate-400 pb-4">
+                    {item.answer}
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
+          </div>
+        </div>
+      </section>
+
       {/* CTA Section */}
       <section className="py-20 bg-gradient-to-r from-amber-600/20 to-orange-600/20">
         <div className="container mx-auto px-6 text-center">
@@ -287,16 +426,25 @@ export function HomePage() {
             Pronto para transformar seu escritório?
           </h2>
           <p className="text-xl text-slate-300 mb-8 max-w-2xl mx-auto">
-            Comece agora sua jornada de transformação digital com a Consultoria IDEIA
+            Comece agora sua jornada de transformação digital com a Consultoria IDEA
           </p>
           <div className="flex flex-wrap justify-center gap-4">
-            <Button size="lg" className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-semibold" asChild>
-              <a href="/consultoria">
+            <Button 
+              size="lg" 
+              className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-semibold transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-amber-500/30" 
+              asChild
+            >
+              <a href="https://mentoriarafaelegg.com.br/consultoria-idea/" target="_blank" rel="noopener noreferrer">
                 Agendar Consultoria
                 <ExternalLink className="ml-2 h-4 w-4" />
               </a>
             </Button>
-            <Button size="lg" variant="outline" className="border-white/30 text-white hover:bg-white/10" asChild>
+            <Button 
+              size="lg" 
+              variant="outline" 
+              className="border-white/30 text-white hover:bg-white/10 transition-all duration-300 hover:scale-105" 
+              asChild
+            >
               <a href="mailto:contato@rafaelegg.com">
                 <Mail className="mr-2 h-4 w-4" />
                 Entrar em Contato
@@ -307,7 +455,7 @@ export function HomePage() {
       </section>
 
       {/* Footer */}
-      <footer id="contato" className="py-12 bg-slate-900 border-t border-slate-800">
+      <footer id="contato" className="py-12 bg-slate-900 border-t border-slate-800 scroll-mt-20">
         <div className="container mx-auto px-6">
           <div className="grid md:grid-cols-3 gap-8">
             <div>
@@ -323,23 +471,38 @@ export function HomePage() {
             <div>
               <h4 className="font-semibold text-white mb-4">Links Rápidos</h4>
               <ul className="space-y-2">
-                <li><a href="/consultoria" className="text-slate-400 hover:text-amber-500 transition-colors">Consultoria</a></li>
-                <li><a href="/metodo-ideia" className="text-slate-400 hover:text-amber-500 transition-colors">Método IDEIA</a></li>
-                <li><a href="https://mentoriarafaelegg.com.br/combo-de-ebooks/" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-amber-500 transition-colors">E-books</a></li>
-                <li><a href="/privacidade" className="text-slate-400 hover:text-amber-500 transition-colors">Política de Privacidade</a></li>
+                <li><a href="/consultoria" className="text-slate-400 hover:text-amber-500 transition-colors duration-300">Consultoria</a></li>
+                <li><a href="https://mentoriarafaelegg.com.br/curso-idea/" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-amber-500 transition-colors duration-300">Método IDEA</a></li>
+                <li><a href="https://mentoriarafaelegg.com.br/combo-de-ebooks/" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-amber-500 transition-colors duration-300">E-books</a></li>
+                <li><a href="/privacidade" className="text-slate-400 hover:text-amber-500 transition-colors duration-300">Política de Privacidade</a></li>
               </ul>
             </div>
             
             <div>
               <h4 className="font-semibold text-white mb-4">Redes Sociais</h4>
               <div className="flex gap-3">
-                <a href="https://www.instagram.com/rafaelegg/" target="_blank" rel="noopener noreferrer" className="p-2 rounded-full bg-slate-800 text-slate-300 hover:text-pink-400 hover:bg-slate-700 transition-all">
+                <a 
+                  href="https://www.instagram.com/rafaelegg/" 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="p-2 rounded-full bg-slate-800 text-slate-300 hover:text-pink-400 hover:bg-slate-700 transition-all duration-300 hover:scale-110"
+                >
                   <Instagram className="h-5 w-5" />
                 </a>
-                <a href="https://www.linkedin.com/in/rafaelegg/" target="_blank" rel="noopener noreferrer" className="p-2 rounded-full bg-slate-800 text-slate-300 hover:text-blue-400 hover:bg-slate-700 transition-all">
+                <a 
+                  href="https://www.linkedin.com/in/rafaelegg/" 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="p-2 rounded-full bg-slate-800 text-slate-300 hover:text-blue-400 hover:bg-slate-700 transition-all duration-300 hover:scale-110"
+                >
                   <Linkedin className="h-5 w-5" />
                 </a>
-                <a href="https://www.youtube.com/@rafaelegg" target="_blank" rel="noopener noreferrer" className="p-2 rounded-full bg-slate-800 text-slate-300 hover:text-red-400 hover:bg-slate-700 transition-all">
+                <a 
+                  href="https://www.youtube.com/@rafaelegg" 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="p-2 rounded-full bg-slate-800 text-slate-300 hover:text-red-400 hover:bg-slate-700 transition-all duration-300 hover:scale-110"
+                >
                   <Youtube className="h-5 w-5" />
                 </a>
               </div>
