@@ -44,6 +44,7 @@ interface ConsultingClient {
   office_address: string;
   address_number: string | null;
   address_complement: string | null;
+  bairro: string | null;
   cidade: string | null;
   estado: string | null;
   foundation_year: number | null;
@@ -283,6 +284,7 @@ O prompt deve:
                   <div className="text-sm">
                     <p>{client.office_address}{client.address_number ? `, ${client.address_number}` : ''}</p>
                     {client.address_complement && <p className="text-muted-foreground">{client.address_complement}</p>}
+                    {client.bairro && <p className="text-muted-foreground">{client.bairro}</p>}
                     {(client.cidade || client.estado) && (
                       <p className="text-muted-foreground">
                         {client.cidade}{client.cidade && client.estado ? ' - ' : ''}{client.estado}

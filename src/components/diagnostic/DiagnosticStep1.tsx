@@ -199,12 +199,11 @@ export function DiagnosticStep1({ formData, updateFormData, consultantId }: Diag
       }
 
       // Preenche os campos separadamente
-      const endereco = [data.logradouro, data.bairro].filter(Boolean).join(", ");
-      
       updateFormData({ 
-        office_address: endereco,
-        cidade: data.localidade,
-        estado: data.uf
+        office_address: data.logradouro || "",
+        bairro: data.bairro || "",
+        cidade: data.localidade || "",
+        estado: data.uf || ""
       });
       toast.success("Endereço preenchido automaticamente!");
     } catch (error) {
@@ -567,6 +566,17 @@ export function DiagnosticStep1({ formData, updateFormData, consultantId }: Diag
               placeholder="Sala 101, Bloco A, etc."
             />
           </div>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="bairro">Bairro <span className="text-destructive">*</span></Label>
+          <Input
+            id="bairro"
+            value={formData.bairro}
+            onChange={(e) => updateFormData({ bairro: e.target.value })}
+            placeholder="Centro"
+            required
+          />
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">
