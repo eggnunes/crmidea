@@ -443,7 +443,6 @@ export function ClientDashboardPage() {
               </Card>
             )}
           </TabsContent>
-
           {/* Sessions Tab */}
           <TabsContent value="sessions">
             <Card>
