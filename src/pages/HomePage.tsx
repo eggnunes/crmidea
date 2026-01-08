@@ -416,7 +416,7 @@ export function HomePage() {
                         src={product.logo} 
                         alt={product.title} 
                         className={`w-auto max-w-full object-contain transition-transform duration-300 group-hover:scale-105 ${
-                          product.title === "Curso IDEA" ? "h-20 scale-150" : "h-full"
+                          product.title === "Curso IDEA" ? "h-20 scale-[3]" : "h-full"
                         }`}
                       />
                     </div>
