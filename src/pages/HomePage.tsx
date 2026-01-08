@@ -11,6 +11,11 @@ import {
   AccordionItem,
   AccordionTrigger
 } from "@/components/ui/accordion";
+import {
+  Sheet,
+  SheetContent,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { 
   BookOpen, 
   GraduationCap, 
@@ -28,7 +33,9 @@ import {
   Send,
   Loader2,
   Phone,
-  Shield
+  Shield,
+  Menu,
+  X
 } from "lucide-react";
 import logoRE from "@/assets/logo-re.png";
 import { Link } from "react-router-dom";
@@ -53,6 +60,7 @@ export function HomePage() {
     message: ""
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleConsultoriaClick = () => {
     window.scrollTo(0, 0);
@@ -206,6 +214,8 @@ export function HomePage() {
               <img src={logoRE} alt="Rafael Egg" className="h-20 w-20 object-contain" />
               <span className="text-2xl font-bold text-white tracking-tight">Rafael Egg</span>
             </div>
+            
+            {/* Desktop Menu */}
             <div className="hidden md:flex items-center gap-6">
               <a 
                 href="#sobre" 
@@ -242,6 +252,66 @@ export function HomePage() {
                 Contato
               </a>
             </div>
+
+            {/* Mobile Menu */}
+            <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+              <SheetTrigger asChild className="md:hidden">
+                <Button variant="ghost" size="icon" className="text-white hover:bg-slate-800">
+                  <Menu className="h-6 w-6" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="bg-slate-900 border-slate-700 w-[280px]">
+                <nav className="flex flex-col gap-6 mt-8">
+                  <a 
+                    href="#sobre" 
+                    onClick={(e) => {
+                      handleSmoothScroll(e, 'sobre');
+                      setMobileMenuOpen(false);
+                    }}
+                    className="text-lg text-slate-300 hover:text-amber-400 transition-colors duration-300 font-medium"
+                  >
+                    Sobre
+                  </a>
+                  <a 
+                    href="#produtos" 
+                    onClick={(e) => {
+                      handleSmoothScroll(e, 'produtos');
+                      setMobileMenuOpen(false);
+                    }}
+                    className="text-lg text-slate-300 hover:text-amber-400 transition-colors duration-300 font-medium"
+                  >
+                    Produtos
+                  </a>
+                  <a 
+                    href="#faq" 
+                    onClick={(e) => {
+                      handleSmoothScroll(e, 'faq');
+                      setMobileMenuOpen(false);
+                    }}
+                    className="text-lg text-slate-300 hover:text-amber-400 transition-colors duration-300 font-medium"
+                  >
+                    FAQ
+                  </a>
+                  <Link 
+                    to="/blog"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="text-lg text-slate-300 hover:text-amber-400 transition-colors duration-300 font-medium"
+                  >
+                    Blog
+                  </Link>
+                  <a 
+                    href="#contato" 
+                    onClick={(e) => {
+                      handleSmoothScroll(e, 'contato');
+                      setMobileMenuOpen(false);
+                    }}
+                    className="text-lg text-slate-300 hover:text-amber-400 transition-colors duration-300 font-medium"
+                  >
+                    Contato
+                  </a>
+                </nav>
+              </SheetContent>
+            </Sheet>
           </div>
         </nav>
 
