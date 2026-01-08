@@ -34,11 +34,11 @@ import {
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import logoMentoria from "@/assets/logo-mentoria.png";
-import logoCursoIdea from "@/assets/logo-curso-idea.png";
+import logoMentoria from "@/assets/logo-mentoria-new.png";
+import logoCursoIdea from "@/assets/logo-curso-idea-new.png";
 import logoConsultoria from "@/assets/logo-consultoria-new.png";
-import logoGuiaIA from "@/assets/logo-guia-ia.png";
-import logoCodigoPrompts from "@/assets/logo-codigo-prompts.png";
+import logoGuiaIA from "@/assets/logo-guia-ia-new.png";
+import logoCodigoPrompts from "@/assets/logo-codigo-prompts-new.png";
 import logoComboEbooks from "@/assets/logo-combo-ebooks.png";
 import fotoRafael from "@/assets/foto-rafael.jpg";
 
