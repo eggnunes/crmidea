@@ -1,10 +1,16 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { Resend } from "https://esm.sh/resend@2.0.0";
+
+const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+const CONSULTANT_EMAIL = "eggnunes@gmail.com";
+const FROM_EMAIL = "Consultoria IDEA <naoresponda@rafaelegg.com>";
 
 async function sendWhatsAppMessage(phone: string, message: string) {
   const zapiInstanceId = Deno.env.get('ZAPI_INSTANCE_ID');
@@ -178,6 +184,53 @@ Um novo agendamento foi realizado:
           const ownerSent = await sendWhatsAppMessage(ownerPhone, ownerMessage);
           results.push({ recipient: 'owner', sent: ownerSent });
         }
+      }
+
+      // Send email notification to consultant (push notification alternative)
+      try {
+        const emailHtml = `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset="utf-8">
+            <style>
+              body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; }
+              .header { background: linear-gradient(135deg, #10b981, #059669); color: white; padding: 20px; border-radius: 12px 12px 0 0; text-align: center; }
+              .content { background: #f0fdf4; padding: 20px; border-radius: 0 0 12px 12px; }
+              .info { background: white; padding: 15px; border-radius: 8px; margin: 10px 0; }
+            </style>
+          </head>
+          <body>
+            <div class="header">
+              <h2>📅 Novo Agendamento Realizado!</h2>
+            </div>
+            <div class="content">
+              <div class="info">
+                <strong>👤 Cliente:</strong> ${clientName}<br>
+                <strong>📧 Email:</strong> ${bookingData.email || 'Não informado'}<br>
+                <strong>📱 WhatsApp:</strong> ${clientPhone || 'Não informado'}<br>
+                <strong>📅 Data:</strong> ${formattedDate}<br>
+                <strong>🕐 Horário:</strong> ${formattedTime}<br>
+                ${bookingData.notes ? `<strong>📝 Obs:</strong> ${bookingData.notes}` : ''}
+              </div>
+              <p>O cliente já recebeu confirmação por WhatsApp (se o número foi informado).</p>
+            </div>
+          </body>
+          </html>
+        `;
+
+        await resend.emails.send({
+          from: FROM_EMAIL,
+          to: [CONSULTANT_EMAIL],
+          subject: `📅 Novo Agendamento: ${clientName} - ${formattedDate} às ${formattedTime}`,
+          html: emailHtml,
+        });
+
+        console.log('Email notification sent to consultant');
+        results.push({ recipient: 'consultant_email', sent: true });
+      } catch (emailError) {
+        console.error('Failed to send email notification:', emailError);
+        results.push({ recipient: 'consultant_email', sent: false, error: String(emailError) });
       }
 
       return new Response(JSON.stringify({ 

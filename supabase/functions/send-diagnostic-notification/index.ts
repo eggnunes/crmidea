@@ -8,6 +8,9 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const CONSULTANT_EMAIL = "eggnunes@gmail.com";
+const FROM_EMAIL = "Consultoria IDEA <naoresponda@rafaelegg.com>";
+
 interface DiagnosticNotificationRequest {
   clientName: string;
   clientEmail: string;
@@ -220,10 +223,10 @@ const handler = async (req: Request): Promise<Response> => {
     `;
 
     // Send email to consultant
-    console.log("Sending email to consultant:", consultantEmail);
+    console.log("Sending email to consultant:", CONSULTANT_EMAIL);
     const consultantEmailResponse = await resend.emails.send({
-      from: "IDEA Consultoria <onboarding@resend.dev>",
-      to: [consultantEmail],
+      from: FROM_EMAIL,
+      to: [CONSULTANT_EMAIL],
       subject: `🎉 Novo Diagnóstico: ${officeName} - ${clientName}`,
       html: consultantEmailHtml,
     });
@@ -232,7 +235,7 @@ const handler = async (req: Request): Promise<Response> => {
     // Send email to client
     console.log("Sending email to client:", clientEmail);
     const clientEmailResponse = await resend.emails.send({
-      from: "IDEA Consultoria <onboarding@resend.dev>",
+      from: FROM_EMAIL,
       to: [clientEmail],
       subject: "✅ Diagnóstico Recebido - Consultoria IDEA",
       html: clientEmailHtml,

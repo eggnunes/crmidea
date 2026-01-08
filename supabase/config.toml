@@ -89,3 +89,12 @@ verify_jwt = false
 
 [functions.generate-logo]
 verify_jwt = false
+
+[functions.send-diagnostic-notification]
+verify_jwt = true
+
+[functions.generate-consulting-prompt]
+verify_jwt = true
+
+[functions.client-monthly-report]
+verify_jwt = false
