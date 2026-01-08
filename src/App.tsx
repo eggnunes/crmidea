@@ -27,6 +27,7 @@ import { AuthPage } from "./pages/AuthPage";
 import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
 import NotFound from "./pages/NotFound";
 import { HomePage } from "./pages/HomePage";
+import { BlogPage } from "./pages/BlogPage";
 import { Loader2 } from "lucide-react";
 
 const queryClient = new QueryClient();
@@ -52,8 +53,9 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 function AppRoutes() {
   return (
     <Routes>
-      {/* Página pública inicial - raphaelhague.com */}
+      {/* Página pública inicial - rafaelegg.com */}
       <Route path="/" element={<HomePage />} />
+      <Route path="/blog" element={<BlogPage />} />
       
       {/* Autenticação */}
       <Route path="/auth" element={<AuthPage />} />

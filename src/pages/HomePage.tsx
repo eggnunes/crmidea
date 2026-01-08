@@ -1,6 +1,10 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { 
   Accordion,
   AccordionContent,
@@ -22,19 +26,38 @@ import {
   Award,
   Target,
   Sparkles,
-  HelpCircle
+  HelpCircle,
+  Send,
+  Loader2,
+  Phone
 } from "lucide-react";
-import logoMetodoIdeia from "@/assets/logo-metodo-ideia.png";
-import logoConsultoria from "@/assets/logo-consultoria.png";
+import { Link } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import logoMentoria from "@/assets/logo-mentoria.png";
+import logoCursoIdea from "@/assets/logo-curso-idea.png";
+import logoConsultoria from "@/assets/logo-consultoria-new.png";
+import logoGuiaIA from "@/assets/logo-guia-ia.png";
+import logoCodigoPrompts from "@/assets/logo-codigo-prompts.png";
+import logoComboEbooks from "@/assets/logo-combo-ebooks.png";
 import fotoRafael from "@/assets/foto-rafael.jpg";
 
 export function HomePage() {
+  const [contactForm, setContactForm] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    message: ""
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const products = [
     {
-      title: "Mentoria Individual",
+      title: "Mentoria",
       description: "Acompanhamento personalizado para advogados que querem dominar a IA",
       icon: Users,
       link: "https://mentoriarafaelegg.com.br/inscricoes-abertas/",
+      logo: logoMentoria,
       highlight: true,
       external: true
     },
@@ -43,7 +66,7 @@ export function HomePage() {
       description: "Formação completa em Inteligência de Dados e Artificial para advogados",
       icon: GraduationCap,
       link: "https://mentoriarafaelegg.com.br/curso-idea/",
-      logo: logoMetodoIdeia,
+      logo: logoCursoIdea,
       highlight: true,
       external: true
     },
@@ -61,6 +84,7 @@ export function HomePage() {
       description: "Guia prático para começar a usar IA na advocacia",
       icon: BookOpen,
       link: "https://mentoriarafaelegg.com.br/guia-de-ia/",
+      logo: logoGuiaIA,
       highlight: false,
       external: true
     },
@@ -69,6 +93,7 @@ export function HomePage() {
       description: "E-book com os melhores prompts para advogados",
       icon: Lightbulb,
       link: "https://mentoriarafaelegg.com.br/codigo-dos-prompts/",
+      logo: logoCodigoPrompts,
       highlight: false,
       external: true
     },
@@ -77,6 +102,7 @@ export function HomePage() {
       description: "Pacote completo com todos os e-books sobre IA na advocacia",
       icon: BookOpen,
       link: "https://mentoriarafaelegg.com.br/combo-de-ebooks/",
+      logo: logoComboEbooks,
       highlight: false,
       external: true
     }
@@ -124,12 +150,38 @@ export function HomePage() {
     }
   ];
 
-  // Smooth scroll handler
   const handleSmoothScroll = (e: React.MouseEvent<HTMLAnchorElement>, targetId: string) => {
     e.preventDefault();
     const element = document.getElementById(targetId);
     if (element) {
       element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
+  const handleContactSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!contactForm.name || !contactForm.email || !contactForm.message) {
+      toast.error("Por favor, preencha todos os campos obrigatórios");
+      return;
+    }
+
+    setIsSubmitting(true);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke("send-contact-email", {
+        body: contactForm
+      });
+
+      if (error) throw error;
+
+      toast.success("Mensagem enviada com sucesso! Entrarei em contato em breve.");
+      setContactForm({ name: "", email: "", phone: "", message: "" });
+    } catch (error: any) {
+      console.error("Error sending contact email:", error);
+      toast.error("Erro ao enviar mensagem. Tente novamente.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -168,6 +220,12 @@ export function HomePage() {
               >
                 FAQ
               </a>
+              <Link 
+                to="/blog"
+                className="text-slate-300 hover:text-amber-400 transition-colors duration-300 font-medium relative after:absolute after:bottom-0 after:left-0 after:w-full after:h-0.5 after:bg-amber-400 after:scale-x-0 hover:after:scale-x-100 after:transition-transform after:duration-300"
+              >
+                Blog
+              </Link>
               <a 
                 href="#contato" 
                 onClick={(e) => handleSmoothScroll(e, 'contato')}
@@ -252,7 +310,6 @@ export function HomePage() {
             </div>
 
             <div className="relative flex flex-col items-center gap-8 animate-fade-in" style={{ animationDelay: '0.2s' }}>
-              {/* Foto profissional */}
               <div className="relative group">
                 <div className="absolute inset-0 bg-gradient-to-r from-amber-500 to-orange-600 rounded-2xl blur-2xl opacity-30 scale-110 group-hover:opacity-50 transition-opacity duration-500" />
                 <img 
@@ -262,7 +319,6 @@ export function HomePage() {
                 />
               </div>
 
-              {/* Achievements grid - only on desktop */}
               <div className="hidden md:grid grid-cols-2 gap-4 w-full max-w-sm">
                 {achievements.map((item, index) => (
                   <div 
@@ -355,11 +411,11 @@ export function HomePage() {
               >
                 <CardContent className="p-6">
                   {product.logo ? (
-                    <div className="h-16 mb-4 flex items-center">
+                    <div className="h-20 mb-4 flex items-center justify-center">
                       <img 
                         src={product.logo} 
                         alt={product.title} 
-                        className="h-full w-auto object-contain transition-transform duration-300 group-hover:scale-105"
+                        className="h-full w-auto max-w-full object-contain transition-transform duration-300 group-hover:scale-105"
                       />
                     </div>
                   ) : (
@@ -419,6 +475,102 @@ export function HomePage() {
         </div>
       </section>
 
+      {/* Contact Form Section */}
+      <section id="contato" className="py-20 scroll-mt-20">
+        <div className="container mx-auto px-6">
+          <div className="max-w-2xl mx-auto">
+            <div className="text-center mb-12">
+              <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 mb-4 transition-all duration-300 hover:scale-105">
+                <Mail className="w-3 h-3 mr-1" />
+                Contato
+              </Badge>
+              <h2 className="text-3xl md:text-4xl font-bold text-white tracking-tight">Entre em Contato</h2>
+              <p className="text-slate-400 mt-4">
+                Tem alguma dúvida ou quer saber mais sobre meus produtos e serviços? Envie uma mensagem!
+              </p>
+            </div>
+
+            <Card className="bg-slate-800/50 border-slate-700">
+              <CardContent className="p-8">
+                <form onSubmit={handleContactSubmit} className="space-y-6">
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="name" className="text-slate-300">Nome *</Label>
+                      <Input
+                        id="name"
+                        placeholder="Seu nome completo"
+                        value={contactForm.name}
+                        onChange={(e) => setContactForm(prev => ({ ...prev, name: e.target.value }))}
+                        className="bg-slate-900 border-slate-700 text-white placeholder:text-slate-500 focus:border-amber-500"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="email" className="text-slate-300">Email *</Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        placeholder="seu@email.com"
+                        value={contactForm.email}
+                        onChange={(e) => setContactForm(prev => ({ ...prev, email: e.target.value }))}
+                        className="bg-slate-900 border-slate-700 text-white placeholder:text-slate-500 focus:border-amber-500"
+                        required
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="phone" className="text-slate-300">
+                      <Phone className="w-4 h-4 inline mr-1" />
+                      Telefone (opcional)
+                    </Label>
+                    <Input
+                      id="phone"
+                      type="tel"
+                      placeholder="(00) 00000-0000"
+                      value={contactForm.phone}
+                      onChange={(e) => setContactForm(prev => ({ ...prev, phone: e.target.value }))}
+                      className="bg-slate-900 border-slate-700 text-white placeholder:text-slate-500 focus:border-amber-500"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="message" className="text-slate-300">Mensagem *</Label>
+                    <Textarea
+                      id="message"
+                      placeholder="Escreva sua mensagem..."
+                      value={contactForm.message}
+                      onChange={(e) => setContactForm(prev => ({ ...prev, message: e.target.value }))}
+                      className="bg-slate-900 border-slate-700 text-white placeholder:text-slate-500 focus:border-amber-500 min-h-[150px]"
+                      required
+                    />
+                  </div>
+
+                  <Button 
+                    type="submit"
+                    size="lg"
+                    className="w-full bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-semibold transition-all duration-300"
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Enviando...
+                      </>
+                    ) : (
+                      <>
+                        <Send className="mr-2 h-4 w-4" />
+                        Enviar Mensagem
+                      </>
+                    )}
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </section>
+
       {/* CTA Section */}
       <section className="py-20 bg-gradient-to-r from-amber-600/20 to-orange-600/20">
         <div className="container mx-auto px-6 text-center">
@@ -445,7 +597,7 @@ export function HomePage() {
               className="border-white/30 text-white hover:bg-white/10 transition-all duration-300 hover:scale-105" 
               asChild
             >
-              <a href="mailto:contato@rafaelegg.com">
+              <a href="#contato" onClick={(e) => handleSmoothScroll(e, 'contato')}>
                 <Mail className="mr-2 h-4 w-4" />
                 Entrar em Contato
               </a>
@@ -455,7 +607,7 @@ export function HomePage() {
       </section>
 
       {/* Footer */}
-      <footer id="contato" className="py-12 bg-slate-900 border-t border-slate-800 scroll-mt-20">
+      <footer className="py-12 bg-slate-900 border-t border-slate-800">
         <div className="container mx-auto px-6">
           <div className="grid md:grid-cols-3 gap-8">
             <div>
@@ -472,7 +624,8 @@ export function HomePage() {
               <h4 className="font-semibold text-white mb-4">Links Rápidos</h4>
               <ul className="space-y-2">
                 <li><a href="/consultoria" className="text-slate-400 hover:text-amber-500 transition-colors duration-300">Consultoria</a></li>
-                <li><a href="https://mentoriarafaelegg.com.br/curso-idea/" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-amber-500 transition-colors duration-300">Método IDEA</a></li>
+                <li><a href="https://mentoriarafaelegg.com.br/curso-idea/" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-amber-500 transition-colors duration-300">Curso IDEA</a></li>
+                <li><Link to="/blog" className="text-slate-400 hover:text-amber-500 transition-colors duration-300">Blog</Link></li>
                 <li><a href="https://mentoriarafaelegg.com.br/combo-de-ebooks/" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-amber-500 transition-colors duration-300">E-books</a></li>
                 <li><a href="/privacidade" className="text-slate-400 hover:text-amber-500 transition-colors duration-300">Política de Privacidade</a></li>
               </ul>
