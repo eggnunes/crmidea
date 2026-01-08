@@ -57,22 +57,24 @@ function AppRoutes() {
       <Route path="/" element={<HomePage />} />
       <Route path="/blog" element={<BlogPage />} />
       
-      {/* Autenticação */}
+      {/* Autenticação admin */}
       <Route path="/auth" element={<AuthPage />} />
       <Route path="/privacidade" element={<PrivacyPolicyPage />} />
       
       {/* Páginas públicas */}
       <Route path="/agendar/:userId" element={<PublicBookingPage />} />
       <Route path="/diagnostico/:consultantId" element={<PublicDiagnosticForm />} />
-      <Route path="/sobre-consultoria" element={<PublicConsultingPage />} />
       
-      {/* Área do cliente da consultoria - /consultoria */}
-      <Route path="/consultoria" element={<ClientAuthPage />} />
+      {/* Consultoria - Página pública com informações sobre a consultoria */}
+      <Route path="/consultoria" element={<PublicConsultingPage />} />
+      
+      {/* Área do Cliente da Consultoria - Login e Dashboard */}
+      <Route path="/consultoria/login" element={<ClientAuthPage />} />
       <Route path="/consultoria/dashboard" element={<ClientDashboardPage />} />
       <Route path="/consultoria/diagnostico" element={<ClientDiagnosticForm />} />
       <Route path="/cadastro-cliente/:consultantId" element={<ClientAuthPage />} />
       
-      {/* Método IDEIA - CRM Admin - /metodo-ideia */}
+      {/* Método IDEA - CRM Admin - /metodo-ideia (requer login do admin) */}
       <Route
         path="/metodo-ideia/*"
         element={
