@@ -19,13 +19,15 @@ import {
   Handshake,
   GraduationCap,
   UserPlus,
-  ChevronDown
+  ChevronDown,
+  LogIn
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { CONSULTING_FEATURES, FEATURE_CATEGORIES } from "@/data/consultingFeatures";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useState } from "react";
+import logoConsultoria from "@/assets/logo-consultoria.png";
 
 // ID do consultor padrão - em produção, isso poderia ser dinâmico
 const DEFAULT_CONSULTANT_ID = "default";
@@ -136,18 +138,22 @@ export function PublicConsultingPage() {
         <div className="absolute inset-0 bg-grid-pattern opacity-5" />
         <nav className="container mx-auto px-4 py-4 flex items-center justify-between relative z-10">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center">
-              <Zap className="w-6 h-6 text-primary-foreground" />
-            </div>
-            <span className="font-bold text-xl">IDEA</span>
+            <img 
+              src={logoConsultoria} 
+              alt="Consultoria IDEA" 
+              className="h-10 w-auto object-contain"
+            />
+            <span className="font-bold text-xl">Consultoria IDEA</span>
           </div>
           <div className="flex items-center gap-3">
-            <Button variant="outline" onClick={handleCadastro} className="gap-2">
-              <UserPlus className="w-4 h-4" />
-              {user ? 'Área do Cliente' : 'Criar Conta'}
+            <Button variant="outline" asChild className="gap-2">
+              <Link to="/consultoria/login">
+                <LogIn className="w-4 h-4" />
+                Área do Cliente
+              </Link>
             </Button>
             <Button asChild>
-              <a href="https://crmidea.lovable.app" target="_blank" rel="noopener noreferrer">
+              <a href="https://mentoriarafaelegg.com.br/consultoria-idea/" target="_blank" rel="noopener noreferrer">
                 Contratar Consultoria
               </a>
             </Button>
@@ -170,9 +176,11 @@ export function PublicConsultingPage() {
           </p>
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button size="lg" className="gap-2" onClick={handleCadastro}>
-              <UserPlus className="w-4 h-4" />
-              {user ? 'Acessar Minha Área' : 'Cadastrar Agora'}
+            <Button size="lg" className="gap-2" asChild>
+              <Link to="/consultoria/login">
+                <LogIn className="w-4 h-4" />
+                Área do Cliente
+              </Link>
             </Button>
             <Button size="lg" variant="outline" className="gap-2" asChild>
               <a href="#como-funciona">
@@ -311,9 +319,11 @@ export function PublicConsultingPage() {
           </Accordion>
           
           <div className="text-center mt-8">
-            <Button size="lg" className="gap-2" onClick={handleCadastro}>
-              <UserPlus className="w-4 h-4" />
-              Começar Agora
+            <Button size="lg" className="gap-2" asChild>
+              <a href="https://mentoriarafaelegg.com.br/consultoria-idea/" target="_blank" rel="noopener noreferrer">
+                <ArrowRight className="w-4 h-4" />
+                Contratar Consultoria
+              </a>
             </Button>
           </div>
         </div>
@@ -362,13 +372,15 @@ export function PublicConsultingPage() {
           </p>
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button size="lg" variant="secondary" className="gap-2" onClick={handleCadastro}>
-              <UserPlus className="w-4 h-4" />
-              {user ? 'Acessar Minha Área' : 'Cadastrar Grátis'}
+            <Button size="lg" variant="secondary" className="gap-2" asChild>
+              <Link to="/consultoria/login">
+                <LogIn className="w-4 h-4" />
+                Área do Cliente
+              </Link>
             </Button>
             <Button size="lg" variant="outline" className="gap-2 bg-transparent border-primary-foreground/30 hover:bg-primary-foreground/10" asChild>
-              <a href="https://crmidea.lovable.app" target="_blank" rel="noopener noreferrer">
-                Falar com Consultor
+              <a href="https://mentoriarafaelegg.com.br/consultoria-idea/" target="_blank" rel="noopener noreferrer">
+                Contratar Consultoria
                 <ArrowRight className="w-4 h-4" />
               </a>
             </Button>
