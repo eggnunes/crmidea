@@ -21,6 +21,8 @@ export interface DiagnosticFormData {
   full_name: string;
   email: string;
   phone: string;
+  cpf_cnpj: string;
+  oab_number: string;
   office_name: string;
   office_address: string;
   website: string;
@@ -68,6 +70,8 @@ const initialFormData: DiagnosticFormData = {
   full_name: "",
   email: "",
   phone: "",
+  cpf_cnpj: "",
+  oab_number: "",
   office_name: "",
   office_address: "",
   website: "",
