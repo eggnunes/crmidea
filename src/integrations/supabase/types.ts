@@ -769,12 +769,14 @@ export type Database = {
           case_management_flow: string | null
           case_management_other: string | null
           case_management_system: string | null
+          cidade: string | null
           client_service_flow: string | null
           comfortable_with_tech: boolean | null
           cpf_cnpj: string | null
           created_at: string
           custom_features: string | null
           email: string
+          estado: string | null
           expected_results: string[] | null
           expected_results_other: string | null
           foundation_year: number | null
@@ -814,12 +816,14 @@ export type Database = {
           case_management_flow?: string | null
           case_management_other?: string | null
           case_management_system?: string | null
+          cidade?: string | null
           client_service_flow?: string | null
           comfortable_with_tech?: boolean | null
           cpf_cnpj?: string | null
           created_at?: string
           custom_features?: string | null
           email: string
+          estado?: string | null
           expected_results?: string[] | null
           expected_results_other?: string | null
           foundation_year?: number | null
@@ -859,12 +863,14 @@ export type Database = {
           case_management_flow?: string | null
           case_management_other?: string | null
           case_management_system?: string | null
+          cidade?: string | null
           client_service_flow?: string | null
           comfortable_with_tech?: boolean | null
           cpf_cnpj?: string | null
           created_at?: string
           custom_features?: string | null
           email?: string
+          estado?: string | null
           expected_results?: string[] | null
           expected_results_other?: string | null
           foundation_year?: number | null
