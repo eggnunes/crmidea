@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { PRODUCTS, STATUSES, Lead, ProductType, LeadStatus, Interaction } from "@/types/crm";
 import { useLeads } from "@/hooks/useLeads";
 import { useLeadProducts } from "@/hooks/useLeadProducts";
+import { useLeadTags } from "@/hooks/useLeadTags";
 import { useClients } from "@/hooks/useClients";
 import { supabase } from "@/integrations/supabase/client";
 import { 
@@ -19,7 +20,8 @@ import {
   ChevronDown,
   ChevronUp,
   MessageCircle,
-  UserCheck
+  UserCheck,
+  Tag
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -58,6 +60,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { StartConversationButton } from "@/components/whatsapp/StartConversationButton";
 import { useNavigate } from "react-router-dom";
 import { ConvertLeadToClientDialog } from "@/components/leads/ConvertLeadToClientDialog";
+import { LeadDetailPanel } from "@/components/leads/LeadDetailPanel";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -693,11 +696,14 @@ function LeadDetailDialog({
 export function LeadsPage() {
   const { leads, loading, addLead, updateLead, deleteLead, addInteraction, importLeads } = useLeads();
   const { addClient } = useClients();
+  const { allTags, fetchLeadsByTag } = useLeadTags();
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [filterProduct, setFilterProduct] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [filterConversation, setFilterConversation] = useState<string>('all');
+  const [filterTag, setFilterTag] = useState<string>('all');
+  const [taggedLeadIds, setTaggedLeadIds] = useState<Set<string>>(new Set());
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -708,6 +714,17 @@ export function LeadsPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [conversationPhones, setConversationPhones] = useState<Set<string>>(new Set());
   const [convertingLead, setConvertingLead] = useState<Lead | null>(null);
+
+  // Fetch leads by tag when tag filter changes
+  useEffect(() => {
+    if (filterTag && filterTag !== 'all') {
+      fetchLeadsByTag(filterTag).then(ids => {
+        setTaggedLeadIds(new Set(ids));
+      });
+    } else {
+      setTaggedLeadIds(new Set());
+    }
+  }, [filterTag]);
 
   // Fetch phones that have active conversations
   useEffect(() => {
@@ -773,6 +790,9 @@ export function LeadsPage() {
     const matchesProduct = filterProduct === 'all' || lead.product === filterProduct;
     const matchesStatus = filterStatus === 'all' || lead.status === filterStatus;
     
+    // Tag filter
+    const matchesTag = filterTag === 'all' || taggedLeadIds.has(lead.id);
+    
     // Conversation filter
     let matchesConversation = true;
     if (filterConversation === 'with_conversation') {
@@ -797,7 +817,7 @@ export function LeadsPage() {
       }
     }
     
-    return matchesSearch && matchesProduct && matchesStatus && matchesDate && matchesConversation;
+    return matchesSearch && matchesProduct && matchesStatus && matchesDate && matchesConversation && matchesTag;
   });
 
   const handleDateChange = (start: Date | undefined, end: Date | undefined) => {
@@ -966,6 +986,20 @@ export function LeadsPage() {
                 <SelectItem value="all">Todas as conversas</SelectItem>
                 <SelectItem value="with_conversation">Com conversa ativa</SelectItem>
                 <SelectItem value="without_conversation">Sem conversa</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={filterTag} onValueChange={setFilterTag}>
+              <SelectTrigger className="w-full sm:w-48">
+                <Tag className="w-4 h-4 mr-2" />
+                <SelectValue placeholder="Tag" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas as tags</SelectItem>
+                {allTags.map(tag => (
+                  <SelectItem key={tag} value={tag}>
+                    {tag}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
             </div>
@@ -1196,12 +1230,11 @@ export function LeadsPage() {
             <DialogTitle>Detalhes do Lead</DialogTitle>
           </DialogHeader>
           {viewingLead && (
-            <LeadDetailDialog 
+            <LeadDetailPanel 
               lead={viewingLead} 
               onAddInteraction={addInteraction}
               onUpdateLead={async (leadId, data) => {
                 await updateLead(leadId, data);
-                // Refresh the viewing lead with updated data
                 const updatedLead = leads.find(l => l.id === leadId);
                 if (updatedLead) {
                   setViewingLead({ ...updatedLead, ...data } as Lead);

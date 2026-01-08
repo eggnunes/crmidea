@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2, BookOpen, CheckCircle, Download, ArrowRight } from "lucide-react";
+import { Loader2, Camera, CheckCircle, Sparkles, ArrowRight, Star, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -53,7 +53,6 @@ export function EbookCapturePage() {
     setIsSubmitting(true);
     
     try {
-      // Call edge function to process the capture
       const { data: response, error } = await supabase.functions.invoke("send-ebook", {
         body: {
           name: data.name.trim(),
@@ -65,7 +64,7 @@ export function EbookCapturePage() {
       if (error) throw error;
 
       setIsSuccess(true);
-      toast.success("Sucesso! Verifique seu e-mail para acessar o ebook.");
+      toast.success("Sucesso! Verifique seu e-mail para acessar o material.");
     } catch (error) {
       console.error("Error submitting form:", error);
       toast.error("Ocorreu um erro. Tente novamente.");
@@ -76,16 +75,16 @@ export function EbookCapturePage() {
 
   if (isSuccess) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 flex items-center justify-center p-4">
         <Card className="w-full max-w-md bg-white/10 backdrop-blur-md border-white/20 text-white">
           <CardContent className="pt-10 pb-10 text-center">
             <div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
               <CheckCircle className="w-10 h-10 text-green-400" />
             </div>
-            <h2 className="text-2xl font-bold mb-4">Ebook Enviado!</h2>
+            <h2 className="text-2xl font-bold mb-4">Material Enviado!</h2>
             <p className="text-white/80 mb-6">
-              Enviamos o ebook para o seu e-mail. Verifique sua caixa de entrada 
-              (e também a pasta de spam, por segurança).
+              Enviamos os prompts para fotos profissionais no seu e-mail. 
+              Verifique sua caixa de entrada (e também a pasta de spam, por segurança).
             </p>
             <div className="bg-white/10 rounded-lg p-4 mb-6">
               <p className="text-sm text-white/70">
@@ -106,29 +105,55 @@ export function EbookCapturePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 flex items-center justify-center p-4">
       <div className="w-full max-w-lg">
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-gradient-to-br from-amber-400 to-orange-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-orange-500/30">
-            <BookOpen className="w-8 h-8 text-white" />
+          <div className="w-20 h-20 bg-gradient-to-br from-violet-500 to-fuchsia-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-violet-500/30">
+            <Camera className="w-10 h-10 text-white" />
           </div>
           <h1 className="text-3xl md:text-4xl font-bold text-white mb-3">
-            Ebook Gratuito
+            Prompts para Fotos Profissionais
           </h1>
           <p className="text-white/70 text-lg">
-            Inteligência Artificial para Advogados
+            Crie fotos incríveis com Inteligência Artificial
           </p>
+        </div>
+
+        {/* Benefits Preview */}
+        <div className="bg-white/5 backdrop-blur rounded-xl p-4 mb-6 border border-white/10">
+          <div className="flex items-center gap-2 mb-3">
+            <Sparkles className="w-5 h-5 text-violet-400" />
+            <span className="text-white font-semibold">O que você vai receber:</span>
+          </div>
+          <ul className="space-y-2 text-white/80 text-sm">
+            <li className="flex items-start gap-2">
+              <Star className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />
+              <span>Prompts prontos para criar fotos profissionais de perfil</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <Star className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />
+              <span>Técnicas para poses e iluminação realistas</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <Star className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />
+              <span>Exemplos de uso com ChatGPT, Midjourney e outras IAs</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <Wand2 className="w-4 h-4 text-violet-400 mt-0.5 flex-shrink-0" />
+              <span className="text-violet-300 font-medium">100% Gratuito!</span>
+            </li>
+          </ul>
         </div>
 
         {/* Form Card */}
         <Card className="bg-white/10 backdrop-blur-md border-white/20 shadow-2xl">
           <CardHeader className="text-center pb-2">
             <CardTitle className="text-xl text-white">
-              Preencha para receber o Ebook
+              Preencha para receber o material
             </CardTitle>
             <CardDescription className="text-white/60">
-              Enviaremos o material diretamente no seu e-mail
+              Enviaremos o PDF diretamente no seu e-mail
             </CardDescription>
           </CardHeader>
           <CardContent className="pt-4">
@@ -144,7 +169,7 @@ export function EbookCapturePage() {
                         <Input
                           {...field}
                           placeholder="Seu nome"
-                          className="bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:border-amber-400/50 focus:ring-amber-400/30"
+                          className="bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:border-violet-400/50 focus:ring-violet-400/30"
                         />
                       </FormControl>
                       <FormMessage className="text-red-400" />
@@ -163,7 +188,7 @@ export function EbookCapturePage() {
                           {...field}
                           type="email"
                           placeholder="seu@email.com"
-                          className="bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:border-amber-400/50 focus:ring-amber-400/30"
+                          className="bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:border-violet-400/50 focus:ring-violet-400/30"
                         />
                       </FormControl>
                       <FormMessage className="text-red-400" />
@@ -185,7 +210,7 @@ export function EbookCapturePage() {
                             const formatted = formatPhone(e.target.value);
                             field.onChange(formatted);
                           }}
-                          className="bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:border-amber-400/50 focus:ring-amber-400/30"
+                          className="bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:border-violet-400/50 focus:ring-violet-400/30"
                         />
                       </FormControl>
                       <FormMessage className="text-red-400" />
@@ -196,7 +221,7 @@ export function EbookCapturePage() {
                 <Button
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-semibold py-6 text-lg shadow-lg shadow-orange-500/30 transition-all hover:shadow-orange-500/50"
+                  className="w-full bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600 text-white font-semibold py-6 text-lg shadow-lg shadow-violet-500/30 transition-all hover:shadow-violet-500/50"
                 >
                   {isSubmitting ? (
                     <>
@@ -205,7 +230,7 @@ export function EbookCapturePage() {
                     </>
                   ) : (
                     <>
-                      Quero Receber o Ebook
+                      Quero os Prompts Grátis
                       <ArrowRight className="w-5 h-5 ml-2" />
                     </>
                   )}
@@ -219,21 +244,26 @@ export function EbookCapturePage() {
           </CardContent>
         </Card>
 
-        {/* Benefits */}
+        {/* Trust Elements */}
         <div className="mt-8 grid grid-cols-3 gap-4 text-center">
           <div className="text-white/70">
-            <div className="text-2xl mb-1">📚</div>
-            <p className="text-xs">Material Exclusivo</p>
+            <div className="text-2xl mb-1">📸</div>
+            <p className="text-xs">Fotos Incríveis</p>
           </div>
           <div className="text-white/70">
-            <div className="text-2xl mb-1">🚀</div>
-            <p className="text-xs">100% Gratuito</p>
+            <div className="text-2xl mb-1">🤖</div>
+            <p className="text-xs">Prompts Prontos</p>
           </div>
           <div className="text-white/70">
             <div className="text-2xl mb-1">⚡</div>
             <p className="text-xs">Receba Agora</p>
           </div>
         </div>
+
+        {/* Footer */}
+        <p className="text-center text-white/40 text-xs mt-8">
+          Evento • Rafael Nunes - Especialista em IA
+        </p>
       </div>
     </div>
   );
