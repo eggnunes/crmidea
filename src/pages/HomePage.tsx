@@ -892,8 +892,15 @@ export function HomePage() {
             </div>
           </div>
           
-          <div className="mt-12 pt-8 border-t border-slate-800 text-center text-slate-400">
-            <p>&copy; {new Date().getFullYear()} Rafael Egg. Todos os direitos reservados.</p>
+          <div className="mt-12 pt-8 border-t border-slate-800 flex flex-col md:flex-row items-center justify-between gap-4">
+            <p className="text-slate-400">&copy; {new Date().getFullYear()} Rafael Egg. Todos os direitos reservados.</p>
+            <Link 
+              to="/metodo-idea" 
+              className="text-slate-600 hover:text-slate-400 text-xs transition-colors duration-300 flex items-center gap-1"
+            >
+              <Shield className="h-3 w-3" />
+              Admin
+            </Link>
           </div>
         </div>
       </footer>

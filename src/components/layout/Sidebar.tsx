@@ -41,27 +41,27 @@ interface SidebarProps {
 }
 
 const commercialItems = [
-  { to: "/metodo-ideia", icon: LayoutDashboard, label: "Dashboard" },
-  { to: "/metodo-ideia/leads", icon: Users, label: "Leads" },
-  { to: "/metodo-ideia/pipeline", icon: Kanban, label: "Pipeline" },
-  { to: "/metodo-ideia/produtos", icon: Package, label: "Produtos" },
+  { to: "/metodo-idea", icon: LayoutDashboard, label: "Dashboard" },
+  { to: "/metodo-idea/leads", icon: Users, label: "Leads" },
+  { to: "/metodo-idea/pipeline", icon: Kanban, label: "Pipeline" },
+  { to: "/metodo-idea/produtos", icon: Package, label: "Produtos" },
 ];
 
 const postSaleItems = [
-  { to: "/metodo-ideia/clientes", icon: UserCheck, label: "Clientes" },
-  { to: "/metodo-ideia/consultoria", icon: GraduationCap, label: "Consultoria" },
-  { to: "/metodo-ideia/calendario", icon: Calendar, label: "Calendário" },
+  { to: "/metodo-idea/clientes", icon: UserCheck, label: "Clientes" },
+  { to: "/metodo-idea/consultoria", icon: GraduationCap, label: "Consultoria" },
+  { to: "/metodo-idea/calendario", icon: Calendar, label: "Calendário" },
 ];
 
 const operationalItems = [
-  { to: "/metodo-ideia/integracoes", icon: BarChart3, label: "Integrações" },
-  { to: "/metodo-ideia/whatsapp", icon: MessageCircle, label: "Central de Atendimento" },
-  { to: "/metodo-ideia/alertas", icon: Bell, label: "Central de Alertas" },
-  { to: "/metodo-ideia/configuracoes", icon: Settings, label: "Configurações" },
+  { to: "/metodo-idea/integracoes", icon: BarChart3, label: "Integrações" },
+  { to: "/metodo-idea/whatsapp", icon: MessageCircle, label: "Central de Atendimento" },
+  { to: "/metodo-idea/alertas", icon: Bell, label: "Central de Alertas" },
+  { to: "/metodo-idea/configuracoes", icon: Settings, label: "Configurações" },
 ];
 
 const adminItems = [
-  { to: "/metodo-ideia/admin/usuarios", icon: ShieldCheck, label: "Usuários" },
+  { to: "/metodo-idea/admin/usuarios", icon: ShieldCheck, label: "Usuários" },
 ];
 
 export function Sidebar({ collapsed, onToggle }: SidebarProps) {

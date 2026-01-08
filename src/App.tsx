@@ -80,9 +80,9 @@ function AppRoutes() {
       <Route path="/consultoria/diagnostico" element={<ClientDiagnosticForm />} />
       <Route path="/cadastro-cliente/:consultantId" element={<ClientAuthPage />} />
       
-      {/* Método IDEA - CRM Admin - /metodo-ideia (requer login do admin) */}
+      {/* Método IDEA - CRM Admin - /metodo-idea (requer login do admin) */}
       <Route
-        path="/metodo-ideia/*"
+        path="/metodo-idea/*"
         element={
           <ProtectedRoute>
             <AppLayout>
