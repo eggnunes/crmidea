@@ -213,6 +213,23 @@ export function PublicDiagnosticForm() {
       setCreatedClientId(data.id);
       setIsCompleted(true);
       toast.success("Diagnóstico enviado com sucesso!");
+
+      // Send notifications (WhatsApp and Email)
+      try {
+        await supabase.functions.invoke("send-consulting-notification", {
+          body: {
+            action: "form_submitted",
+            clientId: data.id,
+            consultantId: consultantId,
+            clientEmail: formData.email,
+            clientName: formData.full_name,
+            clientPhone: formData.phone
+          }
+        });
+      } catch (notifError) {
+        console.error("Error sending notifications:", notifError);
+        // Don't fail the form submission if notifications fail
+      }
     } catch (error) {
       console.error("Error submitting diagnostic:", error);
       toast.error("Erro ao enviar diagnóstico. Tente novamente.");

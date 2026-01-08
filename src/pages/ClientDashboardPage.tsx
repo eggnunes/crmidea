@@ -27,7 +27,8 @@ import {
   TrendingUp,
   Send,
   Trophy,
-  BarChart3
+  BarChart3,
+  FolderOpen
 } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -38,6 +39,7 @@ import { ClientProgressFeedback } from "@/components/clients/ClientProgressFeedb
 import { ClientBadges } from "@/components/clients/ClientBadges";
 import { ClientProgressCharts } from "@/components/clients/ClientProgressCharts";
 import { ClientFormResponses } from "@/components/clients/ClientFormResponses";
+import { ClientDocumentsManagerReadOnly } from "@/components/consulting/ClientDocumentsManagerReadOnly";
 
 interface ClientProfile {
   id: string;
@@ -460,6 +462,10 @@ export function ClientDashboardPage() {
         <Tabs defaultValue="sessions" className="space-y-4">
           <TabsList className="flex-wrap h-auto gap-1">
             <TabsTrigger value="sessions">Reuniões</TabsTrigger>
+            <TabsTrigger value="documents" className="gap-2">
+              <FolderOpen className="w-4 h-4" />
+              Documentos
+            </TabsTrigger>
             <TabsTrigger value="responses" className="gap-2">
               <ClipboardList className="w-4 h-4" />
               Minhas Respostas
@@ -479,6 +485,19 @@ export function ClientDashboardPage() {
             <TabsTrigger value="timeline">Timeline</TabsTrigger>
             <TabsTrigger value="prompt">Prompt Gerado</TabsTrigger>
           </TabsList>
+
+          {/* Documents Tab */}
+          <TabsContent value="documents">
+            {consultingClient ? (
+              <ClientDocumentsManagerReadOnly clientId={consultingClient.id} />
+            ) : (
+              <Card>
+                <CardContent className="py-8 text-center text-muted-foreground">
+                  Nenhum documento disponível ainda.
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
 
           {/* Form Responses Tab */}
           <TabsContent value="responses">

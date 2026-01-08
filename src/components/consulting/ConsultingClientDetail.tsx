@@ -26,13 +26,15 @@ import {
   FileText,
   CreditCard,
   Scale,
-  FileDown
+  FileDown,
+  FolderOpen
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { CONSULTING_FEATURES } from "@/data/consultingFeatures";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ConsultingSessionsManager } from "./ConsultingSessionsManager";
+import { ClientDocumentsManager } from "./ClientDocumentsManager";
 import { exportClientToPDF, exportClientToDOCX } from "@/utils/exportClient";
 
 interface ConsultingClient {
@@ -249,6 +251,10 @@ O prompt deve:
         <TabsList>
           <TabsTrigger value="info">Informações</TabsTrigger>
           <TabsTrigger value="features">Funcionalidades</TabsTrigger>
+          <TabsTrigger value="documents" className="flex items-center gap-2">
+            <FolderOpen className="w-4 h-4" />
+            Documentos
+          </TabsTrigger>
           <TabsTrigger value="prompt">Prompt</TabsTrigger>
           <TabsTrigger value="sessions" className="flex items-center gap-2">
             <FileText className="w-4 h-4" />
@@ -485,6 +491,10 @@ O prompt deve:
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="documents">
+          <ClientDocumentsManager clientId={client.id} />
         </TabsContent>
 
         <TabsContent value="sessions">
