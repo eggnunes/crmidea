@@ -18,6 +18,9 @@ import { CalendarPage } from "./pages/CalendarPage";
 import { PublicBookingPage } from "./pages/PublicBookingPage";
 import { PublicDiagnosticForm } from "./pages/PublicDiagnosticForm";
 import { PublicConsultingPage } from "./pages/PublicConsultingPage";
+import { ClientAuthPage } from "./pages/ClientAuthPage";
+import { ClientDashboardPage } from "./pages/ClientDashboardPage";
+import { ClientDiagnosticForm } from "./pages/ClientDiagnosticForm";
 import AdminUsersPage from "./pages/AdminUsersPage";
 import { ConsultingPage } from "./pages/ConsultingPage";
 import { AuthPage } from "./pages/AuthPage";
@@ -53,6 +56,9 @@ function AppRoutes() {
       <Route path="/agendar/:userId" element={<PublicBookingPage />} />
       <Route path="/diagnostico/:consultantId" element={<PublicDiagnosticForm />} />
       <Route path="/sobre-consultoria" element={<PublicConsultingPage />} />
+      <Route path="/cadastro-cliente/:consultantId" element={<ClientAuthPage />} />
+      <Route path="/area-cliente" element={<ClientDashboardPage />} />
+      <Route path="/diagnostico-cliente" element={<ClientDiagnosticForm />} />
       <Route
         path="/*"
         element={

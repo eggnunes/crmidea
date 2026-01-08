@@ -1,0 +1,439 @@
+import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import { Zap, ArrowLeft, ArrowRight, Check, Save, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { User } from "@supabase/supabase-js";
+
+import { DiagnosticStep1 } from "@/components/diagnostic/DiagnosticStep1";
+import { DiagnosticStep2 } from "@/components/diagnostic/DiagnosticStep2";
+import { DiagnosticStep3 } from "@/components/diagnostic/DiagnosticStep3";
+import { DiagnosticStep4 } from "@/components/diagnostic/DiagnosticStep4";
+import { DiagnosticStep5 } from "@/components/diagnostic/DiagnosticStep5";
+import { DiagnosticStep6 } from "@/components/diagnostic/DiagnosticStep6";
+import { DiagnosticSuccess } from "@/components/diagnostic/DiagnosticSuccess";
+import type { DiagnosticFormData } from "@/pages/PublicDiagnosticForm";
+
+const initialFormData: DiagnosticFormData = {
+  full_name: "",
+  email: "",
+  phone: "",
+  office_name: "",
+  office_address: "",
+  website: "",
+  foundation_year: null,
+  num_lawyers: 1,
+  num_employees: 1,
+  practice_areas: "",
+  logo_url: null,
+  has_used_ai: null,
+  has_used_chatgpt: null,
+  has_chatgpt_paid: null,
+  has_chatgpt_app: null,
+  ai_familiarity_level: "",
+  ai_usage_frequency: "",
+  ai_tools_used: "",
+  ai_tasks_used: "",
+  ai_difficulties: "",
+  other_ai_tools: "",
+  comfortable_with_tech: null,
+  case_management_system: "",
+  case_management_other: "",
+  case_management_flow: "",
+  client_service_flow: "",
+  selected_features: [],
+  custom_features: "",
+  motivations: [],
+  motivations_other: "",
+  expected_results: [],
+  expected_results_other: "",
+  tasks_to_automate: "",
+  confirmed: false,
+};
+
+const STEPS = [
+  { id: 1, title: "Dados do Escritório", description: "Informações básicas" },
+  { id: 2, title: "Experiência com IA", description: "Seu conhecimento atual" },
+  { id: 3, title: "Gestão Atual", description: "Como funciona hoje" },
+  { id: 4, title: "Funcionalidades", description: "O que deseja implantar" },
+  { id: 5, title: "Motivações", description: "Objetivos e expectativas" },
+  { id: 6, title: "Confirmação", description: "Revisão final" },
+];
+
+export function ClientDiagnosticForm() {
+  const navigate = useNavigate();
+  const [user, setUser] = useState<User | null>(null);
+  const [consultantId, setConsultantId] = useState<string | null>(null);
+  const [currentStep, setCurrentStep] = useState(1);
+  const [formData, setFormData] = useState<DiagnosticFormData>(initialFormData);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isCompleted, setIsCompleted] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        navigate("/sobre-consultoria");
+        return;
+      }
+      
+      setUser(session.user);
+      await loadProgress(session.user.id);
+    };
+
+    checkAuth();
+  }, [navigate]);
+
+  const loadProgress = async (userId: string) => {
+    try {
+      // Get client profile for consultant_id
+      const { data: profile } = await supabase
+        .from("client_profiles")
+        .select("consultant_id, full_name, email, phone, office_name")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (profile) {
+        setConsultantId(profile.consultant_id);
+        
+        // Pre-fill from profile
+        setFormData(prev => ({
+          ...prev,
+          full_name: profile.full_name || prev.full_name,
+          email: profile.email || prev.email,
+          phone: profile.phone || prev.phone,
+          office_name: profile.office_name || prev.office_name,
+        }));
+      }
+
+      // Get saved progress
+      const { data: progress } = await supabase
+        .from("diagnostic_form_progress")
+        .select("*")
+        .eq("client_user_id", userId)
+        .maybeSingle();
+
+      if (progress) {
+        if (progress.is_completed) {
+          setIsCompleted(true);
+        } else {
+          setCurrentStep(progress.current_step || 1);
+          if (progress.form_data && typeof progress.form_data === 'object') {
+            setFormData(prev => ({ ...prev, ...(progress.form_data as Partial<DiagnosticFormData>) }));
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Error loading progress:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const saveProgress = useCallback(async (step?: number) => {
+    if (!user?.id || !consultantId) return;
+    
+    setIsSaving(true);
+    
+    try {
+      // Check if progress exists
+      const { data: existing } = await supabase
+        .from("diagnostic_form_progress")
+        .select("id")
+        .eq("client_user_id", user.id)
+        .maybeSingle();
+
+      if (existing) {
+        await supabase
+          .from("diagnostic_form_progress")
+          .update({
+            current_step: step || currentStep,
+            form_data: JSON.parse(JSON.stringify(formData)),
+            is_completed: false,
+          })
+          .eq("client_user_id", user.id);
+      } else {
+        await supabase
+          .from("diagnostic_form_progress")
+          .insert([{
+            client_user_id: user.id,
+            consultant_id: consultantId,
+            current_step: step || currentStep,
+            form_data: JSON.parse(JSON.stringify(formData)),
+            is_completed: false,
+          }]);
+      }
+      
+      setLastSaved(new Date());
+    } catch (error) {
+      console.error("Error saving progress:", error);
+    } finally {
+      setIsSaving(false);
+    }
+  }, [user?.id, consultantId, currentStep, formData]);
+
+  // Auto-save every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (user?.id && !isCompleted) {
+        saveProgress();
+      }
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [user?.id, isCompleted, saveProgress]);
+
+  const progress = (currentStep / STEPS.length) * 100;
+  
+  const updateFormData = (updates: Partial<DiagnosticFormData>) => {
+    setFormData(prev => ({ ...prev, ...updates }));
+  };
+  
+  const handleNext = async () => {
+    if (currentStep < STEPS.length) {
+      const nextStep = currentStep + 1;
+      setCurrentStep(nextStep);
+      await saveProgress(nextStep);
+    }
+  };
+  
+  const handleBack = () => {
+    if (currentStep > 1) {
+      setCurrentStep(prev => prev - 1);
+    }
+  };
+
+  const handleManualSave = async () => {
+    await saveProgress();
+    toast.success("Progresso salvo!");
+  };
+  
+  const handleSubmit = async () => {
+    if (!user?.id || !consultantId) return;
+    
+    setIsSubmitting(true);
+    
+    try {
+      // Update progress as completed
+      await supabase
+        .from("diagnostic_form_progress")
+        .update({
+          is_completed: true,
+          submitted_at: new Date().toISOString(),
+          form_data: JSON.parse(JSON.stringify(formData)),
+        })
+        .eq("client_user_id", user.id);
+
+      // Create consulting_client record
+      const { error } = await supabase
+        .from("consulting_clients")
+        .insert({
+          user_id: consultantId,
+          full_name: formData.full_name,
+          email: formData.email,
+          phone: formData.phone,
+          office_name: formData.office_name,
+          office_address: formData.office_address,
+          website: formData.website || null,
+          foundation_year: formData.foundation_year,
+          num_lawyers: formData.num_lawyers,
+          num_employees: formData.num_employees,
+          practice_areas: formData.practice_areas || null,
+          logo_url: formData.logo_url,
+          has_used_ai: formData.has_used_ai,
+          has_used_chatgpt: formData.has_used_chatgpt,
+          has_chatgpt_paid: formData.has_chatgpt_paid,
+          has_chatgpt_app: formData.has_chatgpt_app,
+          ai_familiarity_level: formData.ai_familiarity_level || null,
+          ai_usage_frequency: formData.ai_usage_frequency || null,
+          ai_tools_used: formData.ai_tools_used || null,
+          ai_tasks_used: formData.ai_tasks_used || null,
+          ai_difficulties: formData.ai_difficulties || null,
+          other_ai_tools: formData.other_ai_tools || null,
+          comfortable_with_tech: formData.comfortable_with_tech,
+          case_management_system: formData.case_management_system || null,
+          case_management_other: formData.case_management_other || null,
+          case_management_flow: formData.case_management_flow || null,
+          client_service_flow: formData.client_service_flow || null,
+          selected_features: formData.selected_features,
+          custom_features: formData.custom_features || null,
+          motivations: formData.motivations,
+          motivations_other: formData.motivations_other || null,
+          expected_results: formData.expected_results,
+          expected_results_other: formData.expected_results_other || null,
+          tasks_to_automate: formData.tasks_to_automate || null,
+          status: "pending",
+        });
+
+      if (error) throw error;
+
+      // Add timeline event
+      await supabase
+        .from("client_timeline_events")
+        .insert({
+          client_user_id: user.id,
+          consultant_id: consultantId,
+          event_type: "form",
+          title: "Diagnóstico concluído",
+          description: "Formulário de diagnóstico preenchido e enviado com sucesso.",
+        });
+
+      setIsCompleted(true);
+      toast.success("Diagnóstico enviado com sucesso!");
+    } catch (error) {
+      console.error("Error submitting:", error);
+      toast.error("Erro ao enviar. Tente novamente.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+  
+  const renderStep = () => {
+    switch (currentStep) {
+      case 1:
+        return <DiagnosticStep1 formData={formData} updateFormData={updateFormData} consultantId={consultantId || undefined} />;
+      case 2:
+        return <DiagnosticStep2 formData={formData} updateFormData={updateFormData} />;
+      case 3:
+        return <DiagnosticStep3 formData={formData} updateFormData={updateFormData} />;
+      case 4:
+        return <DiagnosticStep4 formData={formData} updateFormData={updateFormData} />;
+      case 5:
+        return <DiagnosticStep5 formData={formData} updateFormData={updateFormData} />;
+      case 6:
+        return <DiagnosticStep6 formData={formData} updateFormData={updateFormData} />;
+      default:
+        return null;
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+  
+  if (isCompleted) {
+    return <DiagnosticSuccess clientName={formData.full_name} />;
+  }
+  
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
+      {/* Header */}
+      <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center">
+                <Zap className="w-6 h-6 text-primary-foreground" />
+              </div>
+              <div>
+                <h1 className="font-bold text-lg">Diagnóstico de Consultoria</h1>
+                <p className="text-sm text-muted-foreground">IDEA - Inteligência Artificial para Advogados</p>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              {lastSaved && (
+                <span className="text-xs text-muted-foreground hidden sm:block">
+                  Salvo às {lastSaved.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                </span>
+              )}
+              <Button variant="outline" size="sm" onClick={handleManualSave} disabled={isSaving}>
+                {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                <span className="ml-2 hidden sm:inline">Salvar</span>
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => navigate("/area-cliente")}>
+                Voltar ao Dashboard
+              </Button>
+            </div>
+          </div>
+        </div>
+      </header>
+      
+      <main className="container mx-auto px-4 py-8 max-w-3xl">
+        {/* Progress */}
+        <div className="mb-8">
+          <div className="flex justify-between mb-2">
+            {STEPS.map((step) => (
+              <div
+                key={step.id}
+                className={`flex flex-col items-center ${
+                  step.id === currentStep
+                    ? "text-primary"
+                    : step.id < currentStep
+                    ? "text-primary/70"
+                    : "text-muted-foreground"
+                }`}
+              >
+                <div
+                  className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium border-2 transition-colors ${
+                    step.id === currentStep
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : step.id < currentStep
+                      ? "border-primary bg-primary/20 text-primary"
+                      : "border-muted-foreground/30 bg-transparent"
+                  }`}
+                >
+                  {step.id < currentStep ? <Check className="w-4 h-4" /> : step.id}
+                </div>
+                <span className="text-xs mt-1 hidden md:block">{step.title}</span>
+              </div>
+            ))}
+          </div>
+          <Progress value={progress} className="h-2" />
+        </div>
+        
+        {/* Step Content */}
+        <Card className="border-2">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <span className="text-primary">Etapa {currentStep}:</span> {STEPS[currentStep - 1].title}
+            </CardTitle>
+            <CardDescription>{STEPS[currentStep - 1].description}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {renderStep()}
+          </CardContent>
+        </Card>
+        
+        {/* Navigation */}
+        <div className="flex justify-between mt-6">
+          <Button
+            variant="outline"
+            onClick={handleBack}
+            disabled={currentStep === 1}
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Anterior
+          </Button>
+          
+          {currentStep < STEPS.length ? (
+            <Button onClick={handleNext}>
+              Próximo
+              <ArrowRight className="w-4 h-4 ml-2" />
+            </Button>
+          ) : (
+            <Button 
+              onClick={handleSubmit} 
+              disabled={isSubmitting || !formData.confirmed}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {isSubmitting ? "Enviando..." : "Enviar Diagnóstico"}
+              <Check className="w-4 h-4 ml-2" />
+            </Button>
+          )}
+        </div>
+      </main>
+    </div>
+  );
+}
