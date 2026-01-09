@@ -248,7 +248,7 @@ export function PublicConsultingPage() {
             <div className="hidden md:flex items-center gap-3">
               {isAdmin && (
                 <Button variant="ghost" size="icon" asChild className="text-white/70 hover:text-white hover:bg-white/10">
-                  <Link to="/consultoria" title="Área Administrativa">
+                  <Link to="/metodo-idea/consultoria" title="Área Administrativa">
                     <Settings className="w-4 h-4" />
                   </Link>
                 </Button>
@@ -270,7 +270,7 @@ export function PublicConsultingPage() {
             <div className="flex md:hidden items-center gap-2">
               {isAdmin && (
                 <Button variant="ghost" size="icon" asChild className="text-white/70 hover:text-white">
-                  <Link to="/consultoria" title="Área Administrativa">
+                  <Link to="/metodo-idea/consultoria" title="Área Administrativa">
                     <Settings className="w-4 h-4" />
                   </Link>
                 </Button>
@@ -493,20 +493,18 @@ export function PublicConsultingPage() {
                     
                     <div className="space-y-3 text-white/70 leading-relaxed">
                       <p>
-                        <strong className="text-white">Advogado</strong> especializado em Direito Empresarial e Proteção de Dados, 
-                        com mais de 10 anos de experiência.
+                        Sou <strong className="text-white">advogado desde 2008</strong>, mentor em IA para advogados e sócio do 
+                        <strong className="text-blue-400"> Egg Nunes Advogados Associados</strong>, escritório fundado pela minha família 
+                        e especializado há 30 anos em causas de servidores públicos e concurseiros.
                       </p>
                       <p>
-                        <strong className="text-white">Especialista em Inteligência Artificial</strong> aplicada à advocacia, 
-                        atuando na implementação de soluções de IA em escritórios de todo o Brasil.
+                        Em 2025, nosso escritório foi premiado como <strong className="text-blue-400">Melhor Escritório em Inteligência 
+                        Artificial do Brasil</strong> pela Law Summit. Usando IA estrategicamente, conseguimos multiplicar o faturamento 
+                        em mais de <strong className="text-blue-400">10x</strong>, mantendo a qualidade e reduzindo drasticamente o trabalho operacional.
                       </p>
                       <p>
-                        <strong className="text-white">Criador do Método IDEA</strong> (Inteligência de Dados e Artificial), 
-                        metodologia exclusiva para transformação digital de escritórios de advocacia.
-                      </p>
-                      <p>
-                        <strong className="text-white">Professor e Palestrante</strong> sobre IA no Direito, tendo ministrado 
-                        treinamentos para centenas de advogados em todo o país.
+                        Criei o <strong className="text-blue-400">Método IDEA</strong> (Inteligência de Dados e Artificial) e já ajudei 
+                        centenas de advogados a automatizarem rotinas, captarem clientes no automático e escalarem seus escritórios.
                       </p>
                     </div>
 
