@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,6 +26,22 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   UserCheck,
   UserX,
   Clock,
@@ -32,6 +49,10 @@ import {
   Loader2,
   CheckCircle,
   XCircle,
+  MoreHorizontal,
+  Eye,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -49,11 +70,15 @@ interface PendingClient {
 
 export function PendingClientApprovals() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [pendingClients, setPendingClients] = useState<PendingClient[]>([]);
   const [approvedClients, setApprovedClients] = useState<PendingClient[]>([]);
   const [loading, setLoading] = useState(true);
   const [approving, setApproving] = useState<string | null>(null);
   const [rejecting, setRejecting] = useState<PendingClient | null>(null);
+  const [deleting, setDeleting] = useState<PendingClient | null>(null);
+  const [editing, setEditing] = useState<PendingClient | null>(null);
+  const [editForm, setEditForm] = useState({ full_name: '', email: '', phone: '', office_name: '' });
 
   const fetchClients = async () => {
     if (!user?.id) return;
@@ -167,9 +192,111 @@ export function PendingClientApprovals() {
       toast.success('Cadastro rejeitado');
       setRejecting(null);
       fetchClients();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error rejecting client:', error);
       toast.error('Erro ao rejeitar cadastro');
+    }
+  };
+
+  const deleteApprovedClient = async () => {
+    if (!deleting) return;
+    
+    try {
+      // Delete from client_profiles
+      await supabase
+        .from('client_profiles')
+        .delete()
+        .eq('id', deleting.id);
+
+      // Delete from consulting_clients if exists
+      await supabase
+        .from('consulting_clients')
+        .delete()
+        .eq('email', deleting.email)
+        .eq('user_id', user?.id);
+
+      // Delete form progress
+      await supabase
+        .from('diagnostic_form_progress')
+        .delete()
+        .eq('client_user_id', deleting.user_id);
+
+      // Delete timeline events
+      await supabase
+        .from('client_timeline_events')
+        .delete()
+        .eq('client_user_id', deleting.user_id);
+
+      toast.success('Cliente excluído com sucesso');
+      setDeleting(null);
+      fetchClients();
+    } catch (error: any) {
+      console.error('Error deleting client:', error);
+      toast.error('Erro ao excluir cliente');
+    }
+  };
+
+  const openEditDialog = (client: PendingClient) => {
+    setEditForm({
+      full_name: client.full_name,
+      email: client.email,
+      phone: client.phone || '',
+      office_name: client.office_name || '',
+    });
+    setEditing(client);
+  };
+
+  const saveEdit = async () => {
+    if (!editing) return;
+    
+    try {
+      // Update client_profiles
+      const { error: profileError } = await supabase
+        .from('client_profiles')
+        .update({
+          full_name: editForm.full_name,
+          email: editForm.email,
+          phone: editForm.phone,
+          office_name: editForm.office_name,
+        })
+        .eq('id', editing.id);
+
+      if (profileError) throw profileError;
+
+      // Update consulting_clients if exists
+      await supabase
+        .from('consulting_clients')
+        .update({
+          full_name: editForm.full_name,
+          email: editForm.email,
+          phone: editForm.phone,
+          office_name: editForm.office_name || 'Não informado',
+        })
+        .eq('email', editing.email)
+        .eq('user_id', user?.id);
+
+      toast.success('Cliente atualizado com sucesso');
+      setEditing(null);
+      fetchClients();
+    } catch (error: any) {
+      console.error('Error updating client:', error);
+      toast.error('Erro ao atualizar cliente');
+    }
+  };
+
+  const viewClientDashboard = async (client: PendingClient) => {
+    // Find consulting_client by email to get its ID
+    const { data } = await supabase
+      .from('consulting_clients')
+      .select('id')
+      .eq('email', client.email)
+      .eq('user_id', user?.id)
+      .single();
+
+    if (data) {
+      navigate(`/metodo-idea/consultoria/cliente/${data.id}`);
+    } else {
+      toast.error('Cliente não encontrado na base de consultoria');
     }
   };
 
@@ -303,6 +430,7 @@ export function PendingClientApprovals() {
                     <TableHead>E-mail</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Data de Cadastro</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -329,6 +457,32 @@ export function PendingClientApprovals() {
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {format(new Date(client.created_at), "dd/MM/yyyy", { locale: ptBR })}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                              <MoreHorizontal className="w-4 h-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => viewClientDashboard(client)}>
+                              <Eye className="w-4 h-4 mr-2" />
+                              Ver Dashboard
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => openEditDialog(client)}>
+                              <Pencil className="w-4 h-4 mr-2" />
+                              Editar
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="text-red-600"
+                              onClick={() => setDeleting(client)}
+                            >
+                              <Trash2 className="w-4 h-4 mr-2" />
+                              Excluir
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -362,6 +516,85 @@ export function PendingClientApprovals() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleting} onOpenChange={() => setDeleting(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir Cliente</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir o cliente <strong>{deleting?.full_name}</strong>?
+              <br /><br />
+              Esta ação removerá todos os dados do cliente do sistema e não poderá ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={deleteApprovedClient}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Edit Dialog */}
+      <Dialog open={!!editing} onOpenChange={() => setEditing(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar Cliente</DialogTitle>
+            <DialogDescription>
+              Atualize as informações do cliente
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="full_name">Nome Completo</Label>
+              <Input
+                id="full_name"
+                value={editForm.full_name}
+                onChange={(e) => setEditForm({ ...editForm, full_name: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="email">E-mail</Label>
+              <Input
+                id="email"
+                type="email"
+                value={editForm.email}
+                onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="phone">Telefone</Label>
+              <Input
+                id="phone"
+                value={editForm.phone}
+                onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="office_name">Escritório</Label>
+              <Input
+                id="office_name"
+                value={editForm.office_name}
+                onChange={(e) => setEditForm({ ...editForm, office_name: e.target.value })}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditing(null)}>
+              Cancelar
+            </Button>
+            <Button onClick={saveEdit}>
+              Salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
