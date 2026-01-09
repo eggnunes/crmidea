@@ -53,15 +53,22 @@ import {
   Mail,
   Phone,
   Loader2,
+  Eye,
+  ExternalLink,
+  Calendar,
+  FileText,
+  Download,
 } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { Link } from "react-router-dom";
 
 interface ConsultingClient {
   id: string;
@@ -233,6 +240,24 @@ export function ConsultingClientsAdmin() {
     }
   };
 
+  const updateStatus = async (client: ConsultingClient, newStatus: string) => {
+    try {
+      const { error } = await supabase
+        .from('consulting_clients')
+        .update({ status: newStatus, updated_at: new Date().toISOString() })
+        .eq('id', client.id);
+
+      if (error) throw error;
+      
+      const statusLabel = statusOptions.find(s => s.value === newStatus)?.label || newStatus;
+      toast.success(`Status atualizado para: ${statusLabel}`);
+      fetchClients();
+    } catch (error) {
+      console.error('Error updating status:', error);
+      toast.error('Erro ao atualizar status');
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     const statusInfo = statusOptions.find(s => s.value === status) || statusOptions[0];
     return (
@@ -349,9 +374,14 @@ export function ConsultingClientsAdmin() {
                 </TableHeader>
                 <TableBody>
                   {filteredClients.map((client) => (
-                    <TableRow key={client.id}>
+                    <TableRow key={client.id} className="hover:bg-muted/50">
                       <TableCell>
-                        <div className="font-medium">{client.full_name}</div>
+                        <Link 
+                          to={`/metodo-idea/consultoria/cliente/${client.id}`}
+                          className="font-medium text-primary hover:underline cursor-pointer"
+                        >
+                          {client.full_name}
+                        </Link>
                         {client.practice_areas && (
                           <div className="text-xs text-muted-foreground truncate max-w-[150px]">
                             {client.practice_areas}
@@ -393,16 +423,36 @@ export function ConsultingClientsAdmin() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
+                            <DropdownMenuItem asChild>
+                              <Link to={`/metodo-idea/consultoria/cliente/${client.id}`}>
+                                <Eye className="w-4 h-4 mr-2" />
+                                Ver Dashboard
+                              </Link>
+                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => openEditDialog(client)}>
                               <Edit className="w-4 h-4 mr-2" />
                               Editar
                             </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            {client.status === 'pending' && (
+                              <DropdownMenuItem onClick={() => updateStatus(client, 'in_progress')}>
+                                <Calendar className="w-4 h-4 mr-2" />
+                                Iniciar Consultoria
+                              </DropdownMenuItem>
+                            )}
                             {client.status !== 'completed' && (
                               <DropdownMenuItem onClick={() => markAsCompleted(client)}>
                                 <CheckCircle2 className="w-4 h-4 mr-2" />
                                 Marcar como Concluído
                               </DropdownMenuItem>
                             )}
+                            {client.status === 'completed' && (
+                              <DropdownMenuItem onClick={() => updateStatus(client, 'in_progress')}>
+                                <Calendar className="w-4 h-4 mr-2" />
+                                Reabrir Consultoria
+                              </DropdownMenuItem>
+                            )}
+                            <DropdownMenuSeparator />
                             <DropdownMenuItem 
                               onClick={() => setDeletingClient(client)}
                               className="text-red-600"

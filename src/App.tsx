@@ -22,6 +22,7 @@ import { ClientAuthPage } from "./pages/ClientAuthPage";
 import { ClientDashboardPage } from "./pages/ClientDashboardPage";
 import { ClientDiagnosticForm } from "./pages/ClientDiagnosticForm";
 import AdminUsersPage from "./pages/AdminUsersPage";
+import { AdminClientViewPage } from "./pages/AdminClientViewPage";
 import { ConsultingPage } from "./pages/ConsultingPage";
 import { AuthPage } from "./pages/AuthPage";
 import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
@@ -97,6 +98,7 @@ function AppRoutes() {
                 <Route path="/alertas" element={<AlertsCenterPage />} />
                 <Route path="/calendario" element={<CalendarPage />} />
                 <Route path="/consultoria" element={<ConsultingPage />} />
+                <Route path="/consultoria/cliente/:clientId" element={<AdminClientViewPage />} />
                 <Route path="/configuracoes" element={<SettingsPage />} />
                 <Route path="/admin/usuarios" element={<AdminUsersPage />} />
                 <Route path="*" element={<NotFound />} />
