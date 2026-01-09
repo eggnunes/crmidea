@@ -318,36 +318,42 @@ export function PublicConsultingPage() {
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-blue-600/10 rounded-full blur-[180px]" />
           
           {/* Subtle Neural Network Background */}
-          <svg className="absolute inset-0 w-full h-full opacity-[0.04]" xmlns="http://www.w3.org/2000/svg">
+          <svg className="absolute inset-0 w-full h-full opacity-[0.15]" xmlns="http://www.w3.org/2000/svg">
             <defs>
-              <pattern id="neural-pattern" x="0" y="0" width="200" height="200" patternUnits="userSpaceOnUse">
-                {/* Nodes */}
-                <circle cx="20" cy="20" r="2" fill="#3b82f6" />
-                <circle cx="100" cy="50" r="2" fill="#8b5cf6" />
-                <circle cx="180" cy="30" r="2" fill="#3b82f6" />
-                <circle cx="50" cy="100" r="2" fill="#8b5cf6" />
-                <circle cx="150" cy="90" r="2" fill="#3b82f6" />
-                <circle cx="30" cy="170" r="2" fill="#3b82f6" />
-                <circle cx="100" cy="150" r="2" fill="#8b5cf6" />
-                <circle cx="170" cy="180" r="2" fill="#3b82f6" />
-                {/* Connections */}
-                <line x1="20" y1="20" x2="100" y2="50" stroke="#3b82f6" strokeWidth="0.5" opacity="0.5" />
-                <line x1="100" y1="50" x2="180" y2="30" stroke="#8b5cf6" strokeWidth="0.5" opacity="0.5" />
-                <line x1="20" y1="20" x2="50" y2="100" stroke="#3b82f6" strokeWidth="0.5" opacity="0.5" />
-                <line x1="100" y1="50" x2="150" y2="90" stroke="#8b5cf6" strokeWidth="0.5" opacity="0.5" />
-                <line x1="50" y1="100" x2="100" y2="150" stroke="#3b82f6" strokeWidth="0.5" opacity="0.5" />
-                <line x1="150" y1="90" x2="170" y2="180" stroke="#8b5cf6" strokeWidth="0.5" opacity="0.5" />
-                <line x1="30" y1="170" x2="100" y2="150" stroke="#3b82f6" strokeWidth="0.5" opacity="0.5" />
-                <line x1="100" y1="150" x2="170" y2="180" stroke="#8b5cf6" strokeWidth="0.5" opacity="0.5" />
-                <line x1="50" y1="100" x2="150" y2="90" stroke="#3b82f6" strokeWidth="0.5" opacity="0.3" />
-                <line x1="180" y1="30" x2="150" y2="90" stroke="#8b5cf6" strokeWidth="0.5" opacity="0.3" />
+              <pattern id="neural-pattern" x="0" y="0" width="300" height="300" patternUnits="userSpaceOnUse">
+                {/* Nodes - larger and more visible */}
+                <circle cx="30" cy="30" r="3" fill="#3b82f6" opacity="0.8" />
+                <circle cx="150" cy="60" r="3" fill="#8b5cf6" opacity="0.8" />
+                <circle cx="270" cy="45" r="3" fill="#3b82f6" opacity="0.8" />
+                <circle cx="75" cy="150" r="3" fill="#8b5cf6" opacity="0.8" />
+                <circle cx="225" cy="135" r="3" fill="#3b82f6" opacity="0.8" />
+                <circle cx="45" cy="255" r="3" fill="#3b82f6" opacity="0.8" />
+                <circle cx="150" cy="225" r="3" fill="#8b5cf6" opacity="0.8" />
+                <circle cx="255" cy="270" r="3" fill="#3b82f6" opacity="0.8" />
+                <circle cx="120" cy="120" r="2.5" fill="#60a5fa" opacity="0.6" />
+                <circle cx="200" cy="200" r="2.5" fill="#a78bfa" opacity="0.6" />
+                {/* Connections - thicker lines */}
+                <line x1="30" y1="30" x2="150" y2="60" stroke="#3b82f6" strokeWidth="1" opacity="0.6" />
+                <line x1="150" y1="60" x2="270" y2="45" stroke="#8b5cf6" strokeWidth="1" opacity="0.6" />
+                <line x1="30" y1="30" x2="75" y2="150" stroke="#3b82f6" strokeWidth="1" opacity="0.6" />
+                <line x1="150" y1="60" x2="225" y2="135" stroke="#8b5cf6" strokeWidth="1" opacity="0.6" />
+                <line x1="75" y1="150" x2="150" y2="225" stroke="#3b82f6" strokeWidth="1" opacity="0.6" />
+                <line x1="225" y1="135" x2="255" y2="270" stroke="#8b5cf6" strokeWidth="1" opacity="0.6" />
+                <line x1="45" y1="255" x2="150" y2="225" stroke="#3b82f6" strokeWidth="1" opacity="0.6" />
+                <line x1="150" y1="225" x2="255" y2="270" stroke="#8b5cf6" strokeWidth="1" opacity="0.6" />
+                <line x1="75" y1="150" x2="225" y2="135" stroke="#3b82f6" strokeWidth="0.8" opacity="0.4" />
+                <line x1="270" y1="45" x2="225" y2="135" stroke="#8b5cf6" strokeWidth="0.8" opacity="0.4" />
+                <line x1="120" y1="120" x2="150" y2="60" stroke="#60a5fa" strokeWidth="0.8" opacity="0.4" />
+                <line x1="120" y1="120" x2="75" y2="150" stroke="#60a5fa" strokeWidth="0.8" opacity="0.4" />
+                <line x1="200" y1="200" x2="225" y2="135" stroke="#a78bfa" strokeWidth="0.8" opacity="0.4" />
+                <line x1="200" y1="200" x2="150" y2="225" stroke="#a78bfa" strokeWidth="0.8" opacity="0.4" />
               </pattern>
             </defs>
             <rect width="100%" height="100%" fill="url(#neural-pattern)" />
           </svg>
           
           {/* Grid Pattern */}
-          <div className="absolute inset-0 bg-[linear-gradient(rgba(59,130,246,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(59,130,246,0.02)_1px,transparent_1px)] bg-[size:80px_80px]" />
+          <div className="absolute inset-0 bg-[linear-gradient(rgba(59,130,246,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(59,130,246,0.03)_1px,transparent_1px)] bg-[size:80px_80px]" />
         </div>
 
         <div className="container mx-auto px-4 relative z-10">
