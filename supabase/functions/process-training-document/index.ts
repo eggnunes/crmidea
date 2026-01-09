@@ -12,10 +12,13 @@ serve(async (req) => {
   }
 
   try {
-    const { documentId } = await req.json();
-
-    if (!documentId) {
-      throw new Error('documentId is required');
+    // Extract and verify JWT token
+    const authHeader = req.headers.get('authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -24,17 +27,42 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Get the document
+    // Verify the JWT and get the user ID from the token
+    const token = authHeader.replace('Bearer ', '');
+    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
+    
+    if (claimsError || !claimsData?.claims) {
+      console.error('[process-training-document] Auth error:', claimsError);
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const authenticatedUserId = claimsData.claims.sub as string;
+    const { documentId } = await req.json();
+
+    if (!documentId) {
+      throw new Error('documentId is required');
+    }
+
+    // Get the document and verify ownership
     const { data: doc, error: docError } = await supabase
       .from('ai_training_documents')
       .select('*')
       .eq('id', documentId)
+      .eq('user_id', authenticatedUserId)
       .single();
 
-    if (docError) throw docError;
-    if (!doc) throw new Error('Document not found');
+    if (docError || !doc) {
+      console.error('[process-training-document] Document not found or access denied:', docError);
+      return new Response(
+        JSON.stringify({ error: 'Documento não encontrado ou acesso negado' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
-    console.log(`Processing document: ${doc.title} (${doc.content_type})`);
+    console.log(`Processing document: ${doc.title} (${doc.content_type}) for user: ${authenticatedUserId}`);
 
     let extractedContent = doc.content;
 
@@ -107,7 +135,8 @@ Instruções:
         await supabase
           .from('ai_training_documents')
           .update({ status: 'error', content: extractedContent })
-          .eq('id', documentId);
+          .eq('id', documentId)
+          .eq('user_id', authenticatedUserId);
         
         return new Response(JSON.stringify({ 
           success: false,
@@ -210,7 +239,8 @@ Instruções:
         content: extractedContent,
         status: 'trained',
       })
-      .eq('id', documentId);
+      .eq('id', documentId)
+      .eq('user_id', authenticatedUserId);
 
     if (updateError) throw updateError;
 

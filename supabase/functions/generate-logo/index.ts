@@ -14,13 +14,39 @@ serve(async (req) => {
   }
 
   try {
+    // Extract and verify JWT token
+    const authHeader = req.headers.get('authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Verify the JWT and get the user ID from the token
+    const token = authHeader.replace('Bearer ', '');
+    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
+    
+    if (claimsError || !claimsData?.claims) {
+      console.error('[generate-logo] Auth error:', claimsError);
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const authenticatedUserId = claimsData.claims.sub as string;
     const { office_name, practice_areas } = await req.json();
 
     if (!office_name) {
       throw new Error("Nome do escritório é obrigatório");
     }
 
-    console.log("Generating logo for:", office_name);
+    console.log("Generating logo for:", office_name, "by user:", authenticatedUserId);
 
     const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
     if (!lovableApiKey) {
@@ -75,16 +101,11 @@ Ultra high resolution, professional quality.`;
       throw new Error("No image generated");
     }
 
-    // Upload image to Supabase Storage
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
     // Extract base64 data (remove data:image/png;base64, prefix)
     const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
     const imageBuffer = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
 
-    const fileName = `generated/${Date.now()}-${Math.random().toString(36).substring(7)}.png`;
+    const fileName = `generated/${authenticatedUserId}/${Date.now()}-${Math.random().toString(36).substring(7)}.png`;
 
     const { error: uploadError } = await supabase.storage
       .from('consulting-logos')

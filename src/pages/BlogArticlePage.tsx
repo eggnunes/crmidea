@@ -18,6 +18,7 @@ import { useBlogPost, useBlogPosts } from "@/hooks/useBlogPosts";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Card, CardContent } from "@/components/ui/card";
+import DOMPurify from "dompurify";
 
 // Blog images - mapeamento exato por slug (sem repetição)
 import blogIaRevolucionando from "@/assets/blog-ia-revolucionando.png";
@@ -199,7 +200,10 @@ export function BlogArticlePage() {
         <div 
           className="prose prose-invert prose-amber max-w-none"
           dangerouslySetInnerHTML={{ 
-            __html: `<p class="text-slate-300 leading-relaxed mb-4">${formatContent(article.content)}</p>` 
+            __html: DOMPurify.sanitize(
+              `<p class="text-slate-300 leading-relaxed mb-4">${formatContent(article.content)}</p>`,
+              { ADD_ATTR: ['target'] }
+            )
           }}
         />
 

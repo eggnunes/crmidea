@@ -13,21 +13,48 @@ serve(async (req) => {
   }
 
   try {
-    const { clientId } = await req.json();
-    
+    // Extract and verify JWT token
+    const authHeader = req.headers.get('authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Fetch client data
+    // Verify the JWT and get the user ID from the token
+    const token = authHeader.replace('Bearer ', '');
+    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
+    
+    if (claimsError || !claimsData?.claims) {
+      console.error('[generate-implementation-plan] Auth error:', claimsError);
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const authenticatedUserId = claimsData.claims.sub as string;
+    const { clientId } = await req.json();
+
+    // Verify the client belongs to the authenticated user
     const { data: client, error: clientError } = await supabase
       .from("consulting_clients")
       .select("*")
       .eq("id", clientId)
+      .eq("user_id", authenticatedUserId)
       .single();
 
     if (clientError || !client) {
-      throw new Error("Cliente não encontrado");
+      console.error('[generate-implementation-plan] Client not found or access denied:', clientError);
+      return new Response(
+        JSON.stringify({ error: "Cliente não encontrado ou acesso negado" }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     // Fetch feature names
@@ -96,7 +123,7 @@ Crie um plano com no máximo 5 etapas, onde cada etapa tem um prompt completo qu
 O primeiro prompt deve criar a base do sistema com autenticação, layout e estrutura principal.
 Os próximos prompts devem adicionar as funcionalidades selecionadas de forma incremental.`;
 
-    console.log("Generating implementation plan for client:", clientId);
+    console.log("Generating implementation plan for client:", clientId, "by user:", authenticatedUserId);
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -170,7 +197,8 @@ Os próximos prompts devem adicionar as funcionalidades selecionadas de forma in
         implementation_plan: plan,
         updated_at: new Date().toISOString()
       })
-      .eq("id", clientId);
+      .eq("id", clientId)
+      .eq("user_id", authenticatedUserId);
 
     if (updateError) {
       console.error("Error saving plan:", updateError);
