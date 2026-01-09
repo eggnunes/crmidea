@@ -121,22 +121,21 @@ Deno.serve(async (req) => {
       const rawBody = await req.text();
       const signature = req.headers.get('x-hub-signature-256');
 
-      // Get Meta App Secret from environment (required for signature verification)
+      // Get Meta App Secret from environment (REQUIRED for signature verification)
       const metaAppSecret = Deno.env.get('META_APP_SECRET');
 
-      if (metaAppSecret) {
-        // Verify the signature if we have the app secret
-        const isValid = await verifySignature(rawBody, signature, metaAppSecret);
-        if (!isValid) {
-          console.error('Invalid webhook signature');
-          return new Response('Unauthorized', { status: 401 });
-        }
-        console.log('Webhook signature verified successfully');
-      } else {
-        console.warn('META_APP_SECRET not configured - skipping signature verification');
-        // If no app secret is configured, we still process but log a warning
-        // This allows the webhook to work during development while encouraging proper setup
+      if (!metaAppSecret) {
+        console.error('META_APP_SECRET not configured - rejecting request for security');
+        return new Response('Configuration Error: META_APP_SECRET required', { status: 500 });
       }
+
+      // Verify the signature
+      const isValid = await verifySignature(rawBody, signature, metaAppSecret);
+      if (!isValid) {
+        console.error('Invalid webhook signature');
+        return new Response('Unauthorized', { status: 401 });
+      }
+      console.log('Webhook signature verified successfully');
 
       const body = JSON.parse(rawBody);
       console.log('Instagram webhook received:', JSON.stringify(body, null, 2));
