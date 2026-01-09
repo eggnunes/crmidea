@@ -39,6 +39,8 @@ const articleImagesBySlug: Record<string, string> = {
   "pesquisa-juridica-ia-jurisprudencia-minutos": blogPesquisaJuridica,
   "ia-advocacia-como-comecar-guia-iniciantes": blogIaIniciantes,
   "aumentar-produtividade-escritorio-advocacia-ia": blogProdutividade,
+  "futuro-advocacia-ia-previsoes-2030": "/blog-futuro-advocacia.png",
+  "lgpd-inteligencia-artificial-advogados": "/blog-lgpd-ia.png",
 };
 
 function getArticleImage(slug?: string): string | null {
