@@ -228,16 +228,11 @@ export function PublicConsultingPage() {
       <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-xl bg-[hsl(222,47%,5%)]/80 border-b border-white/5">
         <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <img 
-                src={logoConsultoria} 
-                alt="Consultoria IDEA" 
-                className="h-16 md:h-20 w-auto object-contain"
-              />
-              <Link to="/" className="hover:opacity-80 transition-opacity">
-                <span className="font-bold text-lg hidden sm:inline text-white">Consultoria IDEA</span>
-              </Link>
-            </div>
+            <img 
+              src={logoConsultoria} 
+              alt="Consultoria IDEA" 
+              className="h-16 md:h-20 w-auto object-contain"
+            />
             
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center gap-6">
