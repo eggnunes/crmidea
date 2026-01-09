@@ -48,6 +48,8 @@ import { ClientFormResponses } from "@/components/clients/ClientFormResponses";
 import { ClientDocumentsManager } from "@/components/consulting/ClientDocumentsManager";
 import { ConsultingSessionsManager } from "@/components/consulting/ConsultingSessionsManager";
 import { ImplementationPlanViewer } from "@/components/consulting/ImplementationPlanViewer";
+import { ClientCommunication } from "@/components/consulting/ClientCommunication";
+import { ClientMessageTemplates } from "@/components/consulting/ClientMessageTemplates";
 
 interface ConsultingClient {
   id: string;
@@ -400,8 +402,9 @@ export function AdminClientViewPage() {
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="sessions" className="space-y-4">
+      <Tabs defaultValue="communication" className="space-y-4">
         <TabsList className="flex-wrap h-auto gap-1">
+          <TabsTrigger value="communication">Comunicação</TabsTrigger>
           <TabsTrigger value="sessions">Reuniões</TabsTrigger>
           <TabsTrigger value="documents">Documentos</TabsTrigger>
           <TabsTrigger value="plan">Plano de Implementação</TabsTrigger>
@@ -410,7 +413,18 @@ export function AdminClientViewPage() {
           <TabsTrigger value="badges">Conquistas</TabsTrigger>
           <TabsTrigger value="prompt">Prompt</TabsTrigger>
           <TabsTrigger value="timeline">Timeline</TabsTrigger>
+          <TabsTrigger value="templates">Templates</TabsTrigger>
         </TabsList>
+
+        {/* Communication Tab */}
+        <TabsContent value="communication">
+          <ClientCommunication 
+            clientId={client.id}
+            clientName={client.full_name}
+            clientEmail={client.email}
+            clientPhone={client.phone}
+          />
+        </TabsContent>
 
         {/* Sessions Tab */}
         <TabsContent value="sessions">
@@ -521,6 +535,11 @@ export function AdminClientViewPage() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Templates Tab */}
+        <TabsContent value="templates">
+          <ClientMessageTemplates filterType="all" />
         </TabsContent>
       </Tabs>
     </div>

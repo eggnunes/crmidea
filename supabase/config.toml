@@ -101,3 +101,21 @@ verify_jwt = false
 
 [functions.send-welcome-email]
 verify_jwt = true
+
+[functions.send-consulting-notification]
+verify_jwt = true
+
+[functions.notify-client-signup]
+verify_jwt = true
+
+[functions.send-contact-email]
+verify_jwt = true
+
+[functions.send-ebook]
+verify_jwt = true
+
+[functions.generate-implementation-plan]
+verify_jwt = true
+
+[functions.send-client-email]
+verify_jwt = true
