@@ -185,15 +185,13 @@ const handler = async (req: Request): Promise<Response> => {
           
           <h3>O que você vai encontrar no material:</h3>
           <ul>
-            <li>📷 Prompts prontos para fotos profissionais de perfil</li>
-            <li>✨ Técnicas para poses e iluminação realistas</li>
-            <li>🎨 Variações para diferentes estilos e cenários</li>
-            <li>🤖 Dicas de uso com as principais IAs de imagem</li>
+            <li>📷 Prompts prontos para fotos profissionais</li>
           </ul>
           
           <div style="background: #ecfdf5; border-left: 4px solid #10b981; padding: 15px; margin: 20px 0; border-radius: 0 8px 8px 0;">
             <strong>🚀 Quer ir além com IA?</strong>
             <p style="margin: 10px 0 0;">Conheça a <strong>Consultoria IDEA</strong> - implementação completa de IA no seu negócio com acompanhamento personalizado!</p>
+            <p style="margin: 10px 0 0;"><a href="https://rafaelegg.com/consultoria" style="color: #10b981; font-weight: 600;">👉 Acessar Consultoria IDEA</a></p>
           </div>
           
           <div class="footer">
