@@ -80,11 +80,36 @@ serve(async (req) => {
   }
 
   try {
-    const { action, userId, session, eventId, calendarId } = await req.json();
-    console.log(`[google-calendar-sync] Action: ${action}, userId: ${userId}`);
+    // Extract and verify JWT token
+    const authHeader = req.headers.get('authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-    const accessToken = await getValidAccessToken(supabase, userId);
+
+    // Verify the JWT and get the user ID from the token
+    const token = authHeader.replace('Bearer ', '');
+    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
+    
+    if (claimsError || !claimsData?.claims) {
+      console.error('[google-calendar-sync] Auth error:', claimsError);
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Use the user ID from the verified JWT token, NOT from request body
+    const authenticatedUserId = claimsData.claims.sub as string;
+    
+    const { action, session, eventId, calendarId } = await req.json();
+    console.log(`[google-calendar-sync] Action: ${action}, userId: ${authenticatedUserId}`);
+
+    const accessToken = await getValidAccessToken(supabase, authenticatedUserId);
 
     if (!accessToken) {
       return new Response(JSON.stringify({ 

@@ -17,10 +17,34 @@ serve(async (req) => {
   }
 
   try {
-    const { action, code, redirectUri, userId } = await req.json();
-    console.log(`[google-calendar-auth] Action: ${action}`);
+    // Extract and verify JWT token
+    const authHeader = req.headers.get('authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+    // Verify the JWT and get the user ID from the token
+    const token = authHeader.replace('Bearer ', '');
+    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
+    
+    if (claimsError || !claimsData?.claims) {
+      console.error('[google-calendar-auth] Auth error:', claimsError);
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Use the user ID from the verified JWT token, NOT from request body
+    const authenticatedUserId = claimsData.claims.sub as string;
+    
+    const { action, code, redirectUri } = await req.json();
+    console.log(`[google-calendar-auth] Action: ${action}, userId: ${authenticatedUserId}`);
 
     if (action === 'get-auth-url') {
       // Generate OAuth URL
@@ -72,11 +96,11 @@ serve(async (req) => {
       // Calculate expiry time
       const expiresAt = new Date(Date.now() + tokens.expires_in * 1000).toISOString();
 
-      // Store tokens in database
+      // Store tokens in database using authenticated user ID
       const { error: upsertError } = await supabase
         .from('google_calendar_tokens')
         .upsert({
-          user_id: userId,
+          user_id: authenticatedUserId,
           access_token: tokens.access_token,
           refresh_token: tokens.refresh_token,
           token_type: tokens.token_type || 'Bearer',
@@ -97,11 +121,11 @@ serve(async (req) => {
     }
 
     if (action === 'refresh-token') {
-      // Get current tokens
+      // Get current tokens for authenticated user
       const { data: tokenData, error: fetchError } = await supabase
         .from('google_calendar_tokens')
         .select('*')
-        .eq('user_id', userId)
+        .eq('user_id', authenticatedUserId)
         .single();
 
       if (fetchError || !tokenData) {
@@ -137,7 +161,7 @@ serve(async (req) => {
           access_token: tokens.access_token,
           expires_at: expiresAt,
         })
-        .eq('user_id', userId);
+        .eq('user_id', authenticatedUserId);
 
       if (updateError) {
         throw updateError;
@@ -157,7 +181,7 @@ serve(async (req) => {
       const { error: deleteError } = await supabase
         .from('google_calendar_tokens')
         .delete()
-        .eq('user_id', userId);
+        .eq('user_id', authenticatedUserId);
 
       if (deleteError) {
         throw deleteError;
