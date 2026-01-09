@@ -559,12 +559,20 @@ export function PublicConsultingPage() {
             <p className="text-sm text-muted-foreground mb-4">
               Para mais informações sobre preços e planos, acesse o site oficial do Lovable
             </p>
-            <Button variant="outline" asChild>
-              <a href="https://lovable.dev/pricing" target="_blank" rel="noopener noreferrer">
-                Ver Preços Atualizados
-                <ArrowRight className="w-4 h-4 ml-2" />
-              </a>
-            </Button>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+              <Button asChild>
+                <a href="https://lovable.dev/invite/IX8ILR2" target="_blank" rel="noopener noreferrer">
+                  Criar Conta no Lovable
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </a>
+              </Button>
+              <Button variant="outline" asChild>
+                <a href="https://lovable.dev/pricing" target="_blank" rel="noopener noreferrer">
+                  Ver Preços Atualizados
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </a>
+              </Button>
+            </div>
           </div>
         </div>
       </section>
