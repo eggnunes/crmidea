@@ -213,8 +213,7 @@ const consultingFaqItems = [
 const stats = [
   { value: "50+", label: "Escritórios Atendidos" },
   { value: "10x", label: "Aumento de Produtividade" },
-  { value: "50", label: "Funcionalidades Disponíveis" },
-  { value: "98%", label: "Satisfação dos Clientes" }
+  { value: "50+", label: "Funcionalidades Disponíveis" }
 ];
 
 export function PublicConsultingPage() {
@@ -318,30 +317,49 @@ export function PublicConsultingPage() {
           <div className="absolute bottom-1/4 right-0 w-[500px] h-[500px] bg-purple-600/20 rounded-full blur-[150px]" />
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-blue-600/10 rounded-full blur-[180px]" />
           
-          {/* Grid Pattern */}
-          <div className="absolute inset-0 bg-[linear-gradient(rgba(59,130,246,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(59,130,246,0.03)_1px,transparent_1px)] bg-[size:60px_60px]" />
+          {/* Subtle Neural Network Background */}
+          <svg className="absolute inset-0 w-full h-full opacity-[0.04]" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <pattern id="neural-pattern" x="0" y="0" width="200" height="200" patternUnits="userSpaceOnUse">
+                {/* Nodes */}
+                <circle cx="20" cy="20" r="2" fill="#3b82f6" />
+                <circle cx="100" cy="50" r="2" fill="#8b5cf6" />
+                <circle cx="180" cy="30" r="2" fill="#3b82f6" />
+                <circle cx="50" cy="100" r="2" fill="#8b5cf6" />
+                <circle cx="150" cy="90" r="2" fill="#3b82f6" />
+                <circle cx="30" cy="170" r="2" fill="#3b82f6" />
+                <circle cx="100" cy="150" r="2" fill="#8b5cf6" />
+                <circle cx="170" cy="180" r="2" fill="#3b82f6" />
+                {/* Connections */}
+                <line x1="20" y1="20" x2="100" y2="50" stroke="#3b82f6" strokeWidth="0.5" opacity="0.5" />
+                <line x1="100" y1="50" x2="180" y2="30" stroke="#8b5cf6" strokeWidth="0.5" opacity="0.5" />
+                <line x1="20" y1="20" x2="50" y2="100" stroke="#3b82f6" strokeWidth="0.5" opacity="0.5" />
+                <line x1="100" y1="50" x2="150" y2="90" stroke="#8b5cf6" strokeWidth="0.5" opacity="0.5" />
+                <line x1="50" y1="100" x2="100" y2="150" stroke="#3b82f6" strokeWidth="0.5" opacity="0.5" />
+                <line x1="150" y1="90" x2="170" y2="180" stroke="#8b5cf6" strokeWidth="0.5" opacity="0.5" />
+                <line x1="30" y1="170" x2="100" y2="150" stroke="#3b82f6" strokeWidth="0.5" opacity="0.5" />
+                <line x1="100" y1="150" x2="170" y2="180" stroke="#8b5cf6" strokeWidth="0.5" opacity="0.5" />
+                <line x1="50" y1="100" x2="150" y2="90" stroke="#3b82f6" strokeWidth="0.5" opacity="0.3" />
+                <line x1="180" y1="30" x2="150" y2="90" stroke="#8b5cf6" strokeWidth="0.5" opacity="0.3" />
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#neural-pattern)" />
+          </svg>
           
-          {/* Diagonal Lines */}
-          <div className="absolute top-0 right-0 w-1/2 h-full opacity-20">
-            <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-              <line x1="0" y1="100" x2="100" y2="0" stroke="url(#gradient1)" strokeWidth="0.1" />
-              <line x1="20" y1="100" x2="100" y2="20" stroke="url(#gradient1)" strokeWidth="0.1" />
-              <line x1="40" y1="100" x2="100" y2="40" stroke="url(#gradient1)" strokeWidth="0.1" />
-              <defs>
-                <linearGradient id="gradient1" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stopColor="#3b82f6" stopOpacity="0" />
-                  <stop offset="50%" stopColor="#8b5cf6" stopOpacity="0.5" />
-                  <stop offset="100%" stopColor="#3b82f6" stopOpacity="0" />
-                </linearGradient>
-              </defs>
-            </svg>
-          </div>
+          {/* Grid Pattern */}
+          <div className="absolute inset-0 bg-[linear-gradient(rgba(59,130,246,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(59,130,246,0.02)_1px,transparent_1px)] bg-[size:80px_80px]" />
         </div>
 
         <div className="container mx-auto px-4 relative z-10">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             {/* Content */}
             <div className="text-center lg:text-left order-2 lg:order-1">
+              {/* Award Badge */}
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-yellow-500/20 to-amber-500/20 border border-yellow-500/30 mb-4">
+                <Award className="w-4 h-4 text-yellow-400" />
+                <span className="text-sm text-yellow-300 font-medium">🏆 Melhor Escritório de Advocacia com IA do Brasil</span>
+              </div>
+              
               <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 mb-6">
                 <Sparkles className="w-4 h-4 text-blue-400" />
                 <span className="text-sm text-white/80">Inteligência de Dados e Artificial</span>
@@ -380,7 +398,7 @@ export function PublicConsultingPage() {
               </div>
 
               {/* Stats */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+              <div className="grid grid-cols-3 gap-6">
                 {stats.map((stat, index) => (
                   <div key={index} className="text-center lg:text-left">
                     <div className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
@@ -405,36 +423,6 @@ export function PublicConsultingPage() {
                     alt="Rafael Egg - Consultor de IA para Advogados"
                     className="w-full max-w-md lg:max-w-lg xl:max-w-xl h-auto relative z-10 drop-shadow-[0_0_80px_rgba(59,130,246,0.3)]"
                   />
-                  
-                  {/* Decorative Elements */}
-                  <div className="absolute -right-4 top-1/4 w-24 h-24 border border-blue-500/30 rounded-full" />
-                  <div className="absolute -left-8 bottom-1/3 w-16 h-16 border border-purple-500/30 rounded-full" />
-                  
-                  {/* Floating Badge */}
-                  <div className="absolute -left-4 lg:-left-12 top-1/4 bg-[hsl(222,47%,10%)]/90 backdrop-blur-xl border border-white/10 rounded-xl p-4 shadow-2xl">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
-                        <Brain className="w-5 h-5 text-white" />
-                      </div>
-                      <div>
-                        <div className="text-white font-semibold text-sm">Especialista em IA</div>
-                        <div className="text-white/50 text-xs">para Advogados</div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Floating Stats */}
-                  <div className="absolute -right-4 lg:-right-12 bottom-1/3 bg-[hsl(222,47%,10%)]/90 backdrop-blur-xl border border-white/10 rounded-xl p-4 shadow-2xl">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 flex items-center justify-center">
-                        <TrendingUp className="w-5 h-5 text-white" />
-                      </div>
-                      <div>
-                        <div className="text-white font-semibold text-sm">+60%</div>
-                        <div className="text-white/50 text-xs">Produtividade</div>
-                      </div>
-                    </div>
-                  </div>
                 </div>
               </div>
             </div>
@@ -458,6 +446,85 @@ export function PublicConsultingPage() {
           ))}
         </div>
       </div>
+
+      {/* About Section */}
+      <section id="sobre" className="py-24 relative">
+        <div className="absolute inset-0 bg-gradient-to-b from-[hsl(222,47%,5%)] via-[hsl(222,47%,8%)] to-[hsl(222,47%,5%)]" />
+        
+        <div className="container mx-auto px-4 relative z-10">
+          <div className="max-w-4xl mx-auto">
+            <div className="text-center mb-12">
+              <Badge className="mb-4 bg-white/5 border-white/10 text-white/80">
+                <Users className="w-3 h-3 mr-1" />
+                Sobre o Consultor
+              </Badge>
+              <h2 className="text-3xl md:text-4xl font-bold mb-4 text-white">
+                Conheça <span className="text-blue-400">Rafael Egg</span>
+              </h2>
+            </div>
+
+            <Card className="bg-white/[0.02] border-white/5 overflow-hidden">
+              <CardContent className="p-8 md:p-12">
+                <div className="flex flex-col md:flex-row gap-8 items-center">
+                  <div className="flex-shrink-0">
+                    <div className="relative">
+                      <div className="absolute inset-0 bg-gradient-to-br from-blue-500/30 to-purple-500/30 rounded-full blur-xl" />
+                      <img 
+                        src={rafaelPhoto} 
+                        alt="Rafael Egg"
+                        className="relative w-48 h-48 md:w-56 md:h-56 object-cover object-top rounded-full border-2 border-white/10"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="text-center md:text-left">
+                    <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-yellow-500/20 to-amber-500/20 border border-yellow-500/30 mb-4">
+                      <Award className="w-4 h-4 text-yellow-400" />
+                      <span className="text-sm text-yellow-300 font-medium">🏆 Prêmio Melhor Escritório com IA do Brasil</span>
+                    </div>
+                    
+                    <h3 className="text-2xl font-bold text-white mb-4">Rafael Egg Nunes</h3>
+                    
+                    <div className="space-y-3 text-white/70 leading-relaxed">
+                      <p>
+                        <strong className="text-white">Advogado</strong> especializado em Direito Empresarial e Proteção de Dados, 
+                        com mais de 10 anos de experiência.
+                      </p>
+                      <p>
+                        <strong className="text-white">Especialista em Inteligência Artificial</strong> aplicada à advocacia, 
+                        atuando na implementação de soluções de IA em escritórios de todo o Brasil.
+                      </p>
+                      <p>
+                        <strong className="text-white">Criador do Método IDEA</strong> (Inteligência de Dados e Artificial), 
+                        metodologia exclusiva para transformação digital de escritórios de advocacia.
+                      </p>
+                      <p>
+                        <strong className="text-white">Professor e Palestrante</strong> sobre IA no Direito, tendo ministrado 
+                        treinamentos para centenas de advogados em todo o país.
+                      </p>
+                    </div>
+
+                    <div className="flex flex-wrap gap-3 mt-6 justify-center md:justify-start">
+                      <Badge className="bg-blue-500/20 border-blue-500/30 text-blue-300">
+                        <Brain className="w-3 h-3 mr-1" />
+                        IA para Advogados
+                      </Badge>
+                      <Badge className="bg-purple-500/20 border-purple-500/30 text-purple-300">
+                        <GraduationCap className="w-3 h-3 mr-1" />
+                        +50 Escritórios Atendidos
+                      </Badge>
+                      <Badge className="bg-green-500/20 border-green-500/30 text-green-300">
+                        <Target className="w-3 h-3 mr-1" />
+                        Método Comprovado
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </section>
 
       {/* Benefits Section */}
       <section id="beneficios" className="py-24 relative">
@@ -547,7 +614,7 @@ export function PublicConsultingPage() {
           <div className="text-center mb-16">
             <Badge className="mb-4 bg-gradient-to-r from-blue-500/20 to-purple-500/20 border-blue-500/30 text-blue-400">
               <Sparkles className="w-3 h-3 mr-1" />
-              50 Funcionalidades Disponíveis
+              Mais de 50 Funcionalidades Disponíveis
             </Badge>
             <h2 className="text-3xl md:text-4xl font-bold mb-4 text-white">
               Tudo que você pode <span className="text-blue-400">implementar</span>
