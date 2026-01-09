@@ -29,6 +29,39 @@ async function fetchFacebookProfile(userId: string, accessToken: string): Promis
   }
 }
 
+// Verify X-Hub-Signature-256 header for POST requests
+async function verifySignature(body: string, signature: string | null, appSecret: string): Promise<boolean> {
+  if (!signature || !signature.startsWith('sha256=')) {
+    return false;
+  }
+
+  try {
+    const encoder = new TextEncoder();
+    const key = await crypto.subtle.importKey(
+      'raw',
+      encoder.encode(appSecret),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign']
+    );
+
+    const signatureBytes = await crypto.subtle.sign(
+      'HMAC',
+      key,
+      encoder.encode(body)
+    );
+
+    const expectedSignature = 'sha256=' + Array.from(new Uint8Array(signatureBytes))
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('');
+
+    return signature === expectedSignature;
+  } catch (error) {
+    console.error('Error verifying signature:', error);
+    return false;
+  }
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -36,35 +69,77 @@ Deno.serve(async (req) => {
   }
 
   const url = new URL(req.url);
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
   // Webhook verification (GET request from Meta)
   if (req.method === 'GET') {
     const mode = url.searchParams.get('hub.mode');
-    const token = url.searchParams.get('hub.verify_token');
+    const receivedToken = url.searchParams.get('hub.verify_token');
     const challenge = url.searchParams.get('hub.challenge');
 
-    console.log('Facebook webhook verification:', { mode, token, challenge });
+    console.log('Facebook webhook verification:', { mode, receivedToken: receivedToken ? '[REDACTED]' : null, challenge });
 
-    if (mode === 'subscribe' && challenge) {
-      console.log('Webhook verified successfully');
-      return new Response(challenge, {
-        status: 200,
-        headers: { 'Content-Type': 'text/plain' }
-      });
+    if (mode !== 'subscribe' || !challenge || !receivedToken) {
+      console.log('Missing required parameters for webhook verification');
+      return new Response('Forbidden', { status: 403 });
     }
 
-    return new Response('Forbidden', { status: 403 });
+    // Fetch any active Facebook config to get the stored verify token
+    const { data: channelConfig, error: configError } = await supabase
+      .from('channel_configs')
+      .select('webhook_verify_token')
+      .eq('channel', 'facebook')
+      .eq('is_active', true)
+      .not('webhook_verify_token', 'is', null)
+      .limit(1)
+      .single();
+
+    if (configError || !channelConfig?.webhook_verify_token) {
+      console.log('No Facebook config with verify token found');
+      return new Response('Forbidden', { status: 403 });
+    }
+
+    // Validate the token matches the stored verify token
+    if (receivedToken !== channelConfig.webhook_verify_token) {
+      console.log('Verify token mismatch');
+      return new Response('Forbidden', { status: 403 });
+    }
+
+    console.log('Webhook verified successfully');
+    return new Response(challenge, {
+      status: 200,
+      headers: { 'Content-Type': 'text/plain' }
+    });
   }
 
   // Handle incoming messages (POST request)
   if (req.method === 'POST') {
     try {
-      const body = await req.json();
-      console.log('Facebook webhook received:', JSON.stringify(body, null, 2));
+      // Get raw body for signature verification
+      const rawBody = await req.text();
+      const signature = req.headers.get('x-hub-signature-256');
 
-      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-      const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-      const supabase = createClient(supabaseUrl, supabaseServiceKey);
+      // Get Meta App Secret from environment (required for signature verification)
+      const metaAppSecret = Deno.env.get('META_APP_SECRET');
+
+      if (metaAppSecret) {
+        // Verify the signature if we have the app secret
+        const isValid = await verifySignature(rawBody, signature, metaAppSecret);
+        if (!isValid) {
+          console.error('Invalid webhook signature');
+          return new Response('Unauthorized', { status: 401 });
+        }
+        console.log('Webhook signature verified successfully');
+      } else {
+        console.warn('META_APP_SECRET not configured - skipping signature verification');
+        // If no app secret is configured, we still process but log a warning
+        // This allows the webhook to work during development while encouraging proper setup
+      }
+
+      const body = JSON.parse(rawBody);
+      console.log('Facebook webhook received:', JSON.stringify(body, null, 2));
 
       // Process Facebook Messenger events
       if (body.object === 'page') {
