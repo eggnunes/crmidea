@@ -12,6 +12,8 @@ import { format, parseISO, isSameDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Calendar as CalendarIcon, Clock, User, Mail, Phone, CheckCircle2, Loader2, Sparkles, GraduationCap, Target, Rocket } from "lucide-react";
 import { toast } from "sonner";
+import { z } from "zod";
+import DOMPurify from "dompurify";
 
 interface AvailabilitySlot {
   id: string;
@@ -32,6 +34,25 @@ interface BookingSettings {
   title: string;
   description: string;
 }
+
+// Validation schema for booking form
+const bookingSchema = z.object({
+  name: z.string()
+    .min(2, 'Nome deve ter pelo menos 2 caracteres')
+    .max(100, 'Nome muito longo (máximo 100 caracteres)')
+    .regex(/^[a-zA-ZÀ-ÿ\s'-]+$/, 'Nome contém caracteres inválidos'),
+  email: z.string()
+    .email('Email inválido')
+    .max(255, 'Email muito longo'),
+  phone: z.string()
+    .optional()
+    .refine(val => !val || /^[\+]?[(]?[0-9]{1,3}[)]?[-\s\.]?[0-9]{1,14}([-\s\.]?[0-9]{1,13})?$/.test(val.replace(/\s/g, '')), {
+      message: 'Telefone inválido'
+    }),
+  notes: z.string()
+    .max(1000, 'Observações muito longas (máximo 1000 caracteres)')
+    .optional()
+});
 
 export function PublicBookingPage() {
   const { userId } = useParams<{ userId: string }>();
@@ -121,22 +142,38 @@ export function PublicBookingPage() {
   };
 
   const handleBooking = async () => {
-    if (!selectedSlot || !form.name || !form.email) {
-      toast.error("Preencha nome e email");
+    if (!selectedSlot) {
+      toast.error("Selecione um horário");
       return;
     }
 
+    // Validate input using zod
+    const validation = bookingSchema.safeParse(form);
+    if (!validation.success) {
+      const errorMessage = validation.error.errors[0]?.message || "Dados inválidos";
+      toast.error(errorMessage);
+      return;
+    }
+
+    // Sanitize input data
+    const sanitizedData = {
+      name: DOMPurify.sanitize(form.name.trim(), { ALLOWED_TAGS: [] }),
+      email: form.email.toLowerCase().trim(),
+      phone: form.phone ? form.phone.replace(/[^\d+\-\s()]/g, '').trim() : '',
+      notes: DOMPurify.sanitize(form.notes.trim(), { ALLOWED_TAGS: [] })
+    };
+
     setBooking(true);
     try {
-      // Mark slot as booked
+      // Mark slot as booked with sanitized data
       const { error: updateError } = await supabase
         .from("calendar_availability" as any)
         .update({ 
           is_booked: true,
-          booked_by_name: form.name,
-          booked_by_email: form.email,
-          booked_by_phone: form.phone,
-          booking_notes: form.notes
+          booked_by_name: sanitizedData.name,
+          booked_by_email: sanitizedData.email,
+          booked_by_phone: sanitizedData.phone,
+          booking_notes: sanitizedData.notes
         } as any)
         .eq("id", selectedSlot.id);
 
@@ -149,10 +186,10 @@ export function PublicBookingPage() {
             action: 'booking-confirmation',
             userId: selectedSlot.user_id,
             bookingData: {
-              name: form.name,
-              email: form.email,
-              phone: form.phone,
-              notes: form.notes,
+              name: sanitizedData.name,
+              email: sanitizedData.email,
+              phone: sanitizedData.phone,
+              notes: sanitizedData.notes,
               startTime: selectedSlot.start_time,
               endTime: selectedSlot.end_time
             }
