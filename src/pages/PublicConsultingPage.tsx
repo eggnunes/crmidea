@@ -27,7 +27,11 @@ import {
   Settings,
   CreditCard,
   Menu,
-  Shield
+  Shield,
+  Play,
+  Sparkles,
+  TrendingUp,
+  Award
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -37,13 +41,13 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { useState } from "react";
 import logoConsultoria from "@/assets/logo-consultoria.png";
 import logoRE from "@/assets/logo-re.png";
+import rafaelPhoto from "@/assets/rafael-consulting-nobg.png";
 import {
   Sheet,
   SheetContent,
   SheetTrigger,
 } from "@/components/ui/sheet";
 
-// ID do consultor padrão - em produção, isso poderia ser dinâmico
 const DEFAULT_CONSULTANT_ID = "default";
 
 const benefits = [
@@ -206,56 +210,59 @@ const consultingFaqItems = [
   }
 ];
 
+const stats = [
+  { value: "50+", label: "Escritórios Atendidos" },
+  { value: "10x", label: "Aumento de Produtividade" },
+  { value: "50", label: "Funcionalidades Disponíveis" },
+  { value: "98%", label: "Satisfação dos Clientes" }
+];
+
 export function PublicConsultingPage() {
   const { user } = useAuth();
   const { isAdmin } = useUserRoles();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const handleCadastro = () => {
-    if (user) {
-      navigate('/area-cliente');
-    } else {
-      navigate(`/cadastro-cliente/${DEFAULT_CONSULTANT_ID}`);
-    }
-  };
-
   return (
-    <div className="min-h-screen bg-background">
-      {/* Hero Section */}
-      <header className="relative overflow-hidden bg-gradient-to-br from-primary/10 via-background to-primary/5">
-        <div className="absolute inset-0 bg-grid-pattern opacity-5" />
-        <nav className="container mx-auto px-4 py-4 relative z-10">
+    <div className="min-h-screen bg-[hsl(222,47%,5%)] overflow-x-hidden">
+      {/* Navigation */}
+      <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-xl bg-[hsl(222,47%,5%)]/80 border-b border-white/5">
+        <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-                <img 
-                  src={logoConsultoria} 
-                  alt="Consultoria IDEA" 
-                  className="h-8 md:h-10 w-auto object-contain"
-                />
-                <span className="font-bold text-lg md:text-xl hidden sm:inline">Consultoria IDEA</span>
-              </Link>
-            </div>
+            <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+              <img 
+                src={logoConsultoria} 
+                alt="Consultoria IDEA" 
+                className="h-8 md:h-10 w-auto object-contain"
+              />
+              <span className="font-bold text-lg hidden sm:inline text-white">Consultoria IDEA</span>
+            </Link>
             
             {/* Desktop Navigation */}
+            <div className="hidden md:flex items-center gap-6">
+              <a href="#beneficios" className="text-sm text-white/70 hover:text-white transition-colors">Benefícios</a>
+              <a href="#como-funciona" className="text-sm text-white/70 hover:text-white transition-colors">Como Funciona</a>
+              <a href="#funcionalidades" className="text-sm text-white/70 hover:text-white transition-colors">Funcionalidades</a>
+              <a href="#faq" className="text-sm text-white/70 hover:text-white transition-colors">FAQ</a>
+            </div>
+
             <div className="hidden md:flex items-center gap-3">
               {isAdmin && (
-                <Button variant="ghost" size="icon" asChild className="text-muted-foreground hover:text-foreground">
+                <Button variant="ghost" size="icon" asChild className="text-white/70 hover:text-white hover:bg-white/10">
                   <Link to="/consultoria" title="Área Administrativa">
                     <Settings className="w-4 h-4" />
                   </Link>
                 </Button>
               )}
-              <Button variant="outline" asChild className="gap-2">
+              <Button variant="ghost" asChild className="gap-2 text-white/70 hover:text-white hover:bg-white/10">
                 <Link to="/consultoria/login">
                   <LogIn className="w-4 h-4" />
                   Área do Cliente
                 </Link>
               </Button>
-              <Button asChild>
+              <Button className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 border-0" asChild>
                 <a href="https://mentoriarafaelegg.com.br/consultoria-idea/" target="_blank" rel="noopener noreferrer">
-                  Contratar Consultoria
+                  Contratar
                 </a>
               </Button>
             </div>
@@ -263,7 +270,7 @@ export function PublicConsultingPage() {
             {/* Mobile Navigation */}
             <div className="flex md:hidden items-center gap-2">
               {isAdmin && (
-                <Button variant="ghost" size="icon" asChild className="text-muted-foreground hover:text-foreground">
+                <Button variant="ghost" size="icon" asChild className="text-white/70 hover:text-white">
                   <Link to="/consultoria" title="Área Administrativa">
                     <Settings className="w-4 h-4" />
                   </Link>
@@ -271,95 +278,214 @@ export function PublicConsultingPage() {
               )}
               <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
                 <SheetTrigger asChild>
-                  <Button variant="ghost" size="icon">
+                  <Button variant="ghost" size="icon" className="text-white">
                     <Menu className="w-5 h-5" />
                   </Button>
                 </SheetTrigger>
-                <SheetContent side="right" className="w-72">
+                <SheetContent side="right" className="w-72 bg-[hsl(222,47%,8%)] border-white/10">
                   <div className="flex flex-col gap-4 mt-8">
-                    <Button variant="outline" asChild className="gap-2 justify-start" onClick={() => setMobileMenuOpen(false)}>
-                      <Link to="/consultoria/login">
-                        <LogIn className="w-4 h-4" />
-                        Área do Cliente
-                      </Link>
-                    </Button>
-                    <Button asChild onClick={() => setMobileMenuOpen(false)}>
-                      <a href="https://mentoriarafaelegg.com.br/consultoria-idea/" target="_blank" rel="noopener noreferrer">
-                        Contratar Consultoria
-                      </a>
-                    </Button>
+                    <a href="#beneficios" className="text-white/70 hover:text-white transition-colors py-2" onClick={() => setMobileMenuOpen(false)}>Benefícios</a>
+                    <a href="#como-funciona" className="text-white/70 hover:text-white transition-colors py-2" onClick={() => setMobileMenuOpen(false)}>Como Funciona</a>
+                    <a href="#funcionalidades" className="text-white/70 hover:text-white transition-colors py-2" onClick={() => setMobileMenuOpen(false)}>Funcionalidades</a>
+                    <a href="#faq" className="text-white/70 hover:text-white transition-colors py-2" onClick={() => setMobileMenuOpen(false)}>FAQ</a>
+                    <div className="border-t border-white/10 pt-4 mt-4 space-y-3">
+                      <Button variant="outline" asChild className="w-full gap-2 justify-start border-white/20 text-white hover:bg-white/10" onClick={() => setMobileMenuOpen(false)}>
+                        <Link to="/consultoria/login">
+                          <LogIn className="w-4 h-4" />
+                          Área do Cliente
+                        </Link>
+                      </Button>
+                      <Button className="w-full bg-gradient-to-r from-blue-500 to-purple-600" asChild onClick={() => setMobileMenuOpen(false)}>
+                        <a href="https://mentoriarafaelegg.com.br/consultoria-idea/" target="_blank" rel="noopener noreferrer">
+                          Contratar Consultoria
+                        </a>
+                      </Button>
+                    </div>
                   </div>
                 </SheetContent>
               </Sheet>
             </div>
           </div>
-        </nav>
-        
-        <div className="container mx-auto px-4 py-16 md:py-20 text-center relative z-10">
-          <Badge className="mb-4" variant="secondary">
-            Consultoria em Inteligência Artificial para Advogados
-          </Badge>
+        </div>
+      </nav>
+
+      {/* Hero Section */}
+      <section className="relative min-h-screen flex items-center pt-20">
+        {/* Background Effects */}
+        <div className="absolute inset-0 overflow-hidden">
+          {/* Gradient Orbs */}
+          <div className="absolute top-1/4 -left-32 w-96 h-96 bg-blue-500/20 rounded-full blur-[120px]" />
+          <div className="absolute bottom-1/4 right-0 w-[500px] h-[500px] bg-purple-600/20 rounded-full blur-[150px]" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-blue-600/10 rounded-full blur-[180px]" />
           
-          <h1 className="text-3xl md:text-4xl lg:text-6xl font-bold mb-6 leading-tight">
-            Transforme seu escritório com{" "}
-            <span className="text-primary">Inteligência Artificial</span>
-          </h1>
+          {/* Grid Pattern */}
+          <div className="absolute inset-0 bg-[linear-gradient(rgba(59,130,246,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(59,130,246,0.03)_1px,transparent_1px)] bg-[size:60px_60px]" />
           
-          <p className="text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto mb-8">
-            Consultoria personalizada para advogados que querem implementar IA de forma prática e eficiente. 
-            Trabalho a quatro mãos, do diagnóstico à autonomia total.
-          </p>
-          
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button size="lg" className="gap-2" asChild>
-              <Link to="/consultoria/login">
-                <LogIn className="w-4 h-4" />
-                Área do Cliente
-              </Link>
-            </Button>
-            <Button size="lg" variant="outline" className="gap-2" asChild>
-              <a href="#como-funciona">
-                Saiba Mais
-              </a>
-            </Button>
+          {/* Diagonal Lines */}
+          <div className="absolute top-0 right-0 w-1/2 h-full opacity-20">
+            <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+              <line x1="0" y1="100" x2="100" y2="0" stroke="url(#gradient1)" strokeWidth="0.1" />
+              <line x1="20" y1="100" x2="100" y2="20" stroke="url(#gradient1)" strokeWidth="0.1" />
+              <line x1="40" y1="100" x2="100" y2="40" stroke="url(#gradient1)" strokeWidth="0.1" />
+              <defs>
+                <linearGradient id="gradient1" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="#3b82f6" stopOpacity="0" />
+                  <stop offset="50%" stopColor="#8b5cf6" stopOpacity="0.5" />
+                  <stop offset="100%" stopColor="#3b82f6" stopOpacity="0" />
+                </linearGradient>
+              </defs>
+            </svg>
           </div>
-          
-          <div className="flex flex-wrap justify-center gap-4 md:gap-8 mt-12">
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-5 h-5 text-green-500" />
-              <span className="text-sm">Implementação Personalizada</span>
+        </div>
+
+        <div className="container mx-auto px-4 relative z-10">
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            {/* Content */}
+            <div className="text-center lg:text-left order-2 lg:order-1">
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 mb-6">
+                <Sparkles className="w-4 h-4 text-blue-400" />
+                <span className="text-sm text-white/80">Inteligência de Dados e Artificial</span>
+              </div>
+
+              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 leading-tight">
+                <span className="text-white">CONSULTORIA</span>
+                <br />
+                <span className="bg-gradient-to-r from-blue-400 via-purple-400 to-blue-400 bg-clip-text text-transparent">
+                  IDEA
+                </span>
+              </h1>
+              
+              <p className="text-xl md:text-2xl font-medium mb-4">
+                <span className="text-blue-400">Multiplique por 10x sua produtividade</span>
+                <span className="text-white"> e seu faturamento usando o poder da IA em todos os setores do seu escritório</span>
+              </p>
+              
+              <p className="text-white/60 text-lg mb-8 max-w-xl">
+                Receba uma consultoria de implementação completa onde "<span className="text-blue-400">pegamos na sua mão</span>" e implantamos a IA diretamente no seu escritório.
+              </p>
+              
+              <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start mb-12">
+                <Button size="lg" className="gap-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 border-0 text-lg px-8 py-6" asChild>
+                  <a href="https://mentoriarafaelegg.com.br/consultoria-idea/" target="_blank" rel="noopener noreferrer">
+                    EU QUERO A CONSULTORIA IDEA
+                    <ArrowRight className="w-5 h-5" />
+                  </a>
+                </Button>
+                <Button size="lg" variant="outline" className="gap-2 border-white/20 text-white hover:bg-white/10 text-lg px-8 py-6" asChild>
+                  <Link to="/consultoria/login">
+                    <LogIn className="w-5 h-5" />
+                    Área do Cliente
+                  </Link>
+                </Button>
+              </div>
+
+              {/* Stats */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                {stats.map((stat, index) => (
+                  <div key={index} className="text-center lg:text-left">
+                    <div className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                      {stat.value}
+                    </div>
+                    <div className="text-sm text-white/50">{stat.label}</div>
+                  </div>
+                ))}
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-5 h-5 text-green-500" />
-              <span className="text-sm">Suporte Contínuo</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-5 h-5 text-green-500" />
-              <span className="text-sm">Autonomia Total</span>
+
+            {/* Photo */}
+            <div className="relative order-1 lg:order-2 flex justify-center lg:justify-end">
+              <div className="relative">
+                {/* Glow Effect Behind Photo */}
+                <div className="absolute inset-0 bg-gradient-to-t from-blue-500/30 via-purple-500/20 to-transparent blur-3xl scale-110" />
+                
+                {/* Photo Container */}
+                <div className="relative">
+                  <img 
+                    src={rafaelPhoto} 
+                    alt="Rafael Egg - Consultor de IA para Advogados"
+                    className="w-full max-w-md lg:max-w-lg xl:max-w-xl h-auto relative z-10 drop-shadow-[0_0_80px_rgba(59,130,246,0.3)]"
+                  />
+                  
+                  {/* Decorative Elements */}
+                  <div className="absolute -right-4 top-1/4 w-24 h-24 border border-blue-500/30 rounded-full" />
+                  <div className="absolute -left-8 bottom-1/3 w-16 h-16 border border-purple-500/30 rounded-full" />
+                  
+                  {/* Floating Badge */}
+                  <div className="absolute -left-4 lg:-left-12 top-1/4 bg-[hsl(222,47%,10%)]/90 backdrop-blur-xl border border-white/10 rounded-xl p-4 shadow-2xl">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
+                        <Brain className="w-5 h-5 text-white" />
+                      </div>
+                      <div>
+                        <div className="text-white font-semibold text-sm">Especialista em IA</div>
+                        <div className="text-white/50 text-xs">para Advogados</div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Floating Stats */}
+                  <div className="absolute -right-4 lg:-right-12 bottom-1/3 bg-[hsl(222,47%,10%)]/90 backdrop-blur-xl border border-white/10 rounded-xl p-4 shadow-2xl">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 flex items-center justify-center">
+                        <TrendingUp className="w-5 h-5 text-white" />
+                      </div>
+                      <div>
+                        <div className="text-white font-semibold text-sm">+60%</div>
+                        <div className="text-white/50 text-xs">Produtividade</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
-      </header>
-      
+
+        {/* Scroll Indicator */}
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce">
+          <ChevronDown className="w-8 h-8 text-white/30" />
+        </div>
+      </section>
+
+      {/* Marquee Banner */}
+      <div className="relative py-4 bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 overflow-hidden">
+        <div className="flex animate-[marquee_30s_linear_infinite] whitespace-nowrap">
+          {[...Array(10)].map((_, i) => (
+            <div key={i} className="flex items-center gap-8 mx-8">
+              <span className="text-white font-semibold">✦ CONSULTORIA IDEA</span>
+              <span className="text-white/80">Implementação de IA para Advogados</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* Benefits Section */}
-      <section className="py-20 bg-muted/30">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold mb-4">Por que escolher a Consultoria IDEA?</h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto">
+      <section id="beneficios" className="py-24 relative">
+        <div className="absolute inset-0 bg-gradient-to-b from-[hsl(222,47%,5%)] via-[hsl(222,47%,7%)] to-[hsl(222,47%,5%)]" />
+        
+        <div className="container mx-auto px-4 relative z-10">
+          <div className="text-center mb-16">
+            <Badge className="mb-4 bg-white/5 border-white/10 text-white/80">
+              <Award className="w-3 h-3 mr-1" />
+              Diferenciais
+            </Badge>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4 text-white">
+              Por que escolher a <span className="text-blue-400">Consultoria IDEA</span>?
+            </h2>
+            <p className="text-white/60 max-w-2xl mx-auto text-lg">
               Uma metodologia única que combina implementação prática com transferência de conhecimento
             </p>
           </div>
           
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {benefits.map((benefit, index) => (
-              <Card key={index} className="border-2 hover:border-primary/50 transition-colors">
+              <Card key={index} className="bg-white/[0.02] border-white/5 hover:border-blue-500/30 transition-all duration-300 group hover:bg-white/[0.04]">
                 <CardContent className="pt-6">
-                  <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4">
-                    <benefit.icon className="w-6 h-6 text-primary" />
+                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center mb-5 group-hover:from-blue-500/30 group-hover:to-purple-500/30 transition-all">
+                    <benefit.icon className="w-7 h-7 text-blue-400" />
                   </div>
-                  <h3 className="font-semibold text-lg mb-2">{benefit.title}</h3>
-                  <p className="text-muted-foreground">{benefit.description}</p>
+                  <h3 className="font-semibold text-lg mb-3 text-white">{benefit.title}</h3>
+                  <p className="text-white/60 leading-relaxed">{benefit.description}</p>
                 </CardContent>
               </Card>
             ))}
@@ -368,27 +494,45 @@ export function PublicConsultingPage() {
       </section>
       
       {/* How it Works Section */}
-      <section id="como-funciona" className="py-20">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold mb-4">Como Funciona a Consultoria</h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto">
+      <section id="como-funciona" className="py-24 relative overflow-hidden">
+        <div className="absolute inset-0">
+          <div className="absolute top-0 left-1/4 w-96 h-96 bg-purple-600/10 rounded-full blur-[150px]" />
+          <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-blue-600/10 rounded-full blur-[150px]" />
+        </div>
+        
+        <div className="container mx-auto px-4 relative z-10">
+          <div className="text-center mb-16">
+            <Badge className="mb-4 bg-white/5 border-white/10 text-white/80">
+              <Rocket className="w-3 h-3 mr-1" />
+              Metodologia
+            </Badge>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4 text-white">
+              Como Funciona a <span className="text-blue-400">Consultoria</span>
+            </h2>
+            <p className="text-white/60 max-w-2xl mx-auto text-lg">
               Um processo estruturado em 6 etapas para garantir sua transformação digital
             </p>
           </div>
           
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {steps.map((step, index) => (
-              <div key={index} className="relative">
-                <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
-                    <span className="text-primary-foreground font-bold">{step.number}</span>
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-lg mb-1">{step.title}</h3>
-                    <p className="text-muted-foreground">{step.description}</p>
+              <div key={index} className="relative group">
+                <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-6 hover:border-blue-500/30 transition-all duration-300 hover:bg-white/[0.04]">
+                  <div className="flex items-start gap-4">
+                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center flex-shrink-0 shadow-lg shadow-blue-500/20">
+                      <span className="text-white font-bold text-lg">{step.number}</span>
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-xl mb-2 text-white">{step.title}</h3>
+                      <p className="text-white/60 leading-relaxed">{step.description}</p>
+                    </div>
                   </div>
                 </div>
+                
+                {/* Connector Line */}
+                {index < steps.length - 1 && (
+                  <div className="hidden lg:block absolute top-1/2 -right-4 w-8 h-0.5 bg-gradient-to-r from-blue-500/50 to-transparent" />
+                )}
               </div>
             ))}
           </div>
@@ -396,16 +540,19 @@ export function PublicConsultingPage() {
       </section>
       
       {/* All 50 Features Section */}
-      <section id="funcionalidades" className="py-20 bg-primary/5">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-12">
-            <Badge className="mb-4" variant="secondary">
+      <section id="funcionalidades" className="py-24 relative">
+        <div className="absolute inset-0 bg-gradient-to-b from-[hsl(222,47%,5%)] via-[hsl(222,47%,8%)] to-[hsl(222,47%,5%)]" />
+        
+        <div className="container mx-auto px-4 relative z-10">
+          <div className="text-center mb-16">
+            <Badge className="mb-4 bg-gradient-to-r from-blue-500/20 to-purple-500/20 border-blue-500/30 text-blue-400">
+              <Sparkles className="w-3 h-3 mr-1" />
               50 Funcionalidades Disponíveis
             </Badge>
-            <h2 className="text-3xl font-bold mb-4">
-              Tudo que você pode implementar no seu escritório
+            <h2 className="text-3xl md:text-4xl font-bold mb-4 text-white">
+              Tudo que você pode <span className="text-blue-400">implementar</span>
             </h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto">
+            <p className="text-white/60 max-w-2xl mx-auto text-lg">
               Escolha as funcionalidades que fazem sentido para sua realidade. 
               Cada uma é implementada de forma personalizada para seu escritório.
             </p>
@@ -418,33 +565,31 @@ export function PublicConsultingPage() {
                 <AccordionItem 
                   key={category.id} 
                   value={category.id}
-                  className="bg-background rounded-lg border px-4"
+                  className="bg-white/[0.02] rounded-2xl border border-white/5 px-6 data-[state=open]:border-blue-500/30 transition-all"
                 >
-                  <AccordionTrigger className="hover:no-underline py-4">
-                    <div className="flex items-center gap-3">
-                      <span className="text-2xl">{category.icon}</span>
+                  <AccordionTrigger className="hover:no-underline py-5">
+                    <div className="flex items-center gap-4">
+                      <span className="text-3xl">{category.icon}</span>
                       <div className="text-left">
-                        <h3 className="font-semibold text-lg">{category.name}</h3>
-                        <p className="text-sm text-muted-foreground">{categoryFeatures.length} funcionalidades</p>
+                        <h3 className="font-semibold text-lg text-white">{category.name}</h3>
+                        <p className="text-sm text-white/50">{categoryFeatures.length} funcionalidades</p>
                       </div>
                     </div>
                   </AccordionTrigger>
                   <AccordionContent>
-                    <div className="grid md:grid-cols-2 gap-4 pb-4">
+                    <div className="grid md:grid-cols-2 gap-4 pb-6">
                       {categoryFeatures.map((feature) => (
-                        <Card key={feature.id} className="border-l-4 border-l-primary/50">
-                          <CardContent className="pt-4">
-                            <div className="flex items-start gap-3">
-                              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 text-sm font-bold text-primary">
-                                {feature.id}
-                              </div>
-                              <div>
-                                <h4 className="font-semibold text-sm mb-1">{feature.name}</h4>
-                                <p className="text-xs text-muted-foreground">{feature.description}</p>
-                              </div>
+                        <div key={feature.id} className="bg-white/[0.02] border border-white/5 rounded-xl p-4 hover:border-blue-500/20 transition-all">
+                          <div className="flex items-start gap-3">
+                            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center flex-shrink-0 text-sm font-bold text-blue-400">
+                              {feature.id}
                             </div>
-                          </CardContent>
-                        </Card>
+                            <div>
+                              <h4 className="font-semibold text-sm mb-1 text-white">{feature.name}</h4>
+                              <p className="text-xs text-white/50">{feature.description}</p>
+                            </div>
+                          </div>
+                        </div>
                       ))}
                     </div>
                   </AccordionContent>
@@ -453,10 +598,10 @@ export function PublicConsultingPage() {
             })}
           </Accordion>
           
-          <div className="text-center mt-8">
-            <Button size="lg" className="gap-2" asChild>
+          <div className="text-center mt-12">
+            <Button size="lg" className="gap-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 border-0 text-lg px-8 py-6" asChild>
               <a href="https://mentoriarafaelegg.com.br/consultoria-idea/" target="_blank" rel="noopener noreferrer">
-                <ArrowRight className="w-4 h-4" />
+                <ArrowRight className="w-5 h-5" />
                 Contratar Consultoria
               </a>
             </Button>
@@ -465,87 +610,99 @@ export function PublicConsultingPage() {
       </section>
 
       {/* Lovable Plans Section */}
-      <section id="planos-lovable" className="py-20">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-12">
-            <Badge className="mb-4" variant="secondary">
+      <section id="planos-lovable" className="py-24 relative">
+        <div className="absolute inset-0">
+          <div className="absolute top-1/2 left-0 w-96 h-96 bg-blue-600/10 rounded-full blur-[150px]" />
+        </div>
+        
+        <div className="container mx-auto px-4 relative z-10">
+          <div className="text-center mb-16">
+            <Badge className="mb-4 bg-white/5 border-white/10 text-white/80">
               <CreditCard className="w-3 h-3 mr-1" />
               Plataforma de Desenvolvimento
             </Badge>
-            <h2 className="text-3xl font-bold mb-4">Como Funciona o Lovable</h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto">
+            <h2 className="text-3xl md:text-4xl font-bold mb-4 text-white">
+              Como Funciona o <span className="text-blue-400">Lovable</span>
+            </h2>
+            <p className="text-white/60 max-w-2xl mx-auto text-lg">
               O Lovable é a plataforma de IA que utilizamos para criar sistemas personalizados. 
               Entenda como funcionam os planos e créditos.
             </p>
           </div>
 
           {/* Explanation Card */}
-          <Card className="mb-8 border-2 border-primary/20 bg-primary/5">
-            <CardContent className="pt-6">
-              <div className="grid md:grid-cols-2 gap-6">
-                <div>
-                  <h3 className="font-semibold text-lg mb-3 flex items-center gap-2">
-                    <Zap className="w-5 h-5 text-primary" />
-                    O que são Créditos?
-                  </h3>
-                  <p className="text-muted-foreground text-sm mb-4">
-                    Cada interação com a IA do Lovable consome créditos. Perguntas simples consomem 1 crédito, 
-                    enquanto tarefas complexas podem consumir mais. Os créditos são sua "moeda" para construir 
-                    e modificar seu sistema.
-                  </p>
-                  <ul className="space-y-2 text-sm text-muted-foreground">
-                    <li className="flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-green-500" />
-                      Créditos diários renovam a cada 24h
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-green-500" />
-                      Créditos mensais acumulam se não usados (planos pagos)
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-green-500" />
-                      Você pode comprar créditos adicionais se necessário
-                    </li>
-                  </ul>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-lg mb-3 flex items-center gap-2">
-                    <Lightbulb className="w-5 h-5 text-primary" />
-                    Recomendação para Advogados
-                  </h3>
-                  <p className="text-muted-foreground text-sm mb-4">
-                    Para a maioria dos advogados e pequenos escritórios, o <strong>plano Pro ($25/mês)</strong> é 
-                    suficiente para manter e evoluir seu sistema após a consultoria. Você terá 100 créditos 
-                    mensais + 5 diários para fazer ajustes e adicionar funcionalidades.
-                  </p>
-                  <p className="text-muted-foreground text-sm">
-                    Durante a consultoria, orientamos como usar os créditos de forma eficiente e como 
-                    estruturar seus prompts para obter os melhores resultados.
-                  </p>
-                </div>
+          <div className="bg-gradient-to-br from-blue-500/10 to-purple-500/10 border border-blue-500/20 rounded-3xl p-8 mb-12">
+            <div className="grid md:grid-cols-2 gap-8">
+              <div>
+                <h3 className="font-semibold text-xl mb-4 flex items-center gap-3 text-white">
+                  <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center">
+                    <Zap className="w-5 h-5 text-blue-400" />
+                  </div>
+                  O que são Créditos?
+                </h3>
+                <p className="text-white/60 mb-4 leading-relaxed">
+                  Cada interação com a IA do Lovable consome créditos. Perguntas simples consomem 1 crédito, 
+                  enquanto tarefas complexas podem consumir mais. Os créditos são sua "moeda" para construir 
+                  e modificar seu sistema.
+                </p>
+                <ul className="space-y-3">
+                  <li className="flex items-center gap-3 text-white/70">
+                    <CheckCircle2 className="w-5 h-5 text-green-400 flex-shrink-0" />
+                    Créditos diários renovam a cada 24h
+                  </li>
+                  <li className="flex items-center gap-3 text-white/70">
+                    <CheckCircle2 className="w-5 h-5 text-green-400 flex-shrink-0" />
+                    Créditos mensais acumulam se não usados
+                  </li>
+                  <li className="flex items-center gap-3 text-white/70">
+                    <CheckCircle2 className="w-5 h-5 text-green-400 flex-shrink-0" />
+                    Você pode comprar créditos adicionais
+                  </li>
+                </ul>
               </div>
-            </CardContent>
-          </Card>
+              <div>
+                <h3 className="font-semibold text-xl mb-4 flex items-center gap-3 text-white">
+                  <div className="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center">
+                    <Lightbulb className="w-5 h-5 text-purple-400" />
+                  </div>
+                  Recomendação para Advogados
+                </h3>
+                <p className="text-white/60 mb-4 leading-relaxed">
+                  Para a maioria dos advogados e pequenos escritórios, o <strong className="text-blue-400">plano Pro ($25/mês)</strong> é 
+                  suficiente para manter e evoluir seu sistema após a consultoria. Você terá 100 créditos 
+                  mensais + 5 diários para fazer ajustes e adicionar funcionalidades.
+                </p>
+                <p className="text-white/60 leading-relaxed">
+                  Durante a consultoria, orientamos como usar os créditos de forma eficiente e como 
+                  estruturar seus prompts para obter os melhores resultados.
+                </p>
+              </div>
+            </div>
+          </div>
           
           <div className="grid md:grid-cols-3 gap-6">
             {lovablePlans.map((plan, index) => (
-              <Card key={index} className={`relative ${plan.recommended ? 'border-2 border-primary shadow-lg' : ''}`}>
+              <Card key={index} className={`relative bg-white/[0.02] border transition-all duration-300 ${plan.recommended ? 'border-blue-500/50 shadow-xl shadow-blue-500/10' : 'border-white/5 hover:border-white/10'}`}>
                 {plan.recommended && (
-                  <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                    <Badge className="bg-primary text-primary-foreground">Recomendado</Badge>
+                  <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
+                    <Badge className="bg-gradient-to-r from-blue-500 to-purple-600 border-0 text-white px-4 py-1">
+                      Recomendado
+                    </Badge>
                   </div>
                 )}
-                <CardHeader className="text-center pb-2">
-                  <CardTitle className="text-xl">{plan.name}</CardTitle>
-                  <div className="text-3xl font-bold text-primary">{plan.price}</div>
-                  <p className="text-sm text-muted-foreground">{plan.credits}</p>
+                <CardHeader className="text-center pb-2 pt-8">
+                  <CardTitle className="text-xl text-white">{plan.name}</CardTitle>
+                  <div className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                    {plan.price}
+                  </div>
+                  <p className="text-sm text-white/50">{plan.credits}</p>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-sm text-muted-foreground text-center mb-4">{plan.description}</p>
-                  <ul className="space-y-2">
+                  <p className="text-sm text-white/60 text-center mb-6">{plan.description}</p>
+                  <ul className="space-y-3">
                     {plan.features.map((feature, i) => (
-                      <li key={i} className="flex items-start gap-2 text-sm">
-                        <CheckCircle2 className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+                      <li key={i} className="flex items-start gap-3 text-sm text-white/70">
+                        <CheckCircle2 className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
                         <span>{feature}</span>
                       </li>
                     ))}
@@ -555,18 +712,18 @@ export function PublicConsultingPage() {
             ))}
           </div>
 
-          <div className="text-center mt-8">
-            <p className="text-sm text-muted-foreground mb-4">
+          <div className="text-center mt-12">
+            <p className="text-white/50 mb-6">
               Para mais informações sobre preços e planos, acesse o site oficial do Lovable
             </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-              <Button asChild>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              <Button className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 border-0" asChild>
                 <a href="https://lovable.dev/invite/IX8ILR2" target="_blank" rel="noopener noreferrer">
                   Criar Conta no Lovable
                   <ArrowRight className="w-4 h-4 ml-2" />
                 </a>
               </Button>
-              <Button variant="outline" asChild>
+              <Button variant="outline" className="border-white/20 text-white hover:bg-white/10" asChild>
                 <a href="https://lovable.dev/pricing" target="_blank" rel="noopener noreferrer">
                   Ver Preços Atualizados
                   <ArrowRight className="w-4 h-4 ml-2" />
@@ -578,16 +735,20 @@ export function PublicConsultingPage() {
       </section>
       
       {/* FAQ Section */}
-      <section id="faq" className="py-20 bg-muted/30">
-        <div className="container mx-auto px-4">
+      <section id="faq" className="py-24 relative">
+        <div className="absolute inset-0 bg-gradient-to-b from-[hsl(222,47%,5%)] via-[hsl(222,47%,7%)] to-[hsl(222,47%,5%)]" />
+        
+        <div className="container mx-auto px-4 relative z-10">
           <div className="max-w-3xl mx-auto">
-            <div className="text-center mb-12">
-              <Badge className="mb-4" variant="secondary">
+            <div className="text-center mb-16">
+              <Badge className="mb-4 bg-white/5 border-white/10 text-white/80">
                 <HelpCircle className="w-3 h-3 mr-1" />
                 Perguntas Frequentes
               </Badge>
-              <h2 className="text-3xl font-bold mb-4">Tire suas Dúvidas sobre a Consultoria</h2>
-              <p className="text-muted-foreground">
+              <h2 className="text-3xl md:text-4xl font-bold mb-4 text-white">
+                Tire suas <span className="text-blue-400">Dúvidas</span>
+              </h2>
+              <p className="text-white/60 text-lg">
                 Respostas para as perguntas mais comuns sobre a Consultoria IDEA
               </p>
             </div>
@@ -597,12 +758,12 @@ export function PublicConsultingPage() {
                 <AccordionItem 
                   key={index} 
                   value={`item-${index}`}
-                  className="bg-background border rounded-xl px-6"
+                  className="bg-white/[0.02] border border-white/5 rounded-2xl px-6 data-[state=open]:border-blue-500/30 transition-all"
                 >
-                  <AccordionTrigger className="hover:no-underline py-4 text-left">
+                  <AccordionTrigger className="hover:no-underline py-5 text-left text-white">
                     {item.question}
                   </AccordionTrigger>
-                  <AccordionContent className="text-muted-foreground pb-4">
+                  <AccordionContent className="text-white/60 pb-5 leading-relaxed">
                     {item.answer}
                   </AccordionContent>
                 </AccordionItem>
@@ -613,53 +774,56 @@ export function PublicConsultingPage() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 bg-primary text-primary-foreground">
-        <div className="container mx-auto px-4 text-center">
-          <h2 className="text-3xl font-bold mb-4">
+      <section className="py-24 relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600" />
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[size:40px_40px]" />
+        
+        <div className="container mx-auto px-4 relative z-10 text-center">
+          <h2 className="text-3xl md:text-5xl font-bold mb-6 text-white">
             Pronto para transformar seu escritório?
           </h2>
-          <p className="text-primary-foreground/80 max-w-2xl mx-auto mb-8">
+          <p className="text-white/80 max-w-2xl mx-auto mb-10 text-lg">
             Agende uma conversa e descubra como a IA pode revolucionar sua advocacia. 
             Vagas limitadas para garantir atendimento personalizado.
           </p>
           
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button size="lg" variant="secondary" className="gap-2" asChild>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
+            <Button size="lg" variant="secondary" className="gap-2 bg-white text-blue-600 hover:bg-white/90 text-lg px-8 py-6" asChild>
+              <a href="https://mentoriarafaelegg.com.br/consultoria-idea/" target="_blank" rel="noopener noreferrer">
+                Contratar Consultoria
+                <ArrowRight className="w-5 h-5" />
+              </a>
+            </Button>
+            <Button size="lg" variant="outline" className="gap-2 border-white/30 text-white hover:bg-white/10 text-lg px-8 py-6" asChild>
               <Link to="/consultoria/login">
-                <LogIn className="w-4 h-4" />
+                <LogIn className="w-5 h-5" />
                 Área do Cliente
               </Link>
             </Button>
-            <Button size="lg" variant="outline" className="gap-2 bg-transparent border-primary-foreground/30 hover:bg-primary-foreground/10" asChild>
-              <a href="https://mentoriarafaelegg.com.br/consultoria-idea/" target="_blank" rel="noopener noreferrer">
-                Contratar Consultoria
-                <ArrowRight className="w-4 h-4" />
-              </a>
-            </Button>
           </div>
           
-          <div className="flex flex-wrap justify-center gap-8 mt-8 text-primary-foreground/80">
+          <div className="flex flex-wrap justify-center gap-8 text-white/80">
             <div className="flex items-center gap-2">
               <Clock className="w-5 h-5" />
-              <span className="text-sm">Resposta em até 24h</span>
+              <span>Resposta em até 24h</span>
             </div>
             <div className="flex items-center gap-2">
               <Lightbulb className="w-5 h-5" />
-              <span className="text-sm">Consultoria Personalizada</span>
+              <span>Consultoria Personalizada</span>
             </div>
             <div className="flex items-center gap-2">
               <Users className="w-5 h-5" />
-              <span className="text-sm">+50 Escritórios Atendidos</span>
+              <span>+50 Escritórios Atendidos</span>
             </div>
           </div>
         </div>
       </section>
       
       {/* Footer */}
-      <footer className="py-12 border-t bg-slate-900">
+      <footer className="py-12 border-t border-white/5 bg-[hsl(222,47%,4%)]">
         <div className="container mx-auto px-4">
           <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-            <Link to="/" className="flex items-center gap-2">
+            <Link to="/" className="flex items-center gap-3">
               <img src={logoRE} alt="Rafael Egg" className="h-12 w-12 object-contain" />
               <span className="text-xl font-bold text-white">Rafael Egg</span>
             </Link>
@@ -668,7 +832,7 @@ export function PublicConsultingPage() {
                 href="https://www.instagram.com/rafaeleggnunes/" 
                 target="_blank" 
                 rel="noopener noreferrer" 
-                className="p-2 rounded-full bg-slate-800 text-slate-300 hover:text-pink-400 hover:bg-slate-700 transition-all duration-300"
+                className="p-3 rounded-full bg-white/5 text-white/60 hover:text-pink-400 hover:bg-white/10 transition-all duration-300"
                 aria-label="Instagram"
               >
                 <Instagram className="h-5 w-5" />
@@ -677,7 +841,7 @@ export function PublicConsultingPage() {
                 href="https://www.tiktok.com/@rafaeleggnunes" 
                 target="_blank" 
                 rel="noopener noreferrer" 
-                className="p-2 rounded-full bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 transition-all duration-300"
+                className="p-3 rounded-full bg-white/5 text-white/60 hover:text-white hover:bg-white/10 transition-all duration-300"
                 aria-label="TikTok"
               >
                 <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
@@ -688,7 +852,7 @@ export function PublicConsultingPage() {
                 href="https://youtube.com/@rafaeleggnunes" 
                 target="_blank" 
                 rel="noopener noreferrer" 
-                className="p-2 rounded-full bg-slate-800 text-slate-300 hover:text-red-400 hover:bg-slate-700 transition-all duration-300"
+                className="p-3 rounded-full bg-white/5 text-white/60 hover:text-red-400 hover:bg-white/10 transition-all duration-300"
                 aria-label="YouTube"
               >
                 <Youtube className="h-5 w-5" />
@@ -696,10 +860,10 @@ export function PublicConsultingPage() {
             </div>
           </div>
           <div className="mt-8 flex flex-col md:flex-row items-center justify-between gap-4 text-sm">
-            <p className="text-slate-400">© {new Date().getFullYear()} Rafael Egg. Todos os direitos reservados.</p>
+            <p className="text-white/40">© {new Date().getFullYear()} Rafael Egg. Todos os direitos reservados.</p>
             <Link 
               to="/metodo-idea" 
-              className="text-slate-600 hover:text-slate-400 text-xs transition-colors duration-300 flex items-center gap-1"
+              className="text-white/20 hover:text-white/40 text-xs transition-colors duration-300 flex items-center gap-1"
             >
               <Shield className="h-3 w-3" />
               Admin
@@ -707,6 +871,14 @@ export function PublicConsultingPage() {
           </div>
         </div>
       </footer>
+
+      {/* Custom CSS for marquee animation */}
+      <style>{`
+        @keyframes marquee {
+          0% { transform: translateX(0); }
+          100% { transform: translateX(-50%); }
+        }
+      `}</style>
     </div>
   );
 }
