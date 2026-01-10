@@ -156,7 +156,7 @@ Qualquer dúvida, estou à disposição! 🚀`;
         `;
 
         await resend.emails.send({
-          from: "Rafael Nunes <naoresponda@rafaelegg.com>",
+          from: "Rafael Egg <naoresponda@rafaelegg.com>",
           to: [clientEmail],
           subject: "📋 Cadastro Recebido - Consultoria IDEA",
           html: emailHtml,

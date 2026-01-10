@@ -9,7 +9,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const FROM_EMAIL = "Rafael Nunes <naoresponda@rafaelegg.com>";
+const FROM_EMAIL = "Rafael Egg <naoresponda@rafaelegg.com>";
 
 // PDF URL from storage - Prompts para Fotos Profissionais
 const PDF_URL = "https://ngzodolcmriqlcccpicz.supabase.co/storage/v1/object/public/ebooks/Prompts%20para%20Fotos%20Profissionais.pdf";
@@ -257,7 +257,7 @@ const handler = async (req: Request): Promise<Response> => {
           
           <div class="footer">
             <p>Dúvidas? Entre em contato conosco pelo WhatsApp.</p>
-            <p><strong>Rafael Nunes - Especialista em IA</strong></p>
+            <p><strong>Rafael Egg - Especialista em IA</strong></p>
           </div>
         </div>
       </body>
