@@ -105,6 +105,13 @@ export function ClientProgressFeedback({ clientId, userId }: Props) {
 
     setSubmitting(true);
     try {
+      // First, get the client name
+      const { data: clientData } = await supabase
+        .from("consulting_clients")
+        .select("full_name")
+        .eq("id", clientId)
+        .single();
+
       const { error } = await supabase
         .from("client_progress_feedback")
         .insert({
@@ -119,6 +126,24 @@ export function ClientProgressFeedback({ clientId, userId }: Props) {
         });
 
       if (error) throw error;
+
+      // Send WhatsApp notification to admin
+      try {
+        await supabase.functions.invoke("notify-progress-feedback", {
+          body: {
+            clientId,
+            clientName: clientData?.full_name || "Cliente",
+            implementationStatus: form.implementation_status,
+            achievements: form.achievements,
+            mainChallenges: form.main_challenges,
+            needsHelp: form.needs_help,
+            helpDetails: form.help_details,
+          },
+        });
+      } catch (notifyError) {
+        console.error("Error sending notification:", notifyError);
+        // Don't fail the whole submission if notification fails
+      }
 
       toast.success("Feedback enviado com sucesso! Obrigado pela atualização.");
       
