@@ -370,7 +370,7 @@ export function ClientDiagnosticForm() {
         .eq("user_id", consultantId)
         .maybeSingle();
 
-      // Send email notifications
+      // Send email/WhatsApp notifications
       try {
         const aiExperienceText = formData.has_used_ai 
           ? `${formData.ai_familiarity_level || "Iniciante"} - Já usou IA`
@@ -396,7 +396,27 @@ export function ClientDiagnosticForm() {
         console.log("Notification emails sent successfully");
       } catch (emailError) {
         console.error("Error sending notification emails:", emailError);
-        // Don't fail the submission if email fails
+      }
+
+      // Auto-generate implementation plan and Lovable prompt (in background)
+      try {
+        console.log("Starting auto-generation of plan and prompt...");
+        supabase.functions.invoke("auto-generate-client-plan", {
+          body: {
+            clientEmail: formData.email,
+            consultantId: consultantId,
+          },
+        }).then(response => {
+          if (response.error) {
+            console.error("Error auto-generating plan:", response.error);
+          } else {
+            console.log("Auto-generation completed:", response.data);
+          }
+        }).catch(err => {
+          console.error("Error invoking auto-generate:", err);
+        });
+      } catch (genError) {
+        console.error("Error starting auto-generation:", genError);
       }
 
       setIsCompleted(true);
