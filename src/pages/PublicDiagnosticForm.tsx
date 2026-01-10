@@ -280,7 +280,7 @@ export function PublicDiagnosticForm() {
   };
   
   if (isCompleted) {
-    return <DiagnosticSuccess clientName={formData.full_name} />;
+    return <DiagnosticSuccess clientName={formData.full_name} consultantId={consultantId} />;
   }
   
   return (

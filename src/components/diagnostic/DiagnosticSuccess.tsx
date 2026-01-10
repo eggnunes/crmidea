@@ -1,16 +1,28 @@
-import { CheckCircle, ArrowRight, MessageCircle, Calendar } from "lucide-react";
+import { CheckCircle, ArrowRight, MessageCircle, Calendar, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { useNavigate } from "react-router-dom";
 
 interface DiagnosticSuccessProps {
   clientName: string;
   bookingUrl?: string;
+  consultantId?: string;
 }
 
 const DEFAULT_BOOKING_URL = "https://calendar.app.google/QekSkCGbKjaRb3Qp8";
 
-export function DiagnosticSuccess({ clientName, bookingUrl }: DiagnosticSuccessProps) {
+export function DiagnosticSuccess({ clientName, bookingUrl, consultantId }: DiagnosticSuccessProps) {
+  const navigate = useNavigate();
   const finalBookingUrl = bookingUrl || DEFAULT_BOOKING_URL;
+  
+  const handleAccessDashboard = () => {
+    // Navigate to client auth page
+    if (consultantId) {
+      navigate(`/consultoria/${consultantId}`);
+    } else {
+      navigate("/consultoria");
+    }
+  };
   
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-green-500/5 flex items-center justify-center p-4">
@@ -50,6 +62,26 @@ export function DiagnosticSuccess({ clientName, bookingUrl }: DiagnosticSuccessP
               >
                 <Calendar className="w-4 h-4" />
                 Agendar Reunião de Kickoff
+              </Button>
+            </div>
+            
+            {/* Access Dashboard Card */}
+            <div className="bg-blue-500/5 border border-blue-500/20 rounded-lg p-4 text-center space-y-3">
+              <h3 className="font-semibold text-foreground flex items-center justify-center gap-2">
+                <User className="w-5 h-5 text-blue-500" />
+                Acompanhe sua Consultoria
+              </h3>
+              <p className="text-sm">
+                Crie sua conta para acessar o dashboard e acompanhar o progresso da sua consultoria:
+              </p>
+              <Button 
+                size="lg"
+                variant="outline"
+                className="gap-2 w-full border-blue-500/30 hover:bg-blue-500/10"
+                onClick={handleAccessDashboard}
+              >
+                <User className="w-4 h-4" />
+                Acessar Meu Dashboard
               </Button>
             </div>
             
