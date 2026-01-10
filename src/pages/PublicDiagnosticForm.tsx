@@ -62,6 +62,12 @@ export interface DiagnosticFormData {
   case_management_flow: string;
   client_service_flow: string;
   
+  // Step 3 - Flowchart attachments (UI state)
+  _caseManagementFlowchartUrl?: string | null;
+  _caseManagementFlowchartName?: string | null;
+  _clientServiceFlowchartUrl?: string | null;
+  _clientServiceFlowchartName?: string | null;
+  
   // Step 4 - Features Selection
   selected_features: number[];
   custom_features: string;
