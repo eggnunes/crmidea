@@ -13,10 +13,19 @@ import { supabase } from "@/integrations/supabase/client";
 // Default consultant ID (Rafael Egg)
 const DEFAULT_CONSULTANT_ID = "e850e3e3-1682-4cb0-af43-d7dade2aff9e";
 
+// Phone mask function: (XX) XXXXX-XXXX
+const formatPhone = (value: string): string => {
+  const numbers = value.replace(/\D/g, '');
+  if (numbers.length <= 2) return numbers.length ? `(${numbers}` : '';
+  if (numbers.length <= 7) return `(${numbers.slice(0, 2)}) ${numbers.slice(2)}`;
+  if (numbers.length <= 11) return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7)}`;
+  return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7, 11)}`;
+};
+
 const signUpSchema = z.object({
   fullName: z.string().min(3, "Nome deve ter pelo menos 3 caracteres"),
   email: z.string().email("E-mail inválido"),
-  phone: z.string().min(10, "Telefone deve ter pelo menos 10 dígitos").regex(/^[\d\s+\-()]+$/, "Telefone inválido"),
+  phone: z.string().min(15, "Telefone deve estar no formato (XX) XXXXX-XXXX"),
   password: z.string().min(6, "Senha deve ter pelo menos 6 caracteres"),
   confirmPassword: z.string(),
 }).refine((data) => data.password === data.confirmPassword, {
@@ -332,8 +341,9 @@ export function ClientAuthPage() {
                     id="signup-phone"
                     type="tel"
                     value={signUpData.phone}
-                    onChange={(e) => setSignUpData({ ...signUpData, phone: e.target.value })}
+                    onChange={(e) => setSignUpData({ ...signUpData, phone: formatPhone(e.target.value) })}
                     placeholder="(27) 99999-9999"
+                    maxLength={15}
                     disabled={loading}
                   />
                   {signUpErrors.phone && (
