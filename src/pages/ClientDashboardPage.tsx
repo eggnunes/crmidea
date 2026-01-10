@@ -41,6 +41,7 @@ import { ClientBadges } from "@/components/clients/ClientBadges";
 import { ClientProgressCharts } from "@/components/clients/ClientProgressCharts";
 import { ClientFormResponses } from "@/components/clients/ClientFormResponses";
 import { ClientDocumentsManagerReadOnly } from "@/components/consulting/ClientDocumentsManagerReadOnly";
+import { ClientCommunicationHistory } from "@/components/consulting/ClientCommunicationHistory";
 
 
 interface ClientProfile {
@@ -523,6 +524,10 @@ export function ClientDashboardPage() {
               <FolderOpen className="w-4 h-4" />
               Documentos
             </TabsTrigger>
+            <TabsTrigger value="communications" className="gap-2">
+              <MessageSquare className="w-4 h-4" />
+              Comunicações
+            </TabsTrigger>
             <TabsTrigger value="responses" className="gap-2">
               <ClipboardList className="w-4 h-4" />
               Minhas Respostas
@@ -554,6 +559,14 @@ export function ClientDashboardPage() {
                 </CardContent>
               </Card>
             )}
+          </TabsContent>
+
+          {/* Communications Tab */}
+          <TabsContent value="communications">
+            <ClientCommunicationHistory 
+              clientEmail={profile.email}
+              clientPhone={profile.phone || undefined}
+            />
           </TabsContent>
 
           {/* Form Responses Tab */}

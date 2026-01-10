@@ -28,7 +28,7 @@ import {
   Scale,
   FileDown,
   FolderOpen,
-  Rocket
+  MessageSquare
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -36,8 +36,8 @@ import { CONSULTING_FEATURES } from "@/data/consultingFeatures";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ConsultingSessionsManager } from "./ConsultingSessionsManager";
 import { ClientDocumentsManager } from "./ClientDocumentsManager";
-import { ImplementationPlanViewer } from "./ImplementationPlanViewer";
 import { exportClientToPDF, exportClientToDOCX } from "@/utils/exportClient";
+import { ClientCommunicationHistory } from "./ClientCommunicationHistory";
 
 interface ConsultingClient {
   id: string;
@@ -251,21 +251,24 @@ O prompt deve:
       </div>
 
       <Tabs defaultValue="info" className="space-y-4">
-        <TabsList>
+        <TabsList className="flex-wrap h-auto gap-1">
           <TabsTrigger value="info">Informações</TabsTrigger>
           <TabsTrigger value="features">Funcionalidades</TabsTrigger>
-          <TabsTrigger value="plan" className="flex items-center gap-2">
-            <Rocket className="w-4 h-4" />
-            Plano de Implementação
+          <TabsTrigger value="prompt" className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4" />
+            Prompt Lovable
           </TabsTrigger>
           <TabsTrigger value="documents" className="flex items-center gap-2">
             <FolderOpen className="w-4 h-4" />
             Documentos
           </TabsTrigger>
-          <TabsTrigger value="prompt">Prompt</TabsTrigger>
           <TabsTrigger value="sessions" className="flex items-center gap-2">
             <FileText className="w-4 h-4" />
             Atas de Reunião
+          </TabsTrigger>
+          <TabsTrigger value="communications" className="flex items-center gap-2">
+            <MessageSquare className="w-4 h-4" />
+            Comunicações
           </TabsTrigger>
         </TabsList>
 
@@ -500,20 +503,21 @@ O prompt deve:
           </Card>
         </TabsContent>
 
-        <TabsContent value="plan">
-          <ImplementationPlanViewer 
-            clientId={client.id} 
-            existingPlan={client.implementation_plan as any}
-            onPlanGenerated={(plan) => setClient({ ...client, implementation_plan: plan })}
-          />
-        </TabsContent>
-
         <TabsContent value="documents">
           <ClientDocumentsManager clientId={client.id} />
         </TabsContent>
 
         <TabsContent value="sessions">
           <ConsultingSessionsManager clientId={client.id} />
+        </TabsContent>
+
+        <TabsContent value="communications">
+          <ClientCommunicationHistory 
+            clientEmail={client.email}
+            clientPhone={client.phone}
+            clientId={client.id}
+            isAdminView={true}
+          />
         </TabsContent>
       </Tabs>
     </div>
