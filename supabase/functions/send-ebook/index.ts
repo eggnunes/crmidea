@@ -129,7 +129,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     let leadId = existingLead?.id;
 
-    // If lead doesn't exist, create a new one
+    // If lead doesn't exist, create a new one WITHOUT product (evento form)
     if (!leadId) {
       const { data: newLead, error: leadError } = await supabase
         .from("leads")
@@ -138,10 +138,10 @@ const handler = async (req: Request): Promise<Response> => {
           name: name,
           email: email,
           phone: phone,
-          product: "ebook_unitario",
+          product: null, // No product for event form submissions
           status: "novo",
           source: "evento",
-          notes: "Lead capturado via formulário - Prompts para Fotos Profissionais com IA (evento)",
+          notes: "Lead capturado via formulário do evento",
         })
         .select("id")
         .single();
@@ -150,7 +150,7 @@ const handler = async (req: Request): Promise<Response> => {
         console.error("Error creating lead:", leadError);
       } else {
         leadId = newLead?.id;
-        console.log("Created new lead:", leadId);
+        console.log("Created new lead without product:", leadId);
       }
     } else {
       console.log("Lead already exists:", leadId);
@@ -158,7 +158,7 @@ const handler = async (req: Request): Promise<Response> => {
       await supabase
         .from("leads")
         .update({
-          notes: "Lead existente - também baixou Prompts para Fotos Profissionais (evento)",
+          notes: "Lead existente - também preencheu formulário do evento",
         })
         .eq("id", leadId);
     }

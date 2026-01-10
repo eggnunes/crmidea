@@ -157,6 +157,22 @@ export function PendingClientApprovals() {
           description: "Seu acesso à área do cliente foi liberado!",
         });
 
+      // 4. Send notification to client (email + WhatsApp)
+      const dashboardUrl = `${window.location.origin}/consultoria/dashboard`;
+      try {
+        await supabase.functions.invoke("notify-client-approved", {
+          body: {
+            clientName: client.full_name,
+            clientEmail: client.email,
+            clientPhone: client.phone,
+            dashboardUrl: dashboardUrl,
+          },
+        });
+      } catch (notifyError) {
+        console.error('Error sending approval notification:', notifyError);
+        // Don't fail the whole operation if notification fails
+      }
+
       toast.success(`${client.full_name} aprovado com sucesso!`);
       fetchClients();
     } catch (error) {
