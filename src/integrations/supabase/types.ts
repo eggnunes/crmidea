@@ -823,6 +823,7 @@ export type Database = {
           event_date: string
           event_type: string
           id: string
+          is_visible_to_client: boolean
           metadata: Json | null
           title: string
         }
@@ -834,6 +835,7 @@ export type Database = {
           event_date?: string
           event_type: string
           id?: string
+          is_visible_to_client?: boolean
           metadata?: Json | null
           title: string
         }
@@ -845,6 +847,7 @@ export type Database = {
           event_date?: string
           event_type?: string
           id?: string
+          is_visible_to_client?: boolean
           metadata?: Json | null
           title?: string
         }
