@@ -179,11 +179,27 @@ export function DiagnosticStep1({ formData, updateFormData, consultantId }: Diag
   const [oabError, setOabError] = useState<string | null>(null);
   const [cep, setCep] = useState("");
   
-  // Estados para preview e aprovação de logo gerada
-  const [generatedLogoPreview, setGeneratedLogoPreview] = useState<string | null>(null);
-  const [showLogoApproval, setShowLogoApproval] = useState(false);
-  const [logoFeedback, setLogoFeedback] = useState("");
-  const [showFeedbackInput, setShowFeedbackInput] = useState(false);
+  // Use formData for logo generation state to persist across re-renders
+  const generatedLogoPreview = formData._generatedLogoPreview || null;
+  const showLogoApproval = formData._showLogoApproval || false;
+  const logoFeedback = formData._logoFeedback || "";
+  const showFeedbackInput = formData._showFeedbackInput || false;
+  
+  const setGeneratedLogoPreview = (value: string | null) => {
+    updateFormData({ _generatedLogoPreview: value });
+  };
+  
+  const setShowLogoApproval = (value: boolean) => {
+    updateFormData({ _showLogoApproval: value });
+  };
+  
+  const setLogoFeedback = (value: string) => {
+    updateFormData({ _logoFeedback: value });
+  };
+  
+  const setShowFeedbackInput = (value: boolean) => {
+    updateFormData({ _showFeedbackInput: value });
+  };
 
   const handleCepSearch = async (cepValue: string) => {
     const numbers = cepValue.replace(/\D/g, "");
@@ -307,10 +323,13 @@ export function DiagnosticStep1({ formData, updateFormData, consultantId }: Diag
   
   const handleApproveLogo = () => {
     if (generatedLogoPreview) {
-      updateFormData({ logo_url: generatedLogoPreview });
-      setShowLogoApproval(false);
-      setGeneratedLogoPreview(null);
-      setLogoFeedback("");
+      updateFormData({ 
+        logo_url: generatedLogoPreview,
+        _generatedLogoPreview: null,
+        _showLogoApproval: false,
+        _logoFeedback: "",
+        _showFeedbackInput: false
+      });
       toast.success("Logo inserida com sucesso!");
     }
   };
@@ -320,9 +339,11 @@ export function DiagnosticStep1({ formData, updateFormData, consultantId }: Diag
   };
   
   const handleRegenerateLogo = () => {
+    // Capture feedback value before clearing
+    const feedbackToSend = logoFeedback;
     setShowFeedbackInput(false);
-    handleGenerateLogo(logoFeedback || undefined);
     setLogoFeedback("");
+    handleGenerateLogo(feedbackToSend || undefined);
   };
   
   const handleGenerateNewOption = () => {
