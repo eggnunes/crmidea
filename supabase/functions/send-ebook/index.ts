@@ -20,23 +20,84 @@ interface EbookCaptureRequest {
   phone: string;
 }
 
+// Simple HTML entity encoding to prevent XSS
+function escapeHtml(text: string): string {
+  const htmlEntities: Record<string, string> = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#x27;',
+    '/': '&#x2F;',
+  };
+  return text.replace(/[&<>"'/]/g, (char) => htmlEntities[char] || char);
+}
+
+// Validation functions
+function isValidEmail(email: string): boolean {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email) && email.length <= 255;
+}
+
+function isValidName(name: string): boolean {
+  // Allow letters (including accented), spaces, hyphens, apostrophes
+  const nameRegex = /^[a-zA-ZÀ-ÿ\s'-]+$/;
+  return nameRegex.test(name) && name.length >= 2 && name.length <= 100;
+}
+
+function isValidPhone(phone: string): boolean {
+  // Allow digits, spaces, plus, hyphens, parentheses
+  const phoneRegex = /^[\d\s+\-()]+$/;
+  return phoneRegex.test(phone) && phone.length >= 8 && phone.length <= 30;
+}
+
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const data: EbookCaptureRequest = await req.json();
-    console.log("Received capture request:", JSON.stringify(data));
+    const rawData = await req.json();
+    console.log("Received capture request");
 
-    const { name, email, phone } = data;
+    // Extract and trim inputs
+    const name = typeof rawData.name === 'string' ? rawData.name.trim() : '';
+    const email = typeof rawData.email === 'string' ? rawData.email.trim().toLowerCase() : '';
+    const phone = typeof rawData.phone === 'string' ? rawData.phone.trim() : '';
 
+    // Validate required fields
     if (!name || !email || !phone) {
       return new Response(
         JSON.stringify({ error: "Nome, email e telefone são obrigatórios" }),
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
+
+    // Validate input formats
+    if (!isValidName(name)) {
+      return new Response(
+        JSON.stringify({ error: "Nome inválido. Use apenas letras e espaços (2-100 caracteres)" }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    if (!isValidEmail(email)) {
+      return new Response(
+        JSON.stringify({ error: "Email inválido" }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    if (!isValidPhone(phone)) {
+      return new Response(
+        JSON.stringify({ error: "Telefone inválido (mínimo 8 caracteres)" }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    // Sanitize for HTML usage
+    const safeName = escapeHtml(name);
+    const safeEmail = escapeHtml(email);
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -63,7 +124,7 @@ const handler = async (req: Request): Promise<Response> => {
     const { data: existingLead } = await supabase
       .from("leads")
       .select("id, email")
-      .eq("email", email.toLowerCase())
+      .eq("email", email)
       .maybeSingle();
 
     let leadId = existingLead?.id;
@@ -75,7 +136,7 @@ const handler = async (req: Request): Promise<Response> => {
         .insert({
           user_id: adminUserId,
           name: name,
-          email: email.toLowerCase(),
+          email: email,
           phone: phone,
           product: "ebook_unitario",
           status: "novo",
@@ -119,7 +180,7 @@ const handler = async (req: Request): Promise<Response> => {
       .from("ebook_captures")
       .insert({
         name: name,
-        email: email.toLowerCase(),
+        email: email,
         phone: phone,
         event_source: "evento",
         lead_id: leadId,
@@ -150,7 +211,7 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    // Send email with PDF
+    // Send email with PDF (using sanitized name)
     const emailHtml = `
       <!DOCTYPE html>
       <html>
@@ -171,7 +232,7 @@ const handler = async (req: Request): Promise<Response> => {
           <p>Fotos Profissionais com Inteligência Artificial</p>
         </div>
         <div class="content">
-          <p>Olá <strong>${name.split(" ")[0]}</strong>,</p>
+          <p>Olá <strong>${escapeHtml(name.split(" ")[0])}</strong>,</p>
           
           <p>Muito obrigado pelo interesse! Aqui está o seu material com prompts para criar fotos profissionais usando IA. 🎉</p>
           
@@ -216,7 +277,7 @@ const handler = async (req: Request): Promise<Response> => {
     await supabase
       .from("ebook_captures")
       .update({ email_sent: true })
-      .eq("email", email.toLowerCase())
+      .eq("email", email)
       .order("created_at", { ascending: false })
       .limit(1);
 
@@ -234,9 +295,8 @@ const handler = async (req: Request): Promise<Response> => {
     );
   } catch (error) {
     console.error("Error in send-ebook:", error);
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return new Response(
-      JSON.stringify({ error: errorMessage }),
+      JSON.stringify({ error: "Erro ao processar solicitação" }),
       {
         status: 500,
         headers: { "Content-Type": "application/json", ...corsHeaders },
