@@ -74,11 +74,13 @@ interface ClientFormResponsesProps {
 const MOTIVATIONS_MAP: Record<string, string> = {
   "efficiency": "Aumentar a eficiência do escritório",
   "cost_reduction": "Reduzir custos operacionais",
+  "costs": "Reduzir custos operacionais",
   "quality": "Melhorar a qualidade do trabalho",
   "competitive": "Manter competitividade no mercado",
   "innovation": "Inovar e modernizar o escritório",
   "client_experience": "Melhorar a experiência do cliente",
   "team_productivity": "Aumentar a produtividade da equipe",
+  "time": "Economizar tempo",
 };
 
 const EXPECTED_RESULTS_MAP: Record<string, string> = {
@@ -89,6 +91,9 @@ const EXPECTED_RESULTS_MAP: Record<string, string> = {
   "revenue_growth": "Aumento de receita",
   "process_organization": "Melhor organização dos processos",
   "team_alignment": "Maior alinhamento da equipe",
+  "less_manual_work": "Menos trabalho manual",
+  "faster_petitions": "Petições mais rápidas",
+  "organized_processes": "Processos mais organizados",
 };
 
 export function ClientFormResponses({ clientEmail }: ClientFormResponsesProps) {
