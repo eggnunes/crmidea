@@ -352,6 +352,42 @@ export function ClientDiagnosticForm() {
 
       if (error) throw error;
 
+      // Get the created consulting_client id to award badge
+      const { data: createdClient } = await supabase
+        .from("consulting_clients")
+        .select("id")
+        .eq("email", formData.email)
+        .maybeSingle();
+
+      // Award "Primeiro Passo" badge (diagnostic_complete)
+      if (createdClient) {
+        const { data: firstStepBadge } = await supabase
+          .from("client_badges")
+          .select("id")
+          .eq("requirement_type", "diagnostic_complete")
+          .maybeSingle();
+
+        if (firstStepBadge) {
+          // Check if badge already earned
+          const { data: existingBadge } = await supabase
+            .from("client_earned_badges")
+            .select("id")
+            .eq("client_id", createdClient.id)
+            .eq("badge_id", firstStepBadge.id)
+            .maybeSingle();
+
+          if (!existingBadge) {
+            await supabase
+              .from("client_earned_badges")
+              .insert({
+                client_id: createdClient.id,
+                badge_id: firstStepBadge.id,
+              });
+            console.log("Badge 'Primeiro Passo' awarded to client");
+          }
+        }
+      }
+
       // Add timeline event
       await supabase
         .from("client_timeline_events")

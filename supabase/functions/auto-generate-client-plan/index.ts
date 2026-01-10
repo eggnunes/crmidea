@@ -10,6 +10,33 @@ const corsHeaders = {
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
+// Mapeamento de motivações para português
+const MOTIVATIONS_MAP: Record<string, string> = {
+  "efficiency": "Aumentar a eficiência do escritório",
+  "cost_reduction": "Reduzir custos operacionais",
+  "costs": "Reduzir custos operacionais",
+  "quality": "Melhorar a qualidade do trabalho",
+  "competitive": "Manter competitividade no mercado",
+  "innovation": "Inovar e modernizar o escritório",
+  "client_experience": "Melhorar a experiência do cliente",
+  "team_productivity": "Aumentar a produtividade da equipe",
+  "time": "Economizar tempo",
+};
+
+// Mapeamento de resultados esperados para português
+const EXPECTED_RESULTS_MAP: Record<string, string> = {
+  "time_saving": "Economia de tempo em tarefas repetitivas",
+  "error_reduction": "Redução de erros e retrabalho",
+  "better_decisions": "Melhores decisões baseadas em dados",
+  "client_satisfaction": "Maior satisfação dos clientes",
+  "revenue_growth": "Aumento de receita",
+  "process_organization": "Melhor organização dos processos",
+  "team_alignment": "Maior alinhamento da equipe",
+  "less_manual_work": "Menos trabalho manual",
+  "faster_petitions": "Petições mais rápidas",
+  "organized_processes": "Processos mais organizados",
+};
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -39,10 +66,10 @@ serve(async (req) => {
     }
 
     // Check if already generated
-    if (client.generated_prompt && client.implementation_plan) {
-      console.log('[auto-generate-client-plan] Plan already generated for client:', client.id);
+    if (client.generated_prompt) {
+      console.log('[auto-generate-client-plan] Prompt already generated for client:', client.id);
       return new Response(
-        JSON.stringify({ success: true, message: "Plano já foi gerado anteriormente" }),
+        JSON.stringify({ success: true, message: "Prompt já foi gerado anteriormente" }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -63,43 +90,101 @@ serve(async (req) => {
         .join("\n");
     }
 
-    // Generate the Lovable Prompt
-    console.log('[auto-generate-client-plan] Generating Lovable prompt...');
+    // Traduzir motivações
+    const motivationsTranslated = client.motivations?.map((m: string) => MOTIVATIONS_MAP[m] || m).join(", ") || 'Não informado';
     
-    const promptSystemPrompt = `Você é um especialista em criar prompts para o Lovable.dev, focando em intranets para escritórios de advocacia.
+    // Traduzir resultados esperados
+    const expectedResultsTranslated = client.expected_results?.map((r: string) => EXPECTED_RESULTS_MAP[r] || r).join(", ") || 'Não informado';
+
+    // Generate the Lovable Prompt with ALL form information
+    console.log('[auto-generate-client-plan] Generating Lovable prompt with complete form data...');
     
-Crie um prompt COMPLETO e DETALHADO que o usuário pode copiar e colar diretamente no Lovable.dev para criar sua intranet personalizada.
+    const promptSystemPrompt = `Você é um especialista em criar prompts COMPLETOS e DETALHADOS para o Lovable.dev, focando em intranets para escritórios de advocacia.
 
-O prompt deve:
-1. Ser em português brasileiro
-2. Incluir todas as funcionalidades selecionadas
-3. Mencionar integração com Supabase para autenticação e banco de dados
-4. Especificar o design visual desejado
-5. Ser específico sobre a estrutura de páginas e componentes
-6. Mencionar responsividade para mobile`;
+REGRAS IMPORTANTES:
+1. O prompt DEVE ser em português brasileiro
+2. O prompt DEVE incluir TODAS as funcionalidades selecionadas pelo cliente
+3. O prompt DEVE ser extremamente detalhado e pronto para copiar e colar
+4. O prompt DEVE mencionar integração com Supabase para autenticação e banco de dados
+5. O prompt DEVE especificar o design visual moderno e profissional
+6. O prompt DEVE ser específico sobre a estrutura de páginas e componentes
+7. O prompt DEVE mencionar responsividade para mobile e desktop
+8. O prompt DEVE levar em consideração o nível de experiência do cliente com IA
+9. O prompt DEVE abordar as necessidades específicas do escritório
+10. O prompt DEVE ser completo o suficiente para gerar um sistema funcional
 
-    const promptUserPrompt = `Crie um prompt para o Lovable.dev para o seguinte escritório:
+Crie um prompt que possa ser usado diretamente no Lovable.dev sem necessidade de edição.`;
 
-**ESCRITÓRIO:**
-- Nome: ${client.office_name}
+    const promptUserPrompt = `Crie um prompt COMPLETO e DETALHADO para o Lovable.dev para o seguinte escritório de advocacia:
+
+========== DADOS DO ESCRITÓRIO ==========
+- Nome do Escritório: ${client.office_name}
 - Responsável: ${client.full_name}
-- Advogados: ${client.num_lawyers}
-- Colaboradores: ${client.num_employees}
-- Áreas: ${client.practice_areas || 'Diversas'}
+- E-mail: ${client.email}
+- Telefone: ${client.phone}
+- OAB: ${client.oab_number || 'Não informado'}
+- CPF/CNPJ: ${client.cpf_cnpj || 'Não informado'}
+- Website: ${client.website || 'Não possui'}
+
+========== LOCALIZAÇÃO ==========
+- Endereço: ${client.office_address}${client.address_number ? `, ${client.address_number}` : ''}${client.address_complement ? ` - ${client.address_complement}` : ''}
+- Bairro: ${client.bairro || 'Não informado'}
 - Cidade/Estado: ${client.cidade || 'Não informado'} / ${client.estado || 'Não informado'}
 
-**NÍVEL DE FAMILIARIDADE COM IA:** ${client.ai_familiarity_level || 'Iniciante'}
+========== ESTRUTURA DO ESCRITÓRIO ==========
+- Número de Advogados: ${client.num_lawyers}
+- Número de Funcionários: ${client.num_employees}
+- Ano de Fundação: ${client.foundation_year || 'Não informado'}
+- Áreas de Atuação: ${client.practice_areas || 'Diversas áreas do direito'}
 
-**SISTEMA DE GESTÃO ATUAL:** ${client.case_management_system || 'Não utiliza'}
+========== EXPERIÊNCIA COM INTELIGÊNCIA ARTIFICIAL ==========
+- Já usou IA: ${client.has_used_ai ? 'Sim' : 'Não'}
+- Já usou ChatGPT: ${client.has_used_chatgpt ? 'Sim' : 'Não'}
+- Tem ChatGPT Pago: ${client.has_chatgpt_paid ? 'Sim' : 'Não'}
+- Tem App no Celular: ${client.has_chatgpt_app ? 'Sim' : 'Não'}
+- Nível de Familiaridade com IA: ${client.ai_familiarity_level || 'Iniciante'}
+- Frequência de Uso de IA: ${client.ai_usage_frequency || 'Raramente'}
+- Tarefas que usa IA: ${client.ai_tasks_used || 'Nenhuma especificada'}
+- Dificuldades com IA: ${client.ai_difficulties || 'Nenhuma especificada'}
+- Outras ferramentas de IA: ${client.other_ai_tools || 'Nenhuma'}
+- Confortável com tecnologia: ${client.comfortable_with_tech ? 'Sim' : 'Não/Não informado'}
 
-**TAREFAS A AUTOMATIZAR:** ${client.tasks_to_automate || 'Não especificado'}
+========== GESTÃO ATUAL DO ESCRITÓRIO ==========
+- Sistema de Gestão Processual: ${client.case_management_system === 'other' ? client.case_management_other : (client.case_management_system || 'Nenhum')}
+- Fluxo de Gestão de Processos: ${client.case_management_flow || 'Não descrito'}
+- Fluxo de Atendimento ao Cliente: ${client.client_service_flow || 'Não descrito'}
 
-**FUNCIONALIDADES SELECIONADAS:**
-${selectedFeatureDetails || 'Dashboard, Gestão de processos, Controle financeiro'}
+========== FUNCIONALIDADES SELECIONADAS ==========
+${selectedFeatureDetails || 'Funcionalidades padrão: Dashboard, Gestão de processos, Controle financeiro básico'}
 
-**FUNCIONALIDADES PERSONALIZADAS:** ${client.custom_features || 'Nenhuma'}
+========== FUNCIONALIDADES PERSONALIZADAS ==========
+${client.custom_features || 'Nenhuma funcionalidade personalizada solicitada'}
 
-Crie o prompt mais completo e detalhado possível para que o Lovable gere uma intranet perfeita para este escritório.`;
+========== MOTIVAÇÕES PARA ADOTAR IA ==========
+${motivationsTranslated}
+${client.motivations_other ? `Outras motivações: ${client.motivations_other}` : ''}
+
+========== RESULTADOS ESPERADOS ==========
+${expectedResultsTranslated}
+${client.expected_results_other ? `Outros resultados esperados: ${client.expected_results_other}` : ''}
+
+========== TAREFAS QUE DESEJA AUTOMATIZAR ==========
+${client.tasks_to_automate || 'Não especificado'}
+
+========== INSTRUÇÕES PARA O PROMPT ==========
+Com base em TODAS as informações acima, crie um prompt COMPLETO e DETALHADO que inclua:
+
+1. Descrição geral do sistema (intranet para escritório de advocacia)
+2. TODAS as funcionalidades selecionadas pelo cliente, descritas em detalhes
+3. Especificações técnicas (Supabase, autenticação, RLS)
+4. Design visual moderno adequado para escritório de advocacia
+5. Estrutura de navegação e páginas
+6. Requisitos de responsividade
+7. Integrações necessárias baseadas nas funcionalidades escolhidas
+8. Sistema de permissões e perfis de usuário
+9. Considerações especiais baseadas no nível de experiência com IA do cliente
+
+O prompt deve ser tão completo que o Lovable consiga criar o sistema inteiro apenas com ele.`;
 
     const promptResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -113,7 +198,7 @@ Crie o prompt mais completo e detalhado possível para que o Lovable gere uma in
           { role: 'system', content: promptSystemPrompt },
           { role: 'user', content: promptUserPrompt }
         ],
-        max_tokens: 4000,
+        max_tokens: 8000,
         temperature: 0.7,
       }),
     });
@@ -122,147 +207,32 @@ Crie o prompt mais completo e detalhado possível para que o Lovable gere uma in
     if (promptResponse.ok) {
       const promptData = await promptResponse.json();
       generatedPrompt = promptData.choices?.[0]?.message?.content || '';
-      console.log('[auto-generate-client-plan] Prompt generated successfully');
+      console.log('[auto-generate-client-plan] Prompt generated successfully, length:', generatedPrompt.length);
     } else {
       console.error('[auto-generate-client-plan] Error generating prompt:', await promptResponse.text());
     }
 
-    // Generate Implementation Plan
-    console.log('[auto-generate-client-plan] Generating implementation plan...');
-    
-    const planSystemPrompt = `Você é um especialista em criar planos de implementação para sistemas de intranet de escritórios de advocacia no Lovable.dev.
-
-Sua tarefa é criar um PLANO DE IMPLEMENTAÇÃO GRADUAL com prompts que o cliente pode copiar e colar diretamente no Lovable.dev.
-
-REGRAS IMPORTANTES:
-1. Crie no MÁXIMO 5 etapas (ideal são 3-4 etapas)
-2. Cada etapa deve ter um prompt COMPLETO e PRONTO para colar no Lovable
-3. Os prompts devem ser em português brasileiro
-4. O primeiro prompt deve criar a estrutura base do sistema
-5. Os prompts seguintes devem adicionar funcionalidades de forma incremental
-6. Seja específico e detalhado nos prompts para evitar erros
-7. Inclua requisitos de design, cores e UX em cada prompt
-8. Mencione integrações e autenticação quando necessário
-
-FORMATO DE SAÍDA (JSON):
-{
-  "etapas": [
-    {
-      "numero": 1,
-      "titulo": "Título da Etapa",
-      "descricao": "Breve descrição do que será implementado",
-      "prompt": "O prompt completo para colar no Lovable"
-    }
-  ]
-}`;
-
-    const planUserPrompt = `Crie um plano de implementação gradual para o seguinte escritório de advocacia:
-
-**INFORMAÇÕES DO ESCRITÓRIO:**
-- Nome: ${client.office_name}
-- Responsável: ${client.full_name}
-- Número de advogados: ${client.num_lawyers}
-- Número de colaboradores: ${client.num_employees}
-- Áreas de atuação: ${client.practice_areas || 'Não informado'}
-- Cidade/Estado: ${client.cidade || 'Não informado'} / ${client.estado || 'Não informado'}
-
-**NÍVEL DE FAMILIARIDADE COM IA:** ${client.ai_familiarity_level || 'Iniciante'}
-
-**SISTEMA DE GESTÃO ATUAL:** ${client.case_management_system || 'Não utiliza'}
-
-**TAREFAS QUE DESEJA AUTOMATIZAR:** ${client.tasks_to_automate || 'Não especificado'}
-
-**FUNCIONALIDADES SELECIONADAS:**
-${selectedFeatureDetails || 'Dashboard, Gestão de processos, Controle financeiro'}
-
-**FUNCIONALIDADES PERSONALIZADAS:** ${client.custom_features || 'Nenhuma'}
-
-Crie um plano com no máximo 5 etapas, onde cada etapa tem um prompt completo que o cliente pode copiar e colar no Lovable.dev para implementar sua intranet de forma gradual.
-
-O primeiro prompt deve criar a base do sistema com autenticação, layout e estrutura principal.
-Os próximos prompts devem adicionar as funcionalidades selecionadas de forma incremental.`;
-
-    const planResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${Deno.env.get('LOVABLE_API_KEY')}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages: [
-          { role: 'system', content: planSystemPrompt },
-          { role: 'user', content: planUserPrompt }
-        ],
-        max_tokens: 8000,
-        temperature: 0.7,
-      }),
-    });
-
-    let implementationPlan = null;
-    if (planResponse.ok) {
-      const planData = await planResponse.json();
-      const content = planData.choices?.[0]?.message?.content || '';
-      
-      try {
-        const jsonMatch = content.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          implementationPlan = JSON.parse(jsonMatch[0]);
-        } else {
-          implementationPlan = {
-            etapas: [{
-              numero: 1,
-              titulo: "Prompt Completo",
-              descricao: "Prompt gerado para implementação",
-              prompt: content
-            }]
-          };
-        }
-        console.log('[auto-generate-client-plan] Plan generated successfully');
-      } catch (parseError) {
-        console.error("[auto-generate-client-plan] Error parsing plan:", parseError);
-        implementationPlan = {
-          etapas: [{
-            numero: 1,
-            titulo: "Prompt Completo",
-            descricao: "Prompt gerado para implementação",
-            prompt: content
-          }]
-        };
-      }
-    } else {
-      console.error('[auto-generate-client-plan] Error generating plan:', await planResponse.text());
-    }
-
-    // Update the client with the generated content
-    const updateData: any = {
-      updated_at: new Date().toISOString()
-    };
-    
+    // Update the client with the generated prompt
     if (generatedPrompt) {
-      updateData.generated_prompt = generatedPrompt;
-    }
-    
-    if (implementationPlan) {
-      updateData.implementation_plan = implementationPlan;
-    }
+      const { error: updateError } = await supabase
+        .from("consulting_clients")
+        .update({
+          generated_prompt: generatedPrompt,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", client.id);
 
-    const { error: updateError } = await supabase
-      .from("consulting_clients")
-      .update(updateData)
-      .eq("id", client.id);
-
-    if (updateError) {
-      console.error("[auto-generate-client-plan] Error updating client:", updateError);
-    } else {
-      console.log('[auto-generate-client-plan] Client updated successfully');
+      if (updateError) {
+        console.error("[auto-generate-client-plan] Error updating client:", updateError);
+      } else {
+        console.log('[auto-generate-client-plan] Client updated successfully');
+      }
     }
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        generatedPrompt: !!generatedPrompt,
-        implementationPlan: !!implementationPlan 
+        generatedPrompt: !!generatedPrompt
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
