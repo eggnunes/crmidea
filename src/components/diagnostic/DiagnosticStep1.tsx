@@ -426,23 +426,34 @@ export function DiagnosticStep1({ formData, updateFormData, consultantId }: Diag
       {/* Logo Section */}
       <div className="flex flex-col items-center gap-4 p-6 border-2 border-dashed rounded-lg bg-muted/30">
         {/* Logo Approval Preview */}
-        {showLogoApproval && generatedLogoPreview && (
+        {showLogoApproval && (
           <div className="w-full space-y-4 p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
             <div className="text-center">
               <p className="text-sm font-medium text-amber-800 dark:text-amber-200 mb-2">
-                Prévia da Logo Gerada
+                {isGeneratingLogo ? "Gerando Nova Logo..." : "Prévia da Logo Gerada"}
               </p>
               <div className="flex justify-center">
-                <Avatar className="w-32 h-32">
-                  <AvatarImage src={generatedLogoPreview} />
-                  <AvatarFallback className="bg-primary/10">
-                    <Building2 className="w-12 h-12 text-primary" />
-                  </AvatarFallback>
-                </Avatar>
+                {isGeneratingLogo ? (
+                  <div className="w-32 h-32 flex items-center justify-center rounded-full bg-primary/10">
+                    <Loader2 className="w-12 h-12 text-primary animate-spin" />
+                  </div>
+                ) : (
+                  <Avatar className="w-32 h-32">
+                    <AvatarImage src={generatedLogoPreview || undefined} />
+                    <AvatarFallback className="bg-primary/10">
+                      <Building2 className="w-12 h-12 text-primary" />
+                    </AvatarFallback>
+                  </Avatar>
+                )}
               </div>
+              {isGeneratingLogo && (
+                <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">
+                  Aguarde enquanto a IA gera sua nova logo...
+                </p>
+              )}
             </div>
             
-            {!showFeedbackInput ? (
+            {!isGeneratingLogo && !showFeedbackInput ? (
               <div className="flex flex-col sm:flex-row gap-2 justify-center">
                 <Button
                   type="button"
@@ -474,7 +485,7 @@ export function DiagnosticStep1({ formData, updateFormData, consultantId }: Diag
                   Nova Opção
                 </Button>
               </div>
-            ) : (
+            ) : !isGeneratingLogo ? (
               <div className="space-y-3">
                 <div>
                   <Label htmlFor="logo-feedback" className="text-sm text-amber-800 dark:text-amber-200">
@@ -515,7 +526,7 @@ export function DiagnosticStep1({ formData, updateFormData, consultantId }: Diag
                   </Button>
                 </div>
               </div>
-            )}
+            ) : null}
           </div>
         )}
 
@@ -809,10 +820,15 @@ export function DiagnosticStep1({ formData, updateFormData, consultantId }: Diag
             <Label htmlFor="num_lawyers">Nº de Advogados <span className="text-destructive">*</span></Label>
             <Input
               id="num_lawyers"
-              type="number"
-              min="1"
-              value={formData.num_lawyers}
-              onChange={(e) => updateFormData({ num_lawyers: parseInt(e.target.value) || 1 })}
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              value={formData.num_lawyers || ""}
+              onChange={(e) => {
+                const value = e.target.value.replace(/\D/g, "");
+                updateFormData({ num_lawyers: value ? parseInt(value) : 0 });
+              }}
+              placeholder="1"
               required
             />
           </div>
@@ -821,10 +837,15 @@ export function DiagnosticStep1({ formData, updateFormData, consultantId }: Diag
             <Label htmlFor="num_employees">Total de Colaboradores <span className="text-destructive">*</span></Label>
             <Input
               id="num_employees"
-              type="number"
-              min="1"
-              value={formData.num_employees}
-              onChange={(e) => updateFormData({ num_employees: parseInt(e.target.value) || 1 })}
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              value={formData.num_employees || ""}
+              onChange={(e) => {
+                const value = e.target.value.replace(/\D/g, "");
+                updateFormData({ num_employees: value ? parseInt(value) : 0 });
+              }}
+              placeholder="1"
               required
             />
           </div>
