@@ -147,6 +147,9 @@ export function ClientDashboardPage() {
       if (profileData) {
         setProfile(profileData);
 
+        // Sync calendar sessions in background (don't wait for it)
+        syncCalendarSessions(profileData.email, profileData.consultant_id);
+
         // Fetch form progress
         const { data: progressData } = await supabase
           .from("diagnostic_form_progress")
@@ -208,6 +211,44 @@ export function ClientDashboardPage() {
       console.error("Error fetching data:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Sync Google Calendar events with consulting sessions
+  const syncCalendarSessions = async (clientEmail: string, consultantId: string) => {
+    try {
+      const { data, error } = await supabase.functions.invoke("sync-calendar-sessions", {
+        body: { clientEmail, consultantId }
+      });
+      
+      if (error) {
+        console.error("Error syncing calendar sessions:", error);
+        return;
+      }
+      
+      if (data?.synced > 0) {
+        console.log(`Synced ${data.synced} calendar events`);
+        // Refresh sessions after sync
+        const { data: clientData } = await supabase
+          .from("consulting_clients")
+          .select("id")
+          .eq("email", clientEmail)
+          .maybeSingle();
+          
+        if (clientData) {
+          const { data: sessionsData } = await supabase
+            .from("consulting_sessions")
+            .select("*")
+            .eq("client_id", clientData.id)
+            .order("session_date", { ascending: false });
+
+          if (sessionsData) {
+            setSessions(sessionsData);
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Error syncing calendar:", error);
     }
   };
 
