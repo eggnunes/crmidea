@@ -144,6 +144,12 @@ export function ClientDiagnosticForm() {
     }
   };
 
+  // Helper function to filter out temporary UI state fields from formData
+  const getCleanFormData = useCallback(() => {
+    const { _generatedLogoPreview, _showLogoApproval, _logoFeedback, _showFeedbackInput, ...cleanData } = formData;
+    return cleanData;
+  }, [formData]);
+
   const saveProgress = useCallback(async (step?: number) => {
     if (!user?.id || !consultantId) return;
     
@@ -157,12 +163,14 @@ export function ClientDiagnosticForm() {
         .eq("client_user_id", user.id)
         .maybeSingle();
 
+      const cleanData = getCleanFormData();
+
       if (existing) {
         await supabase
           .from("diagnostic_form_progress")
           .update({
             current_step: step || currentStep,
-            form_data: JSON.parse(JSON.stringify(formData)),
+            form_data: JSON.parse(JSON.stringify(cleanData)),
             is_completed: false,
           })
           .eq("client_user_id", user.id);
@@ -173,7 +181,7 @@ export function ClientDiagnosticForm() {
             client_user_id: user.id,
             consultant_id: consultantId,
             current_step: step || currentStep,
-            form_data: JSON.parse(JSON.stringify(formData)),
+            form_data: JSON.parse(JSON.stringify(cleanData)),
             is_completed: false,
           }]);
       }
@@ -184,7 +192,7 @@ export function ClientDiagnosticForm() {
     } finally {
       setIsSaving(false);
     }
-  }, [user?.id, consultantId, currentStep, formData]);
+  }, [user?.id, consultantId, currentStep, getCleanFormData]);
 
   // Auto-save every 30 seconds
   useEffect(() => {
@@ -274,12 +282,13 @@ export function ClientDiagnosticForm() {
     
     try {
       // Update progress as completed
+      const cleanData = getCleanFormData();
       await supabase
         .from("diagnostic_form_progress")
         .update({
           is_completed: true,
           submitted_at: new Date().toISOString(),
-          form_data: JSON.parse(JSON.stringify(formData)),
+          form_data: JSON.parse(JSON.stringify(cleanData)),
         })
         .eq("client_user_id", user.id);
 

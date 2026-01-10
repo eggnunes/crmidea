@@ -37,6 +37,12 @@ export interface DiagnosticFormData {
   practice_areas: string;
   logo_url: string | null;
   
+  // Logo generation UI state (persisted in parent)
+  _generatedLogoPreview?: string | null;
+  _showLogoApproval?: boolean;
+  _logoFeedback?: string;
+  _showFeedbackInput?: boolean;
+  
   // Step 2 - AI Experience
   has_used_ai: boolean | null;
   has_used_chatgpt: boolean | null;
