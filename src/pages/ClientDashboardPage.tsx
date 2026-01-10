@@ -184,14 +184,25 @@ export function ClientDashboardPage() {
         }
 
         // Fetch consulting client data (generated prompt)
-        const { data: clientData } = await supabase
+        const { data: clientData, error: clientError } = await supabase
           .from("consulting_clients")
           .select("id, generated_prompt, status, created_at, implementation_plan")
           .eq("email", profileData.email)
           .maybeSingle();
 
+        if (clientError) {
+          console.error("Error fetching consulting client:", clientError);
+        }
+
         if (clientData) {
+          console.log("Consulting client data loaded:", { 
+            id: clientData.id, 
+            hasPlan: !!clientData.implementation_plan,
+            hasPrompt: !!clientData.generated_prompt 
+          });
           setConsultingClient(clientData);
+        } else {
+          console.log("No consulting client found for email:", profileData.email);
         }
 
         // Fetch consulting sessions
