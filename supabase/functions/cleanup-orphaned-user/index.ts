@@ -53,23 +53,29 @@ serve(async (req) => {
       );
     }
 
-    const { userEmail } = await req.json();
+    const { userEmail, userId, email } = await req.json();
+    
+    // Accept either userEmail (legacy) or email (new)
+    const targetEmail = userEmail || email;
 
-    if (!userEmail) {
+    if (!targetEmail && !userId) {
       return new Response(
-        JSON.stringify({ error: "User email is required" }),
+        JSON.stringify({ error: "User email or userId is required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Find the orphaned user
+    // Find the orphaned user by email or id
     const { data: authUsers } = await supabaseAdmin.auth.admin.listUsers();
-    const orphanedUser = authUsers?.users?.find(u => u.email === userEmail);
+    const orphanedUser = authUsers?.users?.find(u => 
+      (targetEmail && u.email === targetEmail) || (userId && u.id === userId)
+    );
 
     if (!orphanedUser) {
+      // User already deleted, return success
       return new Response(
-        JSON.stringify({ error: "User not found", email: userEmail }),
-        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ success: true, message: "User not found - may already be deleted", email: targetEmail }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -87,6 +93,9 @@ serve(async (req) => {
     await supabaseAdmin.from("client_profiles").delete().eq("user_id", orphanedUser.id);
     await supabaseAdmin.from("client_meeting_notes").delete().eq("client_user_id", orphanedUser.id);
     await supabaseAdmin.from("client_timeline_events").delete().eq("client_user_id", orphanedUser.id);
+    
+    // Also delete from consulting_clients if exists
+    await supabaseAdmin.from("consulting_clients").delete().eq("email", orphanedUser.email);
 
     // Delete the auth user
     const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(orphanedUser.id);

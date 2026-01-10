@@ -187,25 +187,34 @@ export function PendingClientApprovals() {
     if (!rejecting) return;
     
     try {
-      // Delete client profile
-      await supabase
-        .from('client_profiles')
-        .delete()
-        .eq('id', rejecting.id);
+      // Call edge function to properly delete including auth user
+      const { data, error } = await supabase.functions.invoke("cleanup-orphaned-user", {
+        body: {
+          userId: rejecting.user_id,
+          email: rejecting.email,
+        },
+      });
 
-      // Delete form progress
-      await supabase
-        .from('diagnostic_form_progress')
-        .delete()
-        .eq('client_user_id', rejecting.user_id);
+      if (error) {
+        console.error("Error calling cleanup function:", error);
+        // Fallback to direct deletion
+        await supabase
+          .from('client_profiles')
+          .delete()
+          .eq('id', rejecting.id);
 
-      // Delete timeline events
-      await supabase
-        .from('client_timeline_events')
-        .delete()
-        .eq('client_user_id', rejecting.user_id);
+        await supabase
+          .from('diagnostic_form_progress')
+          .delete()
+          .eq('client_user_id', rejecting.user_id);
 
-      toast.success('Cadastro rejeitado');
+        await supabase
+          .from('client_timeline_events')
+          .delete()
+          .eq('client_user_id', rejecting.user_id);
+      }
+
+      toast.success('Cadastro rejeitado e removido');
       setRejecting(null);
       fetchClients();
     } catch (error: any) {
@@ -218,30 +227,38 @@ export function PendingClientApprovals() {
     if (!deleting) return;
     
     try {
-      // Delete from client_profiles
-      await supabase
-        .from('client_profiles')
-        .delete()
-        .eq('id', deleting.id);
+      // Call edge function to properly delete including auth user
+      const { data, error } = await supabase.functions.invoke("cleanup-orphaned-user", {
+        body: {
+          userId: deleting.user_id,
+          email: deleting.email,
+        },
+      });
 
-      // Delete from consulting_clients if exists
-      await supabase
-        .from('consulting_clients')
-        .delete()
-        .eq('email', deleting.email)
-        .eq('user_id', user?.id);
+      if (error) {
+        console.error("Error calling cleanup function:", error);
+        // Fallback to direct deletion
+        await supabase
+          .from('client_profiles')
+          .delete()
+          .eq('id', deleting.id);
 
-      // Delete form progress
-      await supabase
-        .from('diagnostic_form_progress')
-        .delete()
-        .eq('client_user_id', deleting.user_id);
+        await supabase
+          .from('consulting_clients')
+          .delete()
+          .eq('email', deleting.email)
+          .eq('user_id', user?.id);
 
-      // Delete timeline events
-      await supabase
-        .from('client_timeline_events')
-        .delete()
-        .eq('client_user_id', deleting.user_id);
+        await supabase
+          .from('diagnostic_form_progress')
+          .delete()
+          .eq('client_user_id', deleting.user_id);
+
+        await supabase
+          .from('client_timeline_events')
+          .delete()
+          .eq('client_user_id', deleting.user_id);
+      }
 
       toast.success('Cliente excluído com sucesso');
       setDeleting(null);
