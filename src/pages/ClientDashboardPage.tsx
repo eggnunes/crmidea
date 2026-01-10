@@ -851,18 +851,22 @@ export function ClientDashboardPage() {
                 <CardContent>
                   {consultingClient?.generated_prompt ? (
                     <div className="space-y-4">
-                      <div className="relative">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm text-muted-foreground">Clique no ícone para copiar o prompt</span>
+                        <Button 
+                          size="icon"
+                          variant="outline"
+                          className="h-8 w-8"
+                          onClick={handleCopyPrompt}
+                          title={copied ? "Copiado!" : "Copiar prompt"}
+                        >
+                          {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+                        </Button>
+                      </div>
+                      <div>
                         <pre className="bg-muted p-4 rounded-lg text-sm whitespace-pre-wrap overflow-x-auto max-h-[400px]">
                           {consultingClient.generated_prompt}
                         </pre>
-                        <Button 
-                          size="sm" 
-                          className="absolute top-2 right-2 gap-2"
-                          onClick={handleCopyPrompt}
-                        >
-                          {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                          {copied ? "Copiado!" : "Copiar"}
-                        </Button>
                       </div>
                       <p className="text-sm text-muted-foreground">
                         Cole este prompt no Lovable para iniciar a criação da sua intranet.
