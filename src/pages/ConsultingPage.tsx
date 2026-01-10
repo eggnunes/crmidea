@@ -18,9 +18,9 @@ import {
   FileText,
   Sparkles,
   QrCode,
-  ExternalLink,
   MapPin,
   Settings,
+  MessageSquare,
   ShieldCheck,
   MailCheck,
   CalendarCog,
@@ -35,7 +35,8 @@ import { ConsultingReminders } from "@/components/consulting/ConsultingReminders
 import { ConsultingNotificationSettings } from "@/components/consulting/ConsultingNotificationSettings";
 import { ConsultingSettingsPanel } from "@/components/consulting/ConsultingSettingsPanel";
 import { ConsultingCalendarSettings } from "@/components/consulting/ConsultingCalendarSettings";
-import { SentEmailsLog } from "@/components/consulting/SentEmailsLog";
+import { ConsultingEmailSystem } from "@/components/consulting/ConsultingEmailSystem";
+import { ConsultingWhatsAppSystem } from "@/components/consulting/ConsultingWhatsAppSystem";
 import { PendingClientApprovals } from "@/components/consulting/PendingClientApprovals";
 
 interface ConsultingClientBasic {
@@ -171,7 +172,11 @@ export function ConsultingPage() {
           </TabsTrigger>
           <TabsTrigger value="emails" className="gap-2">
             <MailCheck className="w-4 h-4" />
-            E-mails Enviados
+            E-mails
+          </TabsTrigger>
+          <TabsTrigger value="whatsapp" className="gap-2">
+            <MessageSquare className="w-4 h-4" />
+            WhatsApp
           </TabsTrigger>
           <TabsTrigger value="calendar" className="gap-2">
             <CalendarCog className="w-4 h-4" />
@@ -336,7 +341,11 @@ export function ConsultingPage() {
         </TabsContent>
 
         <TabsContent value="emails">
-          <SentEmailsLog />
+          <ConsultingEmailSystem />
+        </TabsContent>
+
+        <TabsContent value="whatsapp">
+          <ConsultingWhatsAppSystem />
         </TabsContent>
 
         <TabsContent value="calendar">
