@@ -198,19 +198,16 @@ export function ConsultingClientsAdmin() {
     
     setDeleting(true);
     try {
-      // Delete related records first
-      await supabase.from('consulting_sessions').delete().eq('client_id', deletingClient.id);
-      await supabase.from('consulting_client_reminders').delete().eq('client_id', deletingClient.id);
-      await supabase.from('client_progress_feedback').delete().eq('client_id', deletingClient.id);
-      await supabase.from('client_earned_badges').delete().eq('client_id', deletingClient.id);
-      
-      // Delete the client
-      const { error } = await supabase
-        .from('consulting_clients')
-        .delete()
-        .eq('id', deletingClient.id);
+      // Call edge function to delete client and all related data (including auth user)
+      const { data, error } = await supabase.functions.invoke('delete-consulting-client', {
+        body: { 
+          clientId: deletingClient.id,
+          clientEmail: deletingClient.email,
+        },
+      });
 
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
       
       toast.success('Cliente excluído com sucesso!');
       setDeletingClient(null);
