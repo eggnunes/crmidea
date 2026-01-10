@@ -146,7 +146,17 @@ export function ClientDiagnosticForm() {
 
   // Helper function to filter out temporary UI state fields from formData
   const getCleanFormData = useCallback(() => {
-    const { _generatedLogoPreview, _showLogoApproval, _logoFeedback, _showFeedbackInput, ...cleanData } = formData;
+    const { 
+      _generatedLogoPreview, 
+      _showLogoApproval, 
+      _logoFeedback, 
+      _showFeedbackInput,
+      _caseManagementFlowchartUrl,
+      _caseManagementFlowchartName,
+      _clientServiceFlowchartUrl,
+      _clientServiceFlowchartName,
+      ...cleanData 
+    } = formData;
     return cleanData;
   }, [formData]);
 
