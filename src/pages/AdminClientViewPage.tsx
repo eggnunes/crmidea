@@ -251,7 +251,9 @@ export function AdminClientViewPage() {
           </Button>
           <div>
             <h1 className="text-2xl font-bold">{client.full_name}</h1>
-            <p className="text-muted-foreground">{client.office_name}</p>
+            {client.office_name && client.office_name !== "Não informado" && client.office_name !== "A preencher" && (
+              <p className="text-muted-foreground">{client.office_name}</p>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -284,7 +286,7 @@ export function AdminClientViewPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm">{client.phone}</p>
+            <p className="text-sm">{client.phone || "Não informado"}</p>
           </CardContent>
         </Card>
 
@@ -296,9 +298,13 @@ export function AdminClientViewPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm">
-              {client.num_lawyers} advogado(s), {client.num_employees} funcionário(s)
-            </p>
+            {(client.num_lawyers > 1 || client.num_employees > 1) ? (
+              <p className="text-sm">
+                {client.num_lawyers} advogado(s), {client.num_employees} funcionário(s)
+              </p>
+            ) : (
+              <p className="text-sm text-muted-foreground">Não informado</p>
+            )}
           </CardContent>
         </Card>
 
@@ -311,7 +317,10 @@ export function AdminClientViewPage() {
           </CardHeader>
           <CardContent>
             <p className="text-sm">
-              {client.cidade || "N/A"}{client.cidade && client.estado ? " - " : ""}{client.estado || ""}
+              {client.cidade || client.estado 
+                ? `${client.cidade || ""}${client.cidade && client.estado ? " - " : ""}${client.estado || ""}`
+                : <span className="text-muted-foreground">Não informado</span>
+              }
             </p>
           </CardContent>
         </Card>
@@ -328,15 +337,32 @@ export function AdminClientViewPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-2xl font-bold">
-                  {formProgress?.is_completed ? "100%" : `${Math.round(formProgressPercent)}%`}
-                </span>
-                {formProgress?.is_completed && (
-                  <CheckCircle2 className="w-5 h-5 text-green-500" />
-                )}
-              </div>
-              <Progress value={formProgress?.is_completed ? 100 : formProgressPercent} className="h-2" />
+              {formProgress?.is_completed ? (
+                <>
+                  <div className="flex items-center justify-between">
+                    <span className="text-2xl font-bold">100%</span>
+                    <CheckCircle2 className="w-5 h-5 text-green-500" />
+                  </div>
+                  <Progress value={100} className="h-2" />
+                  <p className="text-xs text-muted-foreground">Concluído</p>
+                </>
+              ) : formProgress && formProgress.current_step > 1 ? (
+                <>
+                  <div className="flex items-center justify-between">
+                    <span className="text-2xl font-bold">{Math.round(formProgressPercent)}%</span>
+                  </div>
+                  <Progress value={formProgressPercent} className="h-2" />
+                  <p className="text-xs text-muted-foreground">Etapa {formProgress.current_step} de 6</p>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between">
+                    <span className="text-2xl font-bold text-muted-foreground">-</span>
+                  </div>
+                  <Progress value={0} className="h-2" />
+                  <p className="text-xs text-muted-foreground">Não iniciado</p>
+                </>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -367,7 +393,8 @@ export function AdminClientViewPage() {
             <p className="text-sm font-medium">
               {client.ai_familiarity_level === "expert" ? "Avançado" :
                client.ai_familiarity_level === "intermediate" ? "Intermediário" :
-               client.ai_familiarity_level === "beginner" ? "Iniciante" : "Não definido"}
+               client.ai_familiarity_level === "beginner" ? "Iniciante" : 
+               <span className="text-muted-foreground">Não informado</span>}
             </p>
             {client.ai_tools_used && (
               <p className="text-xs text-muted-foreground truncate mt-1">
