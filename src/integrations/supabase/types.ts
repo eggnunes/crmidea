@@ -1834,7 +1834,7 @@ export type Database = {
           name: string
           notes: string | null
           phone: string | null
-          product: Database["public"]["Enums"]["product_type"]
+          product: Database["public"]["Enums"]["product_type"] | null
           source: string | null
           status: Database["public"]["Enums"]["lead_status"]
           updated_at: string
@@ -1849,7 +1849,7 @@ export type Database = {
           name: string
           notes?: string | null
           phone?: string | null
-          product: Database["public"]["Enums"]["product_type"]
+          product?: Database["public"]["Enums"]["product_type"] | null
           source?: string | null
           status?: Database["public"]["Enums"]["lead_status"]
           updated_at?: string
@@ -1864,7 +1864,7 @@ export type Database = {
           name?: string
           notes?: string | null
           phone?: string | null
-          product?: Database["public"]["Enums"]["product_type"]
+          product?: Database["public"]["Enums"]["product_type"] | null
           source?: string | null
           status?: Database["public"]["Enums"]["lead_status"]
           updated_at?: string

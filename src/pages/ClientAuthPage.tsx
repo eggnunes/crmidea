@@ -16,6 +16,7 @@ const DEFAULT_CONSULTANT_ID = "e850e3e3-1682-4cb0-af43-d7dade2aff9e";
 const signUpSchema = z.object({
   fullName: z.string().min(3, "Nome deve ter pelo menos 3 caracteres"),
   email: z.string().email("E-mail inválido"),
+  phone: z.string().min(10, "Telefone deve ter pelo menos 10 dígitos").regex(/^[\d\s+\-()]+$/, "Telefone inválido"),
   password: z.string().min(6, "Senha deve ter pelo menos 6 caracteres"),
   confirmPassword: z.string(),
 }).refine((data) => data.password === data.confirmPassword, {
@@ -40,6 +41,7 @@ export function ClientAuthPage() {
   const [signUpData, setSignUpData] = useState({
     fullName: "",
     email: "",
+    phone: "",
     password: "",
     confirmPassword: "",
   });
@@ -105,6 +107,7 @@ export function ClientAuthPage() {
             consultant_id: consultantId,
             full_name: signUpData.fullName,
             email: signUpData.email,
+            phone: signUpData.phone,
             is_approved: false,
           });
 
@@ -135,12 +138,13 @@ export function ClientAuthPage() {
             description: "Aguardando aprovação do consultor.",
           });
 
-        // Notify consultant via WhatsApp
+        // Notify consultant and client via WhatsApp
         try {
           await supabase.functions.invoke("notify-client-signup", {
             body: {
               clientName: signUpData.fullName,
               clientEmail: signUpData.email,
+              clientPhone: signUpData.phone,
             },
           });
         } catch (notifyError) {
@@ -319,6 +323,21 @@ export function ClientAuthPage() {
                   />
                   {signUpErrors.email && (
                     <p className="text-sm text-destructive">{signUpErrors.email}</p>
+                  )}
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="signup-phone">WhatsApp</Label>
+                  <Input
+                    id="signup-phone"
+                    type="tel"
+                    value={signUpData.phone}
+                    onChange={(e) => setSignUpData({ ...signUpData, phone: e.target.value })}
+                    placeholder="(27) 99999-9999"
+                    disabled={loading}
+                  />
+                  {signUpErrors.phone && (
+                    <p className="text-sm text-destructive">{signUpErrors.phone}</p>
                   )}
                 </div>
                 
