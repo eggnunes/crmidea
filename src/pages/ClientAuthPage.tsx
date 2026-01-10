@@ -23,11 +23,11 @@ const formatPhone = (value: string): string => {
 };
 
 const signUpSchema = z.object({
-  fullName: z.string().min(3, "Nome deve ter pelo menos 3 caracteres"),
-  email: z.string().email("E-mail inválido"),
-  phone: z.string().min(15, "Telefone deve estar no formato (XX) XXXXX-XXXX"),
-  password: z.string().min(6, "Senha deve ter pelo menos 6 caracteres"),
-  confirmPassword: z.string(),
+  fullName: z.string().min(1, "Nome completo é obrigatório").min(3, "Nome deve ter pelo menos 3 caracteres"),
+  email: z.string().min(1, "E-mail é obrigatório").email("E-mail inválido"),
+  phone: z.string().min(1, "WhatsApp é obrigatório").min(15, "Telefone deve estar no formato (XX) XXXXX-XXXX"),
+  password: z.string().min(1, "Senha é obrigatória").min(6, "Senha deve ter pelo menos 6 caracteres"),
+  confirmPassword: z.string().min(1, "Confirmação de senha é obrigatória"),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "As senhas não coincidem",
   path: ["confirmPassword"],
