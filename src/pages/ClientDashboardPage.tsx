@@ -302,7 +302,7 @@ export function ClientDashboardPage() {
             <img 
               src="/logo-consultoria-idea.png" 
               alt="Consultoria IDEA" 
-              className="h-10 md:h-12 w-auto object-contain"
+              className="h-16 md:h-20 w-auto object-contain"
             />
             <div>
               <h1 className="font-bold text-lg">Área do Cliente</h1>
