@@ -61,7 +61,7 @@ ${content.split('\n').map((line: string) => `          <p style="margin: 0 0 10p
     `;
 
     const emailResponse = await resend.emails.send({
-      from: `${CONSULTANT_NAME} <onboarding@resend.dev>`,
+      from: `${CONSULTANT_NAME} <contato@rafaelegg.com>`,
       to: [clientEmail],
       subject: subject,
       html: htmlContent,

@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { 
   ArrowLeft,
   Zap, 
@@ -42,7 +43,9 @@ import {
   Plus,
   FileCheck,
   BookOpen,
-  Send
+  Send,
+  EyeOff,
+  Eye
 } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -105,6 +108,7 @@ interface TimelineEvent {
   title: string;
   description: string | null;
   event_date: string;
+  is_visible_to_client: boolean;
 }
 
 interface ConsultingSession {
@@ -136,6 +140,7 @@ export function AdminClientViewPage() {
     event_type: "note",
     title: "",
     description: "",
+    is_visible_to_client: true,
   });
   const [addingEvent, setAddingEvent] = useState(false);
 
@@ -239,12 +244,13 @@ export function AdminClientViewPage() {
         event_type: newEvent.event_type,
         title: newEvent.title,
         description: newEvent.description || null,
+        is_visible_to_client: newEvent.is_visible_to_client,
       });
 
       if (error) throw error;
 
       toast.success("Evento adicionado à timeline!");
-      setNewEvent({ event_type: "note", title: "", description: "" });
+      setNewEvent({ event_type: "note", title: "", description: "", is_visible_to_client: true });
       
       // Refresh timeline
       const { data: timelineData } = await supabase
@@ -597,7 +603,31 @@ export function AdminClientViewPage() {
                     rows={2}
                   />
                 </div>
-                <Button 
+                <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    {newEvent.is_visible_to_client ? (
+                      <Eye className="w-4 h-4 text-green-600" />
+                    ) : (
+                      <EyeOff className="w-4 h-4 text-orange-500" />
+                    )}
+                    <div>
+                      <Label htmlFor="visibility-toggle" className="cursor-pointer">
+                        Visível para o cliente
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        {newEvent.is_visible_to_client 
+                          ? "O cliente poderá ver este evento" 
+                          : "Apenas você (admin) verá este evento"}
+                      </p>
+                    </div>
+                  </div>
+                  <Switch
+                    id="visibility-toggle"
+                    checked={newEvent.is_visible_to_client}
+                    onCheckedChange={(checked) => setNewEvent({ ...newEvent, is_visible_to_client: checked })}
+                  />
+                </div>
+                <Button
                   onClick={handleAddTimelineEvent} 
                   disabled={addingEvent || !newEvent.title.trim()}
                   className="gap-2"
@@ -629,15 +659,21 @@ export function AdminClientViewPage() {
                   <ScrollArea className="h-[400px]">
                     <div className="space-y-4">
                       {timeline.map((event) => (
-                        <div key={event.id} className="flex gap-4 items-start">
-                          <div className="w-2 h-2 rounded-full bg-primary mt-2" />
+                        <div key={event.id} className={`flex gap-4 items-start ${!event.is_visible_to_client ? 'bg-orange-50 dark:bg-orange-900/10 p-2 rounded-lg border border-orange-200 dark:border-orange-800' : ''}`}>
+                          <div className={`w-2 h-2 rounded-full mt-2 ${!event.is_visible_to_client ? 'bg-orange-500' : 'bg-primary'}`} />
                           <div className="flex-1">
                             <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-2 flex-wrap">
                                 <p className="font-medium">{event.title}</p>
                                 <Badge variant="outline" className="text-xs">
                                   {event.event_type}
                                 </Badge>
+                                {!event.is_visible_to_client && (
+                                  <Badge variant="outline" className="text-xs bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300 border-orange-300">
+                                    <EyeOff className="w-3 h-3 mr-1" />
+                                    Não visível ao cliente
+                                  </Badge>
+                                )}
                               </div>
                               <span className="text-xs text-muted-foreground">
                                 {format(new Date(event.event_date), "dd/MM/yyyy HH:mm", { locale: ptBR })}

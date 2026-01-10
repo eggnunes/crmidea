@@ -40,13 +40,16 @@ serve(async (req) => {
     }
 
     const authenticatedUserId = claimsData.claims.sub as string;
-    const { office_name, practice_areas } = await req.json();
+    const { office_name, practice_areas, custom_instructions } = await req.json();
 
     if (!office_name) {
       throw new Error("Nome do escritório é obrigatório");
     }
 
     console.log("Generating logo for:", office_name, "by user:", authenticatedUserId);
+    if (custom_instructions) {
+      console.log("With custom instructions:", custom_instructions);
+    }
 
     const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
     if (!lovableApiKey) {
@@ -55,7 +58,22 @@ serve(async (req) => {
 
     // Generate professional law office logo prompt
     const practiceInfo = practice_areas ? ` specializing in ${practice_areas}` : "";
-    const prompt = `Create a professional, modern logo for a Brazilian law office called "${office_name}"${practiceInfo}. The logo should be:
+    
+    // Build the prompt - if custom instructions are provided, they take priority
+    let prompt: string;
+    if (custom_instructions && custom_instructions.trim()) {
+      prompt = `Create a professional logo for a Brazilian law office called "${office_name}"${practiceInfo}. 
+
+IMPORTANT - THE USER HAS REQUESTED SPECIFIC CHANGES. YOU MUST FOLLOW THESE INSTRUCTIONS EXACTLY:
+${custom_instructions}
+
+Additional requirements:
+- The logo should still be professional and suitable for legal/law firm branding
+- Square format, suitable for use as an avatar or icon
+- High contrast for readability
+Ultra high resolution, professional quality.`;
+    } else {
+      prompt = `Create a professional, modern logo for a Brazilian law office called "${office_name}"${practiceInfo}. The logo should be:
 - Clean and minimalist design
 - Professional color scheme (navy blue, gold, or burgundy tones)
 - Suitable for legal/law firm branding
@@ -64,6 +82,7 @@ serve(async (req) => {
 - High contrast for readability
 - Square format, suitable for use as an avatar or icon
 Ultra high resolution, professional quality.`;
+    }
 
     console.log("Sending request to Lovable AI...");
 
