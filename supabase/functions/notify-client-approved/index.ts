@@ -76,7 +76,7 @@ serve(async (req) => {
         `;
 
         await resend.emails.send({
-          from: "Rafael Nunes <naoresponda@rafaelegg.com>",
+          from: "Rafael Egg <naoresponda@rafaelegg.com>",
           to: [clientEmail],
           subject: "🎉 Cadastro Aprovado - Consultoria IDEA",
           html: emailHtml,
