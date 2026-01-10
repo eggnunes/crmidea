@@ -231,10 +231,40 @@ function getProductWelcomeMessage(firstName: string, productName: string, produc
   
   switch (productType) {
     case 'consultoria':
-      return `🎯 *Parabéns pela decisão, ${firstName}!*\n\n` +
-        `Seja muito bem-vindo(a) à *Consultoria de IA para Escritórios de Advocacia*! 🚀\n\n` +
-        `Esta é uma jornada de transformação digital personalizada para seu escritório. Em breve, entrarei em contato para agendar nossa primeira reunião estratégica.\n\n` +
-        `Prepare-se para revolucionar a forma como você trabalha! 💼\n\n` +
+      // Mensagem completa para clientes de consultoria com link de cadastro
+      return `Olá, ${firstName}! 🎉\n\n` +
+        `Tenho uma excelente notícia para você que é cliente da *Consultoria IDEA*!\n\n` +
+        `Como parte do seu plano de consultoria, você tem direito a implementar uma *intranet personalizada completa* para seu escritório — isso já está incluído no investimento que você fez!\n\n` +
+        `Para dar início ao desenvolvimento da sua intranet, criamos um *Sistema de Consultoria* que vai organizar todo o processo de forma profissional e eficiente.\n\n` +
+        `*O que é a Intranet Personalizada?*\n\n` +
+        `Uma plataforma completa desenvolvida sob medida para seu escritório, com mais de 50 funcionalidades integradas de IA, incluindo:\n\n` +
+        `✅ Geração automática de petições, contratos e documentos jurídicos\n` +
+        `✅ Chatbot jurídico 24/7 para atendimento aos clientes\n` +
+        `✅ Gestão de processos e prazos automatizada\n` +
+        `✅ Dashboard de performance e relatórios inteligentes\n` +
+        `✅ Sistema de marketing com geração de conteúdo por IA\n` +
+        `✅ Integração com seu sistema de gestão processual\n` +
+        `✅ E muito mais!\n\n` +
+        `*Como funciona o processo:*\n\n` +
+        `1️⃣ *Cadastro no Sistema de Consultoria*\n` +
+        `Acesse o sistema e faça seu cadastro. É rápido e simples!\n\n` +
+        `2️⃣ *Preenchimento do Formulário Detalhado*\n` +
+        `Você responderá um questionário completo sobre seu escritório: estrutura, processos, fluxos de trabalho, áreas de atuação, sistema de gestão processual, nível de conhecimento em IA da equipe e, principalmente, quais funcionalidades você deseja na sua intranet.\n\n` +
+        `3️⃣ *Análise e Planejamento Personalizado*\n` +
+        `Com todas as informações organizadas, vamos criar um planejamento sob medida para desenvolver a intranet perfeita para seu escritório.\n\n` +
+        `4️⃣ *Desenvolvimento e Implementação*\n` +
+        `Agendaremos nossas reuniões para desenvolver e implementar sua intranet, com você acompanhando cada etapa do processo.\n\n` +
+        `*Por que usar o Sistema de Consultoria?*\n\n` +
+        `✅ Já está incluído no seu plano — aproveite esse benefício!\n` +
+        `✅ Organização total: Todas as informações centralizadas\n` +
+        `✅ Intranet sob medida: Desenvolvida exatamente para suas necessidades\n` +
+        `✅ Acompanhamento completo: Histórico de reuniões e evolução do projeto\n` +
+        `✅ Suporte especializado: 6 meses de acompanhamento incluso\n\n` +
+        `🔗 *Acesse o Sistema de Consultoria e comece agora:*\n` +
+        `https://eggnunes.lovable.app/client-auth\n\n` +
+        `Não deixe esse benefício incrível sem uso! Sua intranet personalizada está esperando por você. 🚀\n\n` +
+        `Qualquer dúvida, estou à disposição!\n\n` +
+        `Vamos construir juntos a transformação digital do seu escritório!\n\n` +
         `_Rafael Nogueira - IDEA_${transferNote}`;
     
     case 'mentoria_coletiva':
