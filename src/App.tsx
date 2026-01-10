@@ -17,7 +17,7 @@ import { WhatsAppPage } from "./pages/WhatsAppPage";
 import { AlertsCenterPage } from "./pages/AlertsCenterPage";
 import { CalendarPage } from "./pages/CalendarPage";
 import { PublicBookingPage } from "./pages/PublicBookingPage";
-import { PublicDiagnosticForm } from "./pages/PublicDiagnosticForm";
+
 import { PublicConsultingPage } from "./pages/PublicConsultingPage";
 import { ClientAuthPage } from "./pages/ClientAuthPage";
 import { ClientDashboardPage } from "./pages/ClientDashboardPage";
@@ -52,7 +52,6 @@ function AppRoutes() {
       
       {/* Páginas públicas */}
       <Route path="/agendar/:userId" element={<PublicBookingPage />} />
-      <Route path="/diagnostico/:consultantId" element={<PublicDiagnosticForm />} />
       
       {/* Consultoria - Página pública com informações sobre a consultoria */}
       <Route path="/consultoria" element={<PublicConsultingPage />} />

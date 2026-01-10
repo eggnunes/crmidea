@@ -437,7 +437,13 @@ export function ClientDiagnosticForm() {
   }
   
   if (isCompleted) {
-    return <DiagnosticSuccess clientName={formData.full_name} />;
+    return (
+      <DiagnosticSuccess 
+        clientName={formData.full_name} 
+        isLoggedIn={true}
+        onBackToDashboard={() => navigate("/consultoria/dashboard")}
+      />
+    );
   }
   
   return (

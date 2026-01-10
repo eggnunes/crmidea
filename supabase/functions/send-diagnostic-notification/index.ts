@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "https://esm.sh/resend@2.0.0";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
@@ -9,6 +10,7 @@ const corsHeaders = {
 };
 
 const CONSULTANT_EMAIL = "eggnunes@gmail.com";
+const CONSULTANT_NAME = "Rafael Egg";
 const FROM_EMAIL = "Consultoria IDEA <naoresponda@rafaelegg.com>";
 
 interface DiagnosticNotificationRequest {
@@ -33,6 +35,13 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const zapiInstanceId = Deno.env.get("ZAPI_INSTANCE_ID");
+    const zapiToken = Deno.env.get("ZAPI_TOKEN");
+    
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
     const data: DiagnosticNotificationRequest = await req.json();
     console.log("Received notification request:", JSON.stringify(data));
 
@@ -41,15 +50,142 @@ const handler = async (req: Request): Promise<Response> => {
       clientEmail,
       clientPhone,
       officeName,
-      consultantEmail,
       consultantId,
       diagnosticSummary,
     } = data;
 
-    const siteUrl = Deno.env.get("SITE_URL") || "https://crmidea.lovable.app";
-    const bookingUrl = `${siteUrl}/agendar/${consultantId}`;
+    const siteUrl = Deno.env.get("SITE_URL") || "https://advocate-ai-crm.lovable.app";
+    
+    // Get booking URL from consulting settings
+    let bookingUrl = `${siteUrl}/agendar/${consultantId}`;
+    const { data: settings } = await supabase
+      .from("consulting_settings")
+      .select("calendar_booking_url")
+      .eq("user_id", consultantId)
+      .maybeSingle();
+    
+    if (settings?.calendar_booking_url) {
+      bookingUrl = settings.calendar_booking_url;
+    }
 
-    // Email to consultant (admin)
+    // Get consultant's personal WhatsApp
+    let consultantPhone = "";
+    const { data: followUpSettings } = await supabase
+      .from("follow_up_settings")
+      .select("personal_whatsapp")
+      .eq("user_id", consultantId)
+      .maybeSingle();
+    
+    if (followUpSettings?.personal_whatsapp) {
+      consultantPhone = followUpSettings.personal_whatsapp;
+    }
+
+    const results: { clientWhatsapp?: boolean; consultantWhatsapp?: boolean; clientEmail?: boolean; consultantEmail?: boolean } = {};
+
+    // ====================
+    // SEND WHATSAPP TO CLIENT
+    // ====================
+    if (clientPhone && zapiInstanceId && zapiToken) {
+      try {
+        let formattedPhone = clientPhone.replace(/\D/g, "");
+        if (!formattedPhone.startsWith("55")) {
+          formattedPhone = "55" + formattedPhone;
+        }
+
+        const clientMessage = `🎉 *Olá, ${clientName.split(" ")[0]}!*
+
+Seu diagnóstico foi recebido com sucesso! ✅
+
+Agora, o próximo passo é agendar nossa *primeira reunião* para iniciarmos a implementação da sua intranet jurídica com IA.
+
+📅 *Clique no link abaixo para agendar:*
+${bookingUrl}
+
+Após agendar, aguarde a data da reunião. Vamos construir juntos a inteligência artificial do seu escritório! 🚀
+
+_${CONSULTANT_NAME}_
+_Consultoria IDEA_`;
+
+        const response = await fetch(
+          `https://api.z-api.io/instances/${zapiInstanceId}/token/${zapiToken}/send-text`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              phone: formattedPhone,
+              message: clientMessage
+            }),
+          }
+        );
+
+        if (response.ok) {
+          console.log("WhatsApp message sent to client successfully");
+          results.clientWhatsapp = true;
+        } else {
+          console.error("Failed to send WhatsApp to client:", await response.text());
+          results.clientWhatsapp = false;
+        }
+      } catch (error) {
+        console.error("Error sending WhatsApp to client:", error);
+        results.clientWhatsapp = false;
+      }
+    }
+
+    // ====================
+    // SEND WHATSAPP TO CONSULTANT
+    // ====================
+    if (consultantPhone && zapiInstanceId && zapiToken) {
+      try {
+        let formattedConsultantPhone = consultantPhone.replace(/\D/g, "");
+        if (!formattedConsultantPhone.startsWith("55")) {
+          formattedConsultantPhone = "55" + formattedConsultantPhone;
+        }
+
+        const consultantMessage = `🆕 *Novo Diagnóstico Preenchido!*
+
+Um cliente acabou de completar o formulário de diagnóstico.
+
+👤 *Cliente:* ${clientName}
+🏢 *Escritório:* ${officeName}
+📧 *E-mail:* ${clientEmail}
+📱 *WhatsApp:* ${clientPhone}
+
+📊 *Resumo:*
+• ${diagnosticSummary.numLawyers} advogado(s)
+• ${diagnosticSummary.numEmployees} colaborador(es)
+• ${diagnosticSummary.selectedFeaturesCount} funcionalidades selecionadas
+• Experiência com IA: ${diagnosticSummary.aiExperience}
+
+Acesse o painel para ver os detalhes completos.`;
+
+        const response = await fetch(
+          `https://api.z-api.io/instances/${zapiInstanceId}/token/${zapiToken}/send-text`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              phone: formattedConsultantPhone,
+              message: consultantMessage
+            }),
+          }
+        );
+
+        if (response.ok) {
+          console.log("WhatsApp message sent to consultant successfully");
+          results.consultantWhatsapp = true;
+        } else {
+          console.error("Failed to send WhatsApp to consultant:", await response.text());
+          results.consultantWhatsapp = false;
+        }
+      } catch (error) {
+        console.error("Error sending WhatsApp to consultant:", error);
+        results.consultantWhatsapp = false;
+      }
+    }
+
+    // ====================
+    // EMAIL TO CONSULTANT (ADMIN)
+    // ====================
     const consultantEmailHtml = `
       <!DOCTYPE html>
       <html>
@@ -122,7 +258,7 @@ const handler = async (req: Request): Promise<Response> => {
             <div class="value">${diagnosticSummary.aiExperience}</div>
           </div>
           
-          <a href="${siteUrl}/consultoria" class="btn">Ver Detalhes do Cliente</a>
+          <a href="${siteUrl}/metodo-idea/consultoria" class="btn">Ver Detalhes do Cliente</a>
         </div>
       </body>
       </html>
@@ -162,7 +298,7 @@ const handler = async (req: Request): Promise<Response> => {
           <p>Recebemos seu diagnóstico e estamos muito felizes em tê-lo(a) conosco! 🎉</p>
           
           <div class="highlight">
-            <strong>📋 Próximos passos:</strong> Em breve entraremos em contato para agendar nossa primeira reunião de consultoria.
+            <strong>📅 Próximo passo:</strong> Agende nossa primeira reunião clicando no botão abaixo e aguarde a data marcada.
           </div>
           
           <h3>📊 Resumo do seu diagnóstico:</h3>
@@ -188,15 +324,15 @@ const handler = async (req: Request): Promise<Response> => {
             <div class="step">
               <div class="step-number">1</div>
               <div class="step-content">
-                <div class="step-title">Análise do Diagnóstico</div>
-                <div class="step-desc">Vamos analisar suas respostas para criar um plano personalizado.</div>
+                <div class="step-title">Agende a Reunião</div>
+                <div class="step-desc">Clique no botão abaixo e escolha o melhor horário para você.</div>
               </div>
             </div>
             <div class="step">
               <div class="step-number">2</div>
               <div class="step-content">
-                <div class="step-title">Primeira Reunião</div>
-                <div class="step-desc">Agendaremos uma reunião para apresentar o plano e tirar dúvidas.</div>
+                <div class="step-title">Aguarde a Reunião</div>
+                <div class="step-desc">Na data marcada, nos reuniremos para apresentar o plano personalizado.</div>
               </div>
             </div>
             <div class="step">
@@ -215,7 +351,8 @@ const handler = async (req: Request): Promise<Response> => {
           <p style="margin-top: 30px; font-size: 14px; color: #64748b;">
             Se tiver alguma dúvida, basta responder este email.<br><br>
             Até breve!<br>
-            <strong>Equipe IDEA - Consultoria em IA para Advogados</strong>
+            <strong>${CONSULTANT_NAME}</strong><br>
+            <em>Consultoria IDEA - Inteligência Artificial para Advogados</em>
           </p>
         </div>
       </body>
@@ -223,30 +360,41 @@ const handler = async (req: Request): Promise<Response> => {
     `;
 
     // Send email to consultant
-    console.log("Sending email to consultant:", CONSULTANT_EMAIL);
-    const consultantEmailResponse = await resend.emails.send({
-      from: FROM_EMAIL,
-      to: [CONSULTANT_EMAIL],
-      subject: `🎉 Novo Diagnóstico: ${officeName} - ${clientName}`,
-      html: consultantEmailHtml,
-    });
-    console.log("Consultant email sent:", consultantEmailResponse);
+    try {
+      console.log("Sending email to consultant:", CONSULTANT_EMAIL);
+      const consultantEmailResponse = await resend.emails.send({
+        from: FROM_EMAIL,
+        to: [CONSULTANT_EMAIL],
+        subject: `🎉 Novo Diagnóstico: ${officeName} - ${clientName}`,
+        html: consultantEmailHtml,
+      });
+      console.log("Consultant email sent:", consultantEmailResponse);
+      results.consultantEmail = true;
+    } catch (error) {
+      console.error("Error sending consultant email:", error);
+      results.consultantEmail = false;
+    }
 
     // Send email to client
-    console.log("Sending email to client:", clientEmail);
-    const clientEmailResponse = await resend.emails.send({
-      from: FROM_EMAIL,
-      to: [clientEmail],
-      subject: "✅ Diagnóstico Recebido - Consultoria IDEA",
-      html: clientEmailHtml,
-    });
-    console.log("Client email sent:", clientEmailResponse);
+    try {
+      console.log("Sending email to client:", clientEmail);
+      const clientEmailResponse = await resend.emails.send({
+        from: FROM_EMAIL,
+        to: [clientEmail],
+        subject: "✅ Diagnóstico Recebido - Consultoria IDEA",
+        html: clientEmailHtml,
+      });
+      console.log("Client email sent:", clientEmailResponse);
+      results.clientEmail = true;
+    } catch (error) {
+      console.error("Error sending client email:", error);
+      results.clientEmail = false;
+    }
 
     return new Response(
       JSON.stringify({
         success: true,
-        consultantEmailId: consultantEmailResponse.data?.id,
-        clientEmailId: clientEmailResponse.data?.id,
+        results,
       }),
       {
         status: 200,
