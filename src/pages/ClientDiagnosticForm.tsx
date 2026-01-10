@@ -283,7 +283,7 @@ export function ClientDiagnosticForm() {
         })
         .eq("client_user_id", user.id);
 
-      // Create consulting_client record
+      // Create consulting_client record with status "in_progress" since form is completed
       const { error } = await supabase
         .from("consulting_clients")
         .insert({
@@ -328,7 +328,7 @@ export function ClientDiagnosticForm() {
           expected_results: formData.expected_results,
           expected_results_other: formData.expected_results_other || null,
           tasks_to_automate: formData.tasks_to_automate || null,
-          status: "pending",
+          status: "in_progress",
         });
 
       if (error) throw error;
