@@ -6,6 +6,10 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   ArrowLeft,
   Zap, 
@@ -34,7 +38,11 @@ import {
   Building2,
   MapPin,
   Edit,
-  ExternalLink
+  ExternalLink,
+  Plus,
+  FileCheck,
+  BookOpen,
+  Send
 } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -122,6 +130,14 @@ export function AdminClientViewPage() {
   const [sessions, setSessions] = useState<ConsultingSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
+  
+  // Timeline form state
+  const [newEvent, setNewEvent] = useState({
+    event_type: "note",
+    title: "",
+    description: "",
+  });
+  const [addingEvent, setAddingEvent] = useState(false);
 
   useEffect(() => {
     if (clientId) {
@@ -201,6 +217,50 @@ export function AdminClientViewPage() {
       setCopied(true);
       toast.success("Prompt copiado!");
       setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  const handleAddTimelineEvent = async () => {
+    if (!newEvent.title.trim()) {
+      toast.error("Digite um título para o evento");
+      return;
+    }
+
+    if (!clientProfile?.user_id || !user?.id) {
+      toast.error("Erro ao identificar cliente ou consultor");
+      return;
+    }
+
+    setAddingEvent(true);
+    try {
+      const { error } = await supabase.from("client_timeline_events").insert({
+        client_user_id: clientProfile.user_id,
+        consultant_id: user.id,
+        event_type: newEvent.event_type,
+        title: newEvent.title,
+        description: newEvent.description || null,
+      });
+
+      if (error) throw error;
+
+      toast.success("Evento adicionado à timeline!");
+      setNewEvent({ event_type: "note", title: "", description: "" });
+      
+      // Refresh timeline
+      const { data: timelineData } = await supabase
+        .from("client_timeline_events")
+        .select("*")
+        .eq("client_user_id", clientProfile.user_id)
+        .order("event_date", { ascending: false });
+
+      if (timelineData) {
+        setTimeline(timelineData);
+      }
+    } catch (error) {
+      console.error("Error adding event:", error);
+      toast.error("Erro ao adicionar evento");
+    } finally {
+      setAddingEvent(false);
     }
   };
 
@@ -438,7 +498,6 @@ export function AdminClientViewPage() {
           <TabsTrigger value="responses">Respostas do Formulário</TabsTrigger>
           <TabsTrigger value="progress">Progresso</TabsTrigger>
           <TabsTrigger value="badges">Conquistas</TabsTrigger>
-          <TabsTrigger value="prompt">Prompt</TabsTrigger>
           <TabsTrigger value="timeline">Timeline</TabsTrigger>
           <TabsTrigger value="templates">Templates</TabsTrigger>
         </TabsList>
@@ -486,82 +545,116 @@ export function AdminClientViewPage() {
           <ClientBadges clientId={client.id} />
         </TabsContent>
 
-        {/* Prompt Tab */}
-        <TabsContent value="prompt">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Sparkles className="w-5 h-5" />
-                Prompt Personalizado
-              </CardTitle>
-              <CardDescription>
-                Prompt gerado para criação de intranet com IA
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {client.generated_prompt ? (
-                <div className="space-y-4">
-                  <div className="relative">
-                    <pre className="bg-muted p-4 rounded-lg text-sm whitespace-pre-wrap max-h-96 overflow-y-auto">
-                      {client.generated_prompt}
-                    </pre>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="absolute top-2 right-2"
-                      onClick={handleCopyPrompt}
-                    >
-                      {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <p className="text-center text-muted-foreground">
-                  Prompt ainda não gerado para este cliente
-                </p>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
         {/* Timeline Tab */}
         <TabsContent value="timeline">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Clock className="w-5 h-5" />
-                Timeline de Eventos
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {timeline.length === 0 ? (
-                <p className="text-center text-muted-foreground py-4">
-                  Nenhum evento registrado ainda
-                </p>
-              ) : (
-                <ScrollArea className="h-[400px]">
-                  <div className="space-y-4">
-                    {timeline.map((event) => (
-                      <div key={event.id} className="flex gap-4 items-start">
-                        <div className="w-2 h-2 rounded-full bg-primary mt-2" />
-                        <div className="flex-1">
-                          <div className="flex items-center justify-between">
-                            <p className="font-medium">{event.title}</p>
-                            <span className="text-xs text-muted-foreground">
-                              {format(new Date(event.event_date), "dd/MM/yyyy HH:mm", { locale: ptBR })}
-                            </span>
-                          </div>
-                          {event.description && (
-                            <p className="text-sm text-muted-foreground mt-1">{event.description}</p>
-                          )}
-                        </div>
-                      </div>
-                    ))}
+          <div className="space-y-4">
+            {/* Add Event Form */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Plus className="w-4 h-4" />
+                  Adicionar Evento Manual
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>Tipo de Evento</Label>
+                    <Select 
+                      value={newEvent.event_type} 
+                      onValueChange={(value) => setNewEvent({ ...newEvent, event_type: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o tipo" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="note">📝 Anotação</SelectItem>
+                        <SelectItem value="call">📞 Ligação</SelectItem>
+                        <SelectItem value="meeting">🎥 Reunião</SelectItem>
+                        <SelectItem value="task">✅ Tarefa concluída</SelectItem>
+                        <SelectItem value="document">📄 Documento enviado</SelectItem>
+                        <SelectItem value="milestone">🎯 Marco alcançado</SelectItem>
+                        <SelectItem value="feedback">💬 Feedback</SelectItem>
+                        <SelectItem value="other">📌 Outro</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
-                </ScrollArea>
-              )}
-            </CardContent>
-          </Card>
+                  <div className="space-y-2">
+                    <Label>Título *</Label>
+                    <Input
+                      value={newEvent.title}
+                      onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
+                      placeholder="Ex: Reunião de alinhamento"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Descrição (opcional)</Label>
+                  <Textarea
+                    value={newEvent.description}
+                    onChange={(e) => setNewEvent({ ...newEvent, description: e.target.value })}
+                    placeholder="Detalhes adicionais sobre o evento..."
+                    rows={2}
+                  />
+                </div>
+                <Button 
+                  onClick={handleAddTimelineEvent} 
+                  disabled={addingEvent || !newEvent.title.trim()}
+                  className="gap-2"
+                >
+                  {addingEvent ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Plus className="w-4 h-4" />
+                  )}
+                  Adicionar à Timeline
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Timeline Events */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Clock className="w-5 h-5" />
+                  Timeline de Eventos
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {timeline.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-4">
+                    Nenhum evento registrado ainda
+                  </p>
+                ) : (
+                  <ScrollArea className="h-[400px]">
+                    <div className="space-y-4">
+                      {timeline.map((event) => (
+                        <div key={event.id} className="flex gap-4 items-start">
+                          <div className="w-2 h-2 rounded-full bg-primary mt-2" />
+                          <div className="flex-1">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <p className="font-medium">{event.title}</p>
+                                <Badge variant="outline" className="text-xs">
+                                  {event.event_type}
+                                </Badge>
+                              </div>
+                              <span className="text-xs text-muted-foreground">
+                                {format(new Date(event.event_date), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                              </span>
+                            </div>
+                            {event.description && (
+                              <p className="text-sm text-muted-foreground mt-1">{event.description}</p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
 
         {/* Templates Tab */}
