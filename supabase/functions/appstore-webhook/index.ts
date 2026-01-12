@@ -106,6 +106,24 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Validate webhook shared secret for security
+  const webhookSecret = Deno.env.get("APPSTORE_WEBHOOK_SECRET");
+  if (webhookSecret) {
+    const authHeader = req.headers.get("authorization");
+    const providedSecret = authHeader?.replace("Bearer ", "");
+    
+    if (providedSecret !== webhookSecret) {
+      console.error("❌ Invalid webhook secret - unauthorized request attempt");
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    console.log("✅ Webhook secret validated successfully");
+  } else {
+    console.warn("⚠️ APPSTORE_WEBHOOK_SECRET not configured - webhook is not protected");
+  }
+
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
