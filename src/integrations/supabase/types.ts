@@ -311,6 +311,60 @@ export type Database = {
         }
         Relationships: []
       }
+      appstore_subscriptions: {
+        Row: {
+          app_account_token: string | null
+          bundle_id: string | null
+          created_at: string
+          environment: string | null
+          expires_date: string | null
+          id: string
+          last_transaction_id: string | null
+          notes: string | null
+          original_transaction_id: string
+          product_id: string | null
+          purchase_date: string | null
+          renewal_info: Json | null
+          status: string
+          updated_at: string
+          user_email: string | null
+        }
+        Insert: {
+          app_account_token?: string | null
+          bundle_id?: string | null
+          created_at?: string
+          environment?: string | null
+          expires_date?: string | null
+          id?: string
+          last_transaction_id?: string | null
+          notes?: string | null
+          original_transaction_id: string
+          product_id?: string | null
+          purchase_date?: string | null
+          renewal_info?: Json | null
+          status?: string
+          updated_at?: string
+          user_email?: string | null
+        }
+        Update: {
+          app_account_token?: string | null
+          bundle_id?: string | null
+          created_at?: string
+          environment?: string | null
+          expires_date?: string | null
+          id?: string
+          last_transaction_id?: string | null
+          notes?: string | null
+          original_transaction_id?: string
+          product_id?: string | null
+          purchase_date?: string | null
+          renewal_info?: Json | null
+          status?: string
+          updated_at?: string
+          user_email?: string | null
+        }
+        Relationships: []
+      }
       appstore_sync_logs: {
         Row: {
           created_at: string
@@ -335,6 +389,57 @@ export type Database = {
           records_synced?: number | null
           status?: string
           sync_type?: string
+        }
+        Relationships: []
+      }
+      appstore_webhook_events: {
+        Row: {
+          bundle_id: string | null
+          created_at: string
+          decoded_payload: Json | null
+          environment: string | null
+          id: string
+          notification_type: string
+          notification_uuid: string | null
+          original_transaction_id: string | null
+          processed_at: string | null
+          product_id: string | null
+          raw_payload: Json | null
+          signed_date: string | null
+          subtype: string | null
+          transaction_id: string | null
+        }
+        Insert: {
+          bundle_id?: string | null
+          created_at?: string
+          decoded_payload?: Json | null
+          environment?: string | null
+          id?: string
+          notification_type: string
+          notification_uuid?: string | null
+          original_transaction_id?: string | null
+          processed_at?: string | null
+          product_id?: string | null
+          raw_payload?: Json | null
+          signed_date?: string | null
+          subtype?: string | null
+          transaction_id?: string | null
+        }
+        Update: {
+          bundle_id?: string | null
+          created_at?: string
+          decoded_payload?: Json | null
+          environment?: string | null
+          id?: string
+          notification_type?: string
+          notification_uuid?: string | null
+          original_transaction_id?: string | null
+          processed_at?: string | null
+          product_id?: string | null
+          raw_payload?: Json | null
+          signed_date?: string | null
+          subtype?: string | null
+          transaction_id?: string | null
         }
         Relationships: []
       }
