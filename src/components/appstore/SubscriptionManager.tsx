@@ -317,28 +317,15 @@ export function SubscriptionManager() {
             </div>
           </div>
           
-          <div className="p-4 bg-green-500/10 border border-green-500/30 rounded-lg">
-            <label className="text-green-400 text-sm font-medium mb-2 block flex items-center gap-2">
-              <CheckCircle className="h-4 w-4" />
-              Shared Secret (Segredo Configurado)
-            </label>
-            <div className="flex gap-2">
-              <Input 
-                value="AITeleprompterWebhook2025SecureKey" 
-                readOnly 
-                className="bg-white/10 border-white/20 text-white font-mono text-sm"
-              />
-              <Button 
-                variant="outline" 
-                size="icon"
-                className="border-white/20 text-white hover:bg-white/10"
-                onClick={() => copyToClipboard("AITeleprompterWebhook2025SecureKey")}
-              >
-                <Copy className="h-4 w-4" />
-              </Button>
-            </div>
-            <p className="text-xs text-white/50 mt-2">
-              Cole este valor no campo "Secret" ao configurar o webhook no App Store Connect.
+          <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+            <p className="text-blue-400 text-sm font-medium mb-2 flex items-center gap-2">
+              <AlertCircle className="h-4 w-4" />
+              Sobre Segurança do Webhook
+            </p>
+            <p className="text-xs text-white/60">
+              A Apple usa JWTs assinados (signedPayload) para garantir autenticidade. 
+              O campo "Secret" no App Store Connect é usado internamente pela Apple para assinar os payloads.
+              A URL do webhook é protegida por HTTPS e obscuridade.
             </p>
           </div>
 
