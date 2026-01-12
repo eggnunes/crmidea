@@ -159,13 +159,22 @@ Deno.serve(async (req) => {
     }
 
     // Check admin role
-    const { data: isAdmin } = await supabase.rpc('is_admin', { user_id: user.id })
-    if (!isAdmin) {
+    const { data: roleData } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id)
+      .eq('role', 'admin')
+      .maybeSingle()
+    
+    if (!roleData) {
+      console.log('User is not admin:', user.id)
       return new Response(JSON.stringify({ error: 'Forbidden' }), {
         status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
+    
+    console.log('Admin verified:', user.id)
 
     const { action } = await req.json()
     console.log('App Store Connect action:', action)
