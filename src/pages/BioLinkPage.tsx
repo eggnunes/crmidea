@@ -74,7 +74,7 @@ const otherProjects = [
     logo: logoAITeleprompter,
     accentColor: "border-cyan-500/50 hover:border-cyan-400",
     buttonColor: "text-cyan-400 hover:text-cyan-300",
-    logoBg: "rounded-xl"
+    logoBg: null
   },
   {
     title: "Antigolpe Advogado",
