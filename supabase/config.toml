@@ -119,3 +119,6 @@ verify_jwt = true
 
 [functions.send-client-email]
 verify_jwt = true
+
+[functions.appstore-connect]
+verify_jwt = false
