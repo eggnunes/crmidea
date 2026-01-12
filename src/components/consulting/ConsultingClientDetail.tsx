@@ -465,7 +465,8 @@ O prompt deve:
                 Prompt para Lovable
               </CardTitle>
               <CardDescription>
-                Gere um prompt personalizado para criar a intranet do cliente no Lovable.dev
+                Gere um prompt personalizado para criar a intranet do cliente no Lovable.dev.
+                Este prompt será exibido automaticamente no dashboard do cliente.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -484,21 +485,48 @@ O prompt deve:
                   )}
                 </Button>
                 {prompt && (
-                  <Button variant="outline" onClick={copyPrompt}>
-                    <Copy className="w-4 h-4 mr-2" />
-                    Copiar
-                  </Button>
+                  <>
+                    <Button variant="outline" onClick={copyPrompt}>
+                      <Copy className="w-4 h-4 mr-2" />
+                      Copiar
+                    </Button>
+                    <Button 
+                      variant="default" 
+                      onClick={async () => {
+                        try {
+                          await supabase
+                            .from('consulting_clients')
+                            .update({ generated_prompt: prompt })
+                            .eq('id', client.id);
+                          toast.success('Prompt salvo com sucesso!');
+                          onUpdate();
+                        } catch (error) {
+                          toast.error('Erro ao salvar prompt');
+                        }
+                      }}
+                    >
+                      Salvar
+                    </Button>
+                  </>
                 )}
               </div>
 
+              {/* Info box */}
               {prompt && (
-                <Textarea
-                  value={prompt}
-                  onChange={(e) => setPrompt(e.target.value)}
-                  className="min-h-[400px] font-mono text-sm"
-                  placeholder="O prompt aparecerá aqui..."
-                />
+                <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg">
+                  <p className="text-sm">
+                    <strong>Dica:</strong> O prompt editado será exibido automaticamente no dashboard do cliente 
+                    após salvar. Certifique-se de que o conteúdo esteja completo e correto.
+                  </p>
+                </div>
               )}
+
+              <Textarea
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                className="min-h-[400px] font-mono text-sm"
+                placeholder="Clique em 'Gerar Prompt' para criar um prompt personalizado..."
+              />
             </CardContent>
           </Card>
         </TabsContent>
