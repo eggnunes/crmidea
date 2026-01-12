@@ -58,7 +58,7 @@ import { ClientProgressCharts } from "@/components/clients/ClientProgressCharts"
 import { ClientFormResponses } from "@/components/clients/ClientFormResponses";
 import { ClientDocumentsManager } from "@/components/consulting/ClientDocumentsManager";
 import { ConsultingSessionsManager } from "@/components/consulting/ConsultingSessionsManager";
-import { ImplementationPlanViewer } from "@/components/consulting/ImplementationPlanViewer";
+import { PromptGenerator } from "@/components/consulting/PromptGenerator";
 import { ClientCommunication } from "@/components/consulting/ClientCommunication";
 import { ClientMessageTemplates } from "@/components/consulting/ClientMessageTemplates";
 
@@ -500,7 +500,7 @@ export function AdminClientViewPage() {
           <TabsTrigger value="communication">Comunicação</TabsTrigger>
           <TabsTrigger value="sessions">Reuniões</TabsTrigger>
           <TabsTrigger value="documents">Documentos</TabsTrigger>
-          <TabsTrigger value="plan">Plano de Implementação</TabsTrigger>
+          <TabsTrigger value="prompt">Prompt Gerado</TabsTrigger>
           <TabsTrigger value="responses">Respostas do Formulário</TabsTrigger>
           <TabsTrigger value="progress">Progresso</TabsTrigger>
           <TabsTrigger value="badges">Conquistas</TabsTrigger>
@@ -528,9 +528,9 @@ export function AdminClientViewPage() {
           <ClientDocumentsManager clientId={client.id} />
         </TabsContent>
 
-        {/* Implementation Plan Tab */}
-        <TabsContent value="plan">
-          <ImplementationPlanViewer clientId={client.id} existingPlan={client.implementation_plan as any} />
+        {/* Prompt Tab */}
+        <TabsContent value="prompt">
+          <PromptGenerator client={client} onUpdate={fetchClientData} />
         </TabsContent>
 
         {/* Form Responses Tab */}
