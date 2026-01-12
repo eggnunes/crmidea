@@ -269,7 +269,7 @@ export function BioLinkPage() {
                             <img 
                               src={project.logo} 
                               alt={project.title}
-                              className="h-12 w-12 object-contain"
+                              className={`h-12 w-12 object-contain ${project.title === "AI Teleprompter" ? "rounded-xl" : ""}`}
                             />
                           </div>
                         ) : (
