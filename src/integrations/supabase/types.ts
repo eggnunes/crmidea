@@ -188,6 +188,156 @@ export type Database = {
         }
         Relationships: []
       }
+      appstore_metrics: {
+        Row: {
+          active_devices: number | null
+          crashes: number | null
+          created_at: string
+          date: string
+          downloads: number | null
+          id: string
+          impressions: number | null
+          page_views: number | null
+          redownloads: number | null
+          sessions: number | null
+          updated_at: string
+        }
+        Insert: {
+          active_devices?: number | null
+          crashes?: number | null
+          created_at?: string
+          date: string
+          downloads?: number | null
+          id?: string
+          impressions?: number | null
+          page_views?: number | null
+          redownloads?: number | null
+          sessions?: number | null
+          updated_at?: string
+        }
+        Update: {
+          active_devices?: number | null
+          crashes?: number | null
+          created_at?: string
+          date?: string
+          downloads?: number | null
+          id?: string
+          impressions?: number | null
+          page_views?: number | null
+          redownloads?: number | null
+          sessions?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      appstore_reviews: {
+        Row: {
+          apple_id: string | null
+          author_name: string | null
+          body: string | null
+          country_code: string | null
+          created_at: string
+          id: string
+          rating: number | null
+          responded: boolean | null
+          response_text: string | null
+          review_date: string | null
+          title: string | null
+        }
+        Insert: {
+          apple_id?: string | null
+          author_name?: string | null
+          body?: string | null
+          country_code?: string | null
+          created_at?: string
+          id?: string
+          rating?: number | null
+          responded?: boolean | null
+          response_text?: string | null
+          review_date?: string | null
+          title?: string | null
+        }
+        Update: {
+          apple_id?: string | null
+          author_name?: string | null
+          body?: string | null
+          country_code?: string | null
+          created_at?: string
+          id?: string
+          rating?: number | null
+          responded?: boolean | null
+          response_text?: string | null
+          review_date?: string | null
+          title?: string | null
+        }
+        Relationships: []
+      }
+      appstore_sales: {
+        Row: {
+          country_code: string | null
+          created_at: string
+          currency: string | null
+          date: string
+          id: string
+          proceeds: number | null
+          product_name: string | null
+          product_type: string | null
+          units: number | null
+          updated_at: string
+        }
+        Insert: {
+          country_code?: string | null
+          created_at?: string
+          currency?: string | null
+          date: string
+          id?: string
+          proceeds?: number | null
+          product_name?: string | null
+          product_type?: string | null
+          units?: number | null
+          updated_at?: string
+        }
+        Update: {
+          country_code?: string | null
+          created_at?: string
+          currency?: string | null
+          date?: string
+          id?: string
+          proceeds?: number | null
+          product_name?: string | null
+          product_type?: string | null
+          units?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      appstore_sync_logs: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          id: string
+          records_synced: number | null
+          status: string
+          sync_type: string
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          records_synced?: number | null
+          status: string
+          sync_type: string
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          records_synced?: number | null
+          status?: string
+          sync_type?: string
+        }
+        Relationships: []
+      }
       bio_link_clicks: {
         Row: {
           category: string

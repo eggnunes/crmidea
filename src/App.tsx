@@ -33,6 +33,7 @@ import { BlogPage } from "./pages/BlogPage";
 import { BlogArticlePage } from "./pages/BlogArticlePage";
 import { BioLinkPage } from "./pages/BioLinkPage";
 import { EbookCapturePage } from "./pages/EbookCapturePage";
+import { AITeleprompterAdminPage } from "./pages/AITeleprompterAdminPage";
 
 const queryClient = new QueryClient();
 
@@ -49,6 +50,9 @@ function AppRoutes() {
       {/* Autenticação admin */}
       <Route path="/auth" element={<AuthPage />} />
       <Route path="/privacidade" element={<PrivacyPolicyPage />} />
+      
+      {/* AI Teleprompter Admin */}
+      <Route path="/aiteleprompteradmin" element={<AITeleprompterAdminPage />} />
       
       {/* Páginas públicas */}
       <Route path="/agendar/:userId" element={<PublicBookingPage />} />
