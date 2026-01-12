@@ -50,6 +50,7 @@ import logoComboEbooks from "@/assets/logo-combo-ebooks-new.png";
 import logoEggNunes from "@/assets/logo-eggnunes.png";
 import logoRobodetoga from "@/assets/logo-robodetoga.png";
 import logoVagasjuridicas from "@/assets/logo-vagasjuridicas.png";
+import logoAITeleprompter from "@/assets/logo-ai-teleprompter.png";
 import fotoRafael from "@/assets/foto-rafael.jpg";
 
 export function HomePage() {
@@ -545,6 +546,35 @@ export function HomePage() {
           </div>
 
           <div className="grid md:grid-cols-2 gap-8">
+            {/* AI Teleprompter */}
+            <Card className="bg-slate-800/50 border-slate-700 hover:border-cyan-500/50 transition-all duration-300 group hover:scale-[1.02] hover:shadow-xl hover:shadow-cyan-500/10">
+              <CardContent className="p-8">
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="h-16 w-16 flex-shrink-0 flex items-center justify-center">
+                    <img src={logoAITeleprompter} alt="AI Teleprompter" className="h-full w-full object-contain rounded-xl" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-semibold text-white">AI Teleprompter</h3>
+                    <p className="text-cyan-400 text-sm">App Store</p>
+                  </div>
+                </div>
+                <p className="text-slate-400 mb-4">
+                  Aplicativo para gravar vídeos com uma janela flutuante posicionável próxima à câmera. 
+                  A IA reconhece sua voz e rola o texto automaticamente no seu ritmo, permitindo gravar olhando para a câmera.
+                </p>
+                <Button 
+                  variant="ghost" 
+                  className="text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10 p-0 transition-all duration-300 group-hover:translate-x-1"
+                  asChild
+                >
+                  <a href="https://apps.apple.com/br/app/ai-teleprompter/id6756862906" target="_blank" rel="noopener noreferrer">
+                    Baixar na App Store
+                    <ExternalLink className="ml-2 h-4 w-4" />
+                  </a>
+                </Button>
+              </CardContent>
+            </Card>
+
             {/* Antigolpe Advogado */}
             <Card className="bg-slate-800/50 border-slate-700 hover:border-blue-500/50 transition-all duration-300 group hover:scale-[1.02] hover:shadow-xl hover:shadow-blue-500/10">
               <CardContent className="p-8">

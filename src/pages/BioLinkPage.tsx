@@ -10,6 +10,7 @@ import logoComboEbooks from "@/assets/logo-combo-ebooks-new.png";
 import logoEggNunes from "@/assets/logo-eggnunes.png";
 import logoRobodetoga from "@/assets/logo-robodetoga.png";
 import logoVagasjuridicas from "@/assets/logo-vagasjuridicas.png";
+import logoAITeleprompter from "@/assets/logo-ai-teleprompter.png";
 import { Link, useNavigate } from "react-router-dom";
 import { Helmet } from "react-helmet";
 import { supabase } from "@/integrations/supabase/client";
@@ -66,6 +67,15 @@ const products = [
 ];
 
 const otherProjects = [
+  {
+    title: "AI Teleprompter",
+    description: "Grave vídeos olhando para a câmera com uma janela flutuante. A IA reconhece sua voz e rola o texto no seu ritmo.",
+    link: "https://apps.apple.com/br/app/ai-teleprompter/id6756862906",
+    logo: logoAITeleprompter,
+    accentColor: "border-cyan-500/50 hover:border-cyan-400",
+    buttonColor: "text-cyan-400 hover:text-cyan-300",
+    logoBg: "rounded-xl"
+  },
   {
     title: "Antigolpe Advogado",
     description: "Plataforma gratuita para consultar e denunciar números de WhatsApp usados no golpe do falso advogado.",
