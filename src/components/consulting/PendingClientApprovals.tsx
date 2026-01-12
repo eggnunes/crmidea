@@ -318,18 +318,51 @@ export function PendingClientApprovals() {
   };
 
   const viewClientDashboard = async (client: PendingClient) => {
-    // Find consulting_client by email to get its ID
-    const { data } = await supabase
+    // Find consulting_client by email (user_id in consulting_clients is the consultant's ID)
+    const { data, error } = await supabase
       .from('consulting_clients')
       .select('id')
       .eq('email', client.email)
       .eq('user_id', user?.id)
-      .single();
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Error finding client:', error);
+      toast.error('Erro ao buscar cliente');
+      return;
+    }
 
     if (data) {
       navigate(`/metodo-idea/consultoria/cliente/${data.id}`);
     } else {
-      toast.error('Cliente não encontrado na base de consultoria');
+      // Try to create the consulting_client entry if it doesn't exist
+      const { data: newClient, error: insertError } = await supabase
+        .from('consulting_clients')
+        .insert({
+          user_id: user?.id,
+          full_name: client.full_name,
+          email: client.email,
+          phone: client.phone || '',
+          office_name: client.office_name || 'Não informado',
+          office_address: 'A preencher',
+          num_lawyers: 1,
+          num_employees: 1,
+          status: 'pending',
+        })
+        .select('id')
+        .single();
+
+      if (insertError) {
+        console.error('Error creating consulting_client:', insertError);
+        toast.error('Erro ao criar registro do cliente');
+        return;
+      }
+
+      if (newClient) {
+        navigate(`/metodo-idea/consultoria/cliente/${newClient.id}`);
+      }
     }
   };
 
