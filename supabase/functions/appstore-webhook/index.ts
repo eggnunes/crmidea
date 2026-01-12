@@ -120,13 +120,30 @@ serve(async (req) => {
   try {
     const body = await req.json();
     console.log("Received App Store webhook notification");
+    console.log("Request body:", JSON.stringify(body));
 
-    // The notification is wrapped in a signedPayload JWT
+    // Handle Apple's webhook ping/test (different format from actual notifications)
+    if (body.data?.type === "webhookPingCreated") {
+      console.log("✅ Webhook ping test received successfully");
+      console.log("Ping ID:", body.data.id);
+      console.log("Timestamp:", body.data.attributes?.timestamp);
+      
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          message: "Webhook ping received successfully",
+          pingId: body.data.id 
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // The actual notification is wrapped in a signedPayload JWT
     const signedPayload = body.signedPayload;
     if (!signedPayload) {
-      console.error("No signedPayload in webhook body");
+      console.error("No signedPayload in webhook body - body structure:", Object.keys(body));
       return new Response(
-        JSON.stringify({ error: "Missing signedPayload" }),
+        JSON.stringify({ error: "Missing signedPayload", receivedKeys: Object.keys(body) }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
