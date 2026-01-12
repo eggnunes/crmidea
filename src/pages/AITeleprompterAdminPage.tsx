@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { AdminRoute } from "@/components/auth/AdminRoute";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, RefreshCw, Settings, ExternalLink, CreditCard } from "lucide-react";
+import { ArrowLeft, RefreshCw, Settings, ExternalLink, CreditCard, Bell, TrendingDown } from "lucide-react";
 import { Link } from "react-router-dom";
 import { AppStoreStatsCards } from "@/components/appstore/AppStoreStatsCards";
 import { DownloadsChart } from "@/components/appstore/DownloadsChart";
@@ -13,10 +13,15 @@ import { RatingsDistribution } from "@/components/appstore/RatingsDistribution";
 import { SalesTable } from "@/components/appstore/SalesTable";
 import { SyncStatusCard } from "@/components/appstore/SyncStatusCard";
 import { SubscriptionManager } from "@/components/appstore/SubscriptionManager";
+import { SubscriptionMetrics } from "@/components/appstore/SubscriptionMetrics";
+import { AlertSettings } from "@/components/appstore/AlertSettings";
+import { ChurnAnalysis } from "@/components/appstore/ChurnAnalysis";
+import { ExportButtons } from "@/components/appstore/ExportButtons";
 import { useAppStoreSales } from "@/hooks/useAppStoreSales";
 import { useAppStoreReviews } from "@/hooks/useAppStoreReviews";
 import { useAppStoreMetrics } from "@/hooks/useAppStoreMetrics";
 import { useAppStoreSync } from "@/hooks/useAppStoreSync";
+import { useAppStoreSubscriptions } from "@/hooks/useAppStoreSubscriptions";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import logoAiTeleprompter from "@/assets/logo-ai-teleprompter.png";
 
@@ -24,6 +29,7 @@ function AITeleprompterAdminContent() {
   const { sales, isLoading: salesLoading } = useAppStoreSales();
   const { reviews, isLoading: reviewsLoading } = useAppStoreReviews();
   const { metrics, isLoading: metricsLoading } = useAppStoreMetrics();
+  const { subscriptions, isLoading: subscriptionsLoading } = useAppStoreSubscriptions();
   const { syncAll, isSyncing, lastSync } = useAppStoreSync();
   const [activeTab, setActiveTab] = useState("overview");
 
@@ -101,6 +107,14 @@ function AITeleprompterAdminContent() {
             <TabsTrigger value="analytics" className="data-[state=active]:bg-purple-600 data-[state=active]:text-white text-white/70">
               Analytics
             </TabsTrigger>
+            <TabsTrigger value="churn" className="data-[state=active]:bg-purple-600 data-[state=active]:text-white text-white/70">
+              <TrendingDown className="h-4 w-4 mr-1" />
+              Churn
+            </TabsTrigger>
+            <TabsTrigger value="alerts" className="data-[state=active]:bg-purple-600 data-[state=active]:text-white text-white/70">
+              <Bell className="h-4 w-4 mr-1" />
+              Alertas
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
@@ -129,10 +143,14 @@ function AITeleprompterAdminContent() {
           </TabsContent>
 
           <TabsContent value="subscriptions" className="space-y-6">
+            <SubscriptionMetrics subscriptions={subscriptions} isLoading={subscriptionsLoading} />
             <SubscriptionManager />
           </TabsContent>
 
           <TabsContent value="sales" className="space-y-6">
+            <div className="flex justify-end mb-2">
+              <ExportButtons data={sales || []} filename="vendas_appstore" />
+            </div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <RevenueChart sales={sales} isLoading={salesLoading} />
               <CountryDistributionChart sales={sales} isLoading={salesLoading} />
@@ -188,6 +206,14 @@ function AITeleprompterAdminContent() {
                 </div>
               </div>
             </div>
+          </TabsContent>
+
+          <TabsContent value="churn" className="space-y-6">
+            <ChurnAnalysis subscriptions={subscriptions} isLoading={subscriptionsLoading} />
+          </TabsContent>
+
+          <TabsContent value="alerts" className="space-y-6">
+            <AlertSettings />
           </TabsContent>
         </Tabs>
       </main>
