@@ -188,6 +188,72 @@ export type Database = {
         }
         Relationships: []
       }
+      appstore_alert_settings: {
+        Row: {
+          alert_type: string
+          created_at: string
+          email_address: string | null
+          email_enabled: boolean | null
+          id: string
+          is_active: boolean | null
+          min_rating: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          alert_type: string
+          created_at?: string
+          email_address?: string | null
+          email_enabled?: boolean | null
+          id?: string
+          is_active?: boolean | null
+          min_rating?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          alert_type?: string
+          created_at?: string
+          email_address?: string | null
+          email_enabled?: boolean | null
+          id?: string
+          is_active?: boolean | null
+          min_rating?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      appstore_alerts_log: {
+        Row: {
+          alert_type: string
+          created_at: string
+          email_sent_to: string | null
+          id: string
+          message: string | null
+          reference_id: string | null
+          status: string | null
+        }
+        Insert: {
+          alert_type: string
+          created_at?: string
+          email_sent_to?: string | null
+          id?: string
+          message?: string | null
+          reference_id?: string | null
+          status?: string | null
+        }
+        Update: {
+          alert_type?: string
+          created_at?: string
+          email_sent_to?: string | null
+          id?: string
+          message?: string | null
+          reference_id?: string | null
+          status?: string | null
+        }
+        Relationships: []
+      }
       appstore_metrics: {
         Row: {
           active_devices: number | null
@@ -229,6 +295,50 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      appstore_review_responses: {
+        Row: {
+          apple_review_id: string | null
+          created_at: string
+          error_message: string | null
+          id: string
+          response_status: string | null
+          response_text: string
+          review_id: string | null
+          sent_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          apple_review_id?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          response_status?: string | null
+          response_text: string
+          review_id?: string | null
+          sent_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          apple_review_id?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          response_status?: string | null
+          response_text?: string
+          review_id?: string | null
+          sent_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appstore_review_responses_review_id_fkey"
+            columns: ["review_id"]
+            isOneToOne: false
+            referencedRelation: "appstore_reviews"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       appstore_reviews: {
         Row: {
