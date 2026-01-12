@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { AdminRoute } from "@/components/auth/AdminRoute";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, RefreshCw, Settings, ExternalLink } from "lucide-react";
+import { ArrowLeft, RefreshCw, Settings, ExternalLink, CreditCard } from "lucide-react";
 import { Link } from "react-router-dom";
 import { AppStoreStatsCards } from "@/components/appstore/AppStoreStatsCards";
 import { DownloadsChart } from "@/components/appstore/DownloadsChart";
@@ -12,6 +12,7 @@ import { ReviewsList } from "@/components/appstore/ReviewsList";
 import { RatingsDistribution } from "@/components/appstore/RatingsDistribution";
 import { SalesTable } from "@/components/appstore/SalesTable";
 import { SyncStatusCard } from "@/components/appstore/SyncStatusCard";
+import { SubscriptionManager } from "@/components/appstore/SubscriptionManager";
 import { useAppStoreSales } from "@/hooks/useAppStoreSales";
 import { useAppStoreReviews } from "@/hooks/useAppStoreReviews";
 import { useAppStoreMetrics } from "@/hooks/useAppStoreMetrics";
@@ -87,6 +88,10 @@ function AITeleprompterAdminContent() {
             <TabsTrigger value="overview" className="data-[state=active]:bg-purple-600 data-[state=active]:text-white text-white/70">
               Visão Geral
             </TabsTrigger>
+            <TabsTrigger value="subscriptions" className="data-[state=active]:bg-purple-600 data-[state=active]:text-white text-white/70">
+              <CreditCard className="h-4 w-4 mr-1" />
+              Assinaturas
+            </TabsTrigger>
             <TabsTrigger value="sales" className="data-[state=active]:bg-purple-600 data-[state=active]:text-white text-white/70">
               Vendas
             </TabsTrigger>
@@ -121,6 +126,10 @@ function AITeleprompterAdminContent() {
 
             {/* Recent Reviews */}
             <ReviewsList reviews={reviews?.slice(0, 5) || []} isLoading={reviewsLoading} showAll={false} />
+          </TabsContent>
+
+          <TabsContent value="subscriptions" className="space-y-6">
+            <SubscriptionManager />
           </TabsContent>
 
           <TabsContent value="sales" className="space-y-6">
