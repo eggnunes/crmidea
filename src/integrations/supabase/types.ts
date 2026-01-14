@@ -1510,8 +1510,10 @@ export type Database = {
           has_used_chatgpt: boolean | null
           id: string
           implementation_plan: Json | null
+          last_reminder_sent_at: string | null
           lead_id: string | null
           logo_url: string | null
+          lovable_project_url: string | null
           motivations: string[] | null
           motivations_other: string | null
           num_employees: number
@@ -1563,8 +1565,10 @@ export type Database = {
           has_used_chatgpt?: boolean | null
           id?: string
           implementation_plan?: Json | null
+          last_reminder_sent_at?: string | null
           lead_id?: string | null
           logo_url?: string | null
+          lovable_project_url?: string | null
           motivations?: string[] | null
           motivations_other?: string | null
           num_employees?: number
@@ -1616,8 +1620,10 @@ export type Database = {
           has_used_chatgpt?: boolean | null
           id?: string
           implementation_plan?: Json | null
+          last_reminder_sent_at?: string | null
           lead_id?: string | null
           logo_url?: string | null
+          lovable_project_url?: string | null
           motivations?: string[] | null
           motivations_other?: string | null
           num_employees?: number
