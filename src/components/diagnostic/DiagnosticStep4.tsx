@@ -4,6 +4,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ChevronDown } from "lucide-react";
 import { CONSULTING_FEATURES, FEATURE_CATEGORIES } from "@/data/consultingFeatures";
 import { AIFeatureSuggestions } from "./AIFeatureSuggestions";
@@ -14,6 +15,14 @@ interface DiagnosticStep4Props {
   updateFormData: (updates: Partial<DiagnosticFormData>) => void;
 }
 
+type Priority = 'alta' | 'media' | 'baixa';
+
+const PRIORITY_OPTIONS: { value: Priority; label: string; emoji: string; color: string }[] = [
+  { value: 'alta', label: 'Alta', emoji: '🔴', color: 'bg-red-500' },
+  { value: 'media', label: 'Média', emoji: '🟡', color: 'bg-yellow-500' },
+  { value: 'baixa', label: 'Baixa', emoji: '🟢', color: 'bg-green-500' },
+];
+
 export function DiagnosticStep4({ formData, updateFormData }: DiagnosticStep4Props) {
   const [openCategories, setOpenCategories] = useState<string[]>(
     FEATURE_CATEGORIES.map(c => c.id)
@@ -21,10 +30,39 @@ export function DiagnosticStep4({ formData, updateFormData }: DiagnosticStep4Pro
   
   const toggleFeature = (featureId: number) => {
     const current = formData.selected_features;
-    const updated = current.includes(featureId)
-      ? current.filter((id) => id !== featureId)
-      : [...current, featureId];
-    updateFormData({ selected_features: updated });
+    const currentPriorities = formData.feature_priorities || {};
+    
+    if (current.includes(featureId)) {
+      // Remove feature and its priority
+      const updated = current.filter((id) => id !== featureId);
+      const { [featureId]: _, ...remainingPriorities } = currentPriorities;
+      updateFormData({ 
+        selected_features: updated,
+        feature_priorities: remainingPriorities
+      });
+    } else {
+      // Add feature with default priority "media"
+      const updated = [...current, featureId];
+      updateFormData({ 
+        selected_features: updated,
+        feature_priorities: { ...currentPriorities, [featureId]: 'media' as Priority }
+      });
+    }
+  };
+
+  const updatePriority = (featureId: number, priority: Priority) => {
+    const currentPriorities = formData.feature_priorities || {};
+    updateFormData({
+      feature_priorities: { ...currentPriorities, [featureId]: priority }
+    });
+  };
+
+  const getPriority = (featureId: number): Priority => {
+    return formData.feature_priorities?.[featureId] || 'media';
+  };
+
+  const getPriorityConfig = (priority: Priority) => {
+    return PRIORITY_OPTIONS.find(p => p.value === priority) || PRIORITY_OPTIONS[1];
   };
   
   const toggleCategory = (category: string) => {
@@ -100,31 +138,71 @@ export function DiagnosticStep4({ formData, updateFormData }: DiagnosticStep4Pro
               
               <CollapsibleContent className="pt-2">
                 <div className="grid gap-2 pl-4 border-l-2 border-muted ml-4">
-                  {features.map((feature) => (
-                    <div
-                      key={feature.id}
-                      className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                        formData.selected_features.includes(feature.id)
-                          ? "border-primary bg-primary/5"
-                          : "hover:bg-accent/50"
-                      }`}
-                      onClick={() => toggleFeature(feature.id)}
-                    >
-                      <Checkbox
-                        checked={formData.selected_features.includes(feature.id)}
-                        onCheckedChange={() => toggleFeature(feature.id)}
-                        className="mt-0.5"
-                      />
-                      <div className="flex-1">
-                        <Label className="font-medium cursor-pointer">
-                          {feature.name}
-                        </Label>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          {feature.description}
-                        </p>
+                  {features.map((feature) => {
+                    const isSelected = formData.selected_features.includes(feature.id);
+                    const priority = getPriority(feature.id);
+                    const priorityConfig = getPriorityConfig(priority);
+                    
+                    return (
+                      <div
+                        key={feature.id}
+                        className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                          isSelected
+                            ? "border-primary bg-primary/5"
+                            : "hover:bg-accent/50"
+                        }`}
+                      >
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={() => toggleFeature(feature.id)}
+                          className="mt-0.5"
+                        />
+                        <div 
+                          className="flex-1 min-w-0"
+                          onClick={() => toggleFeature(feature.id)}
+                        >
+                          <Label className="font-medium cursor-pointer">
+                            {feature.name}
+                          </Label>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            {feature.description}
+                          </p>
+                        </div>
+                        
+                        {/* Priority Selector - only show when selected */}
+                        {isSelected && (
+                          <div 
+                            className="flex-shrink-0"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <Select
+                              value={priority}
+                              onValueChange={(value) => updatePriority(feature.id, value as Priority)}
+                            >
+                              <SelectTrigger className="w-[130px] h-8 text-xs">
+                                <SelectValue>
+                                  <span className="flex items-center gap-1.5">
+                                    <span>{priorityConfig.emoji}</span>
+                                    <span>{priorityConfig.label}</span>
+                                  </span>
+                                </SelectValue>
+                              </SelectTrigger>
+                              <SelectContent>
+                                {PRIORITY_OPTIONS.map((option) => (
+                                  <SelectItem key={option.value} value={option.value}>
+                                    <span className="flex items-center gap-2">
+                                      <span>{option.emoji}</span>
+                                      <span>{option.label}</span>
+                                    </span>
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </CollapsibleContent>
             </Collapsible>

@@ -58,6 +58,7 @@ interface ConsultingClientData {
   case_management_flow: string | null;
   client_service_flow: string | null;
   selected_features: number[] | null;
+  feature_priorities: Record<number, 'alta' | 'media' | 'baixa'> | null;
   custom_features: string | null;
   motivations: string[] | null;
   motivations_other: string | null;
@@ -66,6 +67,14 @@ interface ConsultingClientData {
   tasks_to_automate: string | null;
   created_at: string;
 }
+
+type Priority = 'alta' | 'media' | 'baixa';
+
+const PRIORITY_CONFIG: Record<Priority, { label: string; emoji: string; className: string }> = {
+  alta: { label: 'Alta', emoji: '🔴', className: 'bg-red-100 text-red-800 border-red-200' },
+  media: { label: 'Média', emoji: '🟡', className: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
+  baixa: { label: 'Baixa', emoji: '🟢', className: 'bg-green-100 text-green-800 border-green-200' },
+};
 
 interface ClientFormResponsesProps {
   clientEmail: string;
@@ -113,7 +122,12 @@ export function ClientFormResponses({ clientEmail }: ClientFormResponsesProps) {
         .maybeSingle();
 
       if (error) throw error;
-      setClientData(data);
+      if (data) {
+        setClientData({
+          ...data,
+          feature_priorities: data.feature_priorities as Record<number, Priority> | null
+        });
+      }
     } catch (error) {
       console.error("Error fetching client data:", error);
     } finally {
@@ -397,11 +411,22 @@ export function ClientFormResponses({ clientEmail }: ClientFormResponsesProps) {
                         {features.map(id => {
                           const feature = getFeatureById(id);
                           if (!feature) return null;
+                          const priority = clientData?.feature_priorities?.[id] || 'media';
+                          const priorityConfig = PRIORITY_CONFIG[priority];
                           return (
                             <div key={id} className="flex items-start gap-2">
                               <CheckCircle2 className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
-                              <div>
-                                <p className="text-sm font-medium">{feature.name}</p>
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <p className="text-sm font-medium">{feature.name}</p>
+                                  <Badge 
+                                    variant="outline" 
+                                    className={`text-xs gap-1 ${priorityConfig.className}`}
+                                  >
+                                    <span>{priorityConfig.emoji}</span>
+                                    {priorityConfig.label}
+                                  </Badge>
+                                </div>
                                 <p className="text-xs text-muted-foreground">{feature.description}</p>
                               </div>
                             </div>
