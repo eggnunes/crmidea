@@ -38,6 +38,7 @@ import { ConsultingCalendarSettings } from "@/components/consulting/ConsultingCa
 import { ConsultingEmailSystem } from "@/components/consulting/ConsultingEmailSystem";
 import { ConsultingWhatsAppSystem } from "@/components/consulting/ConsultingWhatsAppSystem";
 import { PendingClientApprovals } from "@/components/consulting/PendingClientApprovals";
+import { ProgressReportsDashboard } from "@/components/consulting/ProgressReportsDashboard";
 
 interface ConsultingClientBasic {
   id: string;
