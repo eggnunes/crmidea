@@ -107,10 +107,19 @@ Qualquer dúvida, estou à disposição! 🚀`;
       console.log("Z-API credentials not configured, skipping WhatsApp notifications");
     }
 
+    // Get admin user ID for logging
+    const { data: adminUser } = await supabase
+      .from("profiles")
+      .select("user_id")
+      .limit(1)
+      .single();
+    const adminUserId = adminUser?.user_id;
+
     // ========= SEND CONFIRMATION EMAIL TO CLIENT =========
     if (RESEND_API_KEY && clientEmail) {
       try {
         const resend = new Resend(RESEND_API_KEY);
+        const emailSubject = "📋 Cadastro Recebido - Consultoria IDEA";
         
         const emailHtml = `
           <!DOCTYPE html>
@@ -158,10 +167,27 @@ Qualquer dúvida, estou à disposição! 🚀`;
         await resend.emails.send({
           from: "Rafael Egg <naoresponda@rafaelegg.com>",
           to: [clientEmail],
-          subject: "📋 Cadastro Recebido - Consultoria IDEA",
+          subject: emailSubject,
           html: emailHtml,
         });
         console.log("Confirmation email sent to:", clientEmail);
+
+        // Log the sent email
+        if (adminUserId) {
+          try {
+            await supabase.from("sent_emails_log").insert({
+              user_id: adminUserId,
+              recipient_email: clientEmail,
+              recipient_name: clientName,
+              subject: emailSubject,
+              email_type: "client_signup_confirmation",
+              status: "sent",
+              metadata: { phone: clientPhone }
+            });
+          } catch (logError) {
+            console.error("Error logging email:", logError);
+          }
+        }
       } catch (emailError) {
         console.error("Error sending confirmation email:", emailError);
       }

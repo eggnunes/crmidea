@@ -273,6 +273,21 @@ const handler = async (req: Request): Promise<Response> => {
     });
     console.log("Email sent:", emailResponse);
 
+    // Log the sent email
+    try {
+      await supabase.from("sent_emails_log").insert({
+        user_id: adminUserId,
+        recipient_email: email,
+        recipient_name: name,
+        subject: "📸 Seus Prompts para Fotos Profissionais com IA - Baixe Agora!",
+        email_type: "ebook_delivery",
+        status: "sent",
+        metadata: { pdf_url: PDF_URL, source: "evento" }
+      });
+    } catch (logError) {
+      console.error("Error logging email:", logError);
+    }
+
     // Update capture record to mark email as sent
     await supabase
       .from("ebook_captures")

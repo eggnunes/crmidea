@@ -362,14 +362,32 @@ Acesse o painel para ver os detalhes completos.`;
     // Send email to consultant
     try {
       console.log("Sending email to consultant:", CONSULTANT_EMAIL);
+      const consultantSubject = `🎉 Novo Diagnóstico: ${officeName} - ${clientName}`;
       const consultantEmailResponse = await resend.emails.send({
         from: FROM_EMAIL,
         to: [CONSULTANT_EMAIL],
-        subject: `🎉 Novo Diagnóstico: ${officeName} - ${clientName}`,
+        subject: consultantSubject,
         html: consultantEmailHtml,
       });
       console.log("Consultant email sent:", consultantEmailResponse);
       results.consultantEmail = true;
+
+      // Log the sent email
+      if (consultantId) {
+        try {
+          await supabase.from("sent_emails_log").insert({
+            user_id: consultantId,
+            recipient_email: CONSULTANT_EMAIL,
+            recipient_name: CONSULTANT_NAME,
+            subject: consultantSubject,
+            email_type: "diagnostic_admin_notification",
+            status: "sent",
+            metadata: { client_name: clientName, office_name: officeName }
+          });
+        } catch (logError) {
+          console.error("Error logging email:", logError);
+        }
+      }
     } catch (error) {
       console.error("Error sending consultant email:", error);
       results.consultantEmail = false;
@@ -378,14 +396,32 @@ Acesse o painel para ver os detalhes completos.`;
     // Send email to client
     try {
       console.log("Sending email to client:", clientEmail);
+      const clientSubject = "✅ Diagnóstico Recebido - Consultoria IDEA";
       const clientEmailResponse = await resend.emails.send({
         from: FROM_EMAIL,
         to: [clientEmail],
-        subject: "✅ Diagnóstico Recebido - Consultoria IDEA",
+        subject: clientSubject,
         html: clientEmailHtml,
       });
       console.log("Client email sent:", clientEmailResponse);
       results.clientEmail = true;
+
+      // Log the sent email
+      if (consultantId) {
+        try {
+          await supabase.from("sent_emails_log").insert({
+            user_id: consultantId,
+            recipient_email: clientEmail,
+            recipient_name: clientName,
+            subject: clientSubject,
+            email_type: "diagnostic_client_confirmation",
+            status: "sent",
+            metadata: { office_name: officeName, booking_url: bookingUrl }
+          });
+        } catch (logError) {
+          console.error("Error logging email:", logError);
+        }
+      }
     } catch (error) {
       console.error("Error sending client email:", error);
       results.clientEmail = false;

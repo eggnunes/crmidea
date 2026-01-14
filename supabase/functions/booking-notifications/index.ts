@@ -306,6 +306,7 @@ Um novo agendamento foi realizado:
         const safeHtmlEmail = escapeHtml(email || 'Não informado');
         const safeHtmlPhone = escapeHtml(clientPhone || 'Não informado');
         const safeHtmlNotes = notes ? escapeHtml(notes) : '';
+        const emailSubject = `📅 Novo Agendamento: ${safeHtmlName} - ${formattedDate} às ${formattedTime}`;
 
         const emailHtml = `
           <!DOCTYPE html>
@@ -341,12 +342,27 @@ Um novo agendamento foi realizado:
         await resend.emails.send({
           from: FROM_EMAIL,
           to: [CONSULTANT_EMAIL],
-          subject: `📅 Novo Agendamento: ${safeHtmlName} - ${formattedDate} às ${formattedTime}`,
+          subject: emailSubject,
           html: emailHtml,
         });
 
         console.log('Email notification sent to consultant');
         results.push({ recipient: 'consultant_email', sent: true });
+
+        // Log the sent email
+        try {
+          await supabase.from("sent_emails_log").insert({
+            user_id: authenticatedUserId,
+            recipient_email: CONSULTANT_EMAIL,
+            recipient_name: "Consultor",
+            subject: emailSubject,
+            email_type: "booking_notification",
+            status: "sent",
+            metadata: { client_name: clientName, date: formattedDate, time: formattedTime }
+          });
+        } catch (logError) {
+          console.error("Error logging email:", logError);
+        }
       } catch (emailError) {
         console.error('Failed to send email notification:', emailError);
         results.push({ recipient: 'consultant_email', sent: false, error: String(emailError) });

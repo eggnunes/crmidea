@@ -138,15 +138,31 @@ serve(async (req) => {
         `;
 
         try {
+          const emailSubject = `📊 Seu Relatório Mensal - Consultoria IDEA`;
           const emailResponse = await resend.emails.send({
             from: FROM_EMAIL,
             to: [client.email],
-            subject: `📊 Seu Relatório Mensal - Consultoria IDEA`,
+            subject: emailSubject,
             html: emailHtml,
           });
 
           console.log(`Monthly report sent to ${client.email}:`, emailResponse);
           results.push({ clientId: client.id, email: client.email, success: true });
+
+          // Log the sent email
+          try {
+            await supabase.from("sent_emails_log").insert({
+              user_id: client.user_id,
+              recipient_email: client.email,
+              recipient_name: client.full_name,
+              subject: emailSubject,
+              email_type: "monthly_report",
+              status: "sent",
+              metadata: { days_in_consultancy: daysSinceStart, completed_sessions: completedSessions.length }
+            });
+          } catch (logError) {
+            console.error("Error logging email:", logError);
+          }
         } catch (emailError) {
           console.error(`Failed to send to ${client.email}:`, emailError);
           results.push({ clientId: client.id, email: client.email, success: false, error: String(emailError) });
@@ -254,16 +270,33 @@ serve(async (req) => {
           `;
 
           try {
+            const clientSubject = `👋 Como está a implementação do sistema? - ${daysSinceLastActivity} dias`;
             const clientEmailResponse = await resend.emails.send({
               from: FROM_EMAIL,
               to: [client.email],
-              subject: `👋 Como está a implementação do sistema? - ${daysSinceLastActivity} dias`,
+              subject: clientSubject,
               html: clientEmailHtml,
             });
 
             console.log(`Inactivity email sent to ${client.email}:`, clientEmailResponse);
 
+            // Log the sent email to client
+            try {
+              await supabase.from("sent_emails_log").insert({
+                user_id: client.user_id,
+                recipient_email: client.email,
+                recipient_name: client.full_name,
+                subject: clientSubject,
+                email_type: "inactivity_reminder",
+                status: "sent",
+                metadata: { days_since_last_activity: daysSinceLastActivity }
+              });
+            } catch (logError) {
+              console.error("Error logging email:", logError);
+            }
+
             // Also notify consultant
+            const consultantSubject = `⚠️ Cliente Inativo: ${client.full_name} (${daysSinceLastActivity} dias)`;
             const consultantEmailHtml = `
               <!DOCTYPE html>
               <html>
@@ -295,9 +328,24 @@ serve(async (req) => {
             await resend.emails.send({
               from: FROM_EMAIL,
               to: [CONSULTANT_EMAIL],
-              subject: `⚠️ Cliente Inativo: ${client.full_name} (${daysSinceLastActivity} dias)`,
+              subject: consultantSubject,
               html: consultantEmailHtml,
             });
+
+            // Log the sent email to consultant
+            try {
+              await supabase.from("sent_emails_log").insert({
+                user_id: client.user_id,
+                recipient_email: CONSULTANT_EMAIL,
+                recipient_name: "Consultor",
+                subject: consultantSubject,
+                email_type: "inactivity_admin_alert",
+                status: "sent",
+                metadata: { client_name: client.full_name, days_since_last_activity: daysSinceLastActivity }
+              });
+            } catch (logError) {
+              console.error("Error logging email:", logError);
+            }
 
             results.push({
               clientId: client.id,
