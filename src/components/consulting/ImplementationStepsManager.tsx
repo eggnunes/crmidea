@@ -5,7 +5,6 @@ import { Badge } from "@/components/ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Progress } from "@/components/ui/progress";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { 
@@ -24,9 +23,19 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { StepChecklist } from "./StepChecklist";
 
 // Priority type
 type Priority = 'alta' | 'media' | 'baixa';
+
+// Checklist state
+interface ChecklistState {
+  copiouPrompt: boolean;
+  colou: boolean;
+  aguardouGeracao: boolean;
+  verificouFuncionalidades: boolean;
+  testouFuncionalidades: boolean;
+}
 
 // Etapa structure
 interface EtapaPrompt {
@@ -40,6 +49,9 @@ interface EtapaPrompt {
   ordem: number;
   concluida?: boolean;
   data_conclusao?: string;
+  checklist?: ChecklistState;
+  checklist_completo?: boolean;
+  screenshot_url?: string;
 }
 
 interface ImplementationStepsManagerProps {
@@ -227,10 +239,50 @@ export function ImplementationStepsManager({ clientId, clientName }: Implementat
     }
   };
 
+  const saveChecklistState = async (
+    etapaId: number, 
+    checklist: ChecklistState, 
+    screenshotUrl?: string
+  ) => {
+    const updatedEtapas = etapas.map(e => 
+      e.id === etapaId 
+        ? { 
+            ...e, 
+            checklist,
+            checklist_completo: Object.values(checklist).every(Boolean),
+            screenshot_url: screenshotUrl
+          } 
+        : e
+    );
+    
+    const { error } = await supabase
+      .from('consulting_clients')
+      .update({ fragmented_prompts: JSON.parse(JSON.stringify(updatedEtapas)) })
+      .eq('id', clientId);
+
+    if (error) {
+      console.error("Error saving checklist:", error);
+      return;
+    }
+
+    setEtapas(updatedEtapas);
+  };
+
   const toggleEtapaConcluida = async (etapaId: number) => {
     const now = new Date().toISOString();
     const etapaAtual = etapas.find(e => e.id === etapaId);
     const isBeingCompleted = etapaAtual && !etapaAtual.concluida;
+
+    // Validate checklist is complete before marking as done
+    if (isBeingCompleted && etapaAtual) {
+      const isChecklistComplete = etapaAtual.checklist && 
+        Object.values(etapaAtual.checklist).every(Boolean);
+      
+      if (!isChecklistComplete) {
+        toast.error("Complete o checklist antes de marcar como concluída");
+        return;
+      }
+    }
     
     const updatedEtapas = etapas.map(e => 
       e.id === etapaId 
@@ -545,25 +597,28 @@ export function ImplementationStepsManager({ clientId, clientName }: Implementat
                       </div>
                     )}
 
-                    {/* Mark as complete */}
-                    <div className="flex items-center gap-3 pt-4 border-t">
-                      <Checkbox
-                        id={`complete-${etapa.id}`}
-                        checked={isCompleted}
-                        onCheckedChange={() => toggleEtapaConcluida(etapa.id)}
-                      />
-                      <label 
-                        htmlFor={`complete-${etapa.id}`}
-                        className="text-sm font-medium cursor-pointer"
-                      >
-                        ✅ Marcar como concluída
-                      </label>
-                      {etapa.data_conclusao && (
-                        <span className="text-xs text-muted-foreground">
-                          (Concluída em {new Date(etapa.data_conclusao).toLocaleDateString('pt-BR')})
-                        </span>
-                      )}
-                    </div>
+                    {/* Step Checklist */}
+                    <StepChecklist
+                      etapaId={etapa.id}
+                      clientId={clientId}
+                      isCompleted={isCompleted}
+                      savedChecklist={etapa.checklist}
+                      savedScreenshotUrl={etapa.screenshot_url}
+                      onChecklistComplete={(complete) => {
+                        // Handle checklist completion state if needed
+                      }}
+                      onMarkComplete={() => toggleEtapaConcluida(etapa.id)}
+                      onSaveChecklist={(checklist, screenshotUrl) => 
+                        saveChecklistState(etapa.id, checklist, screenshotUrl)
+                      }
+                    />
+
+                    {/* Show completion date if completed */}
+                    {etapa.data_conclusao && (
+                      <p className="text-xs text-muted-foreground text-center pt-2">
+                        Concluída em {new Date(etapa.data_conclusao).toLocaleDateString('pt-BR')}
+                      </p>
+                    )}
                   </div>
                 </AccordionContent>
               </AccordionItem>
