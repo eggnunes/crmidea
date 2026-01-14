@@ -70,6 +70,7 @@ export interface DiagnosticFormData {
   
   // Step 4 - Features Selection
   selected_features: number[];
+  feature_priorities: Record<number, 'alta' | 'media' | 'baixa'>;
   custom_features: string;
   
   // Step 5 - Motivations & Expectations
@@ -118,6 +119,7 @@ const initialFormData: DiagnosticFormData = {
   case_management_flow: "",
   client_service_flow: "",
   selected_features: [],
+  feature_priorities: {},
   custom_features: "",
   motivations: [],
   motivations_other: "",
@@ -209,6 +211,7 @@ export function PublicDiagnosticForm() {
           case_management_flow: formData.case_management_flow || null,
           client_service_flow: formData.client_service_flow || null,
           selected_features: formData.selected_features,
+          feature_priorities: formData.feature_priorities,
           custom_features: formData.custom_features || null,
           motivations: formData.motivations,
           motivations_other: formData.motivations_other || null,

@@ -1499,6 +1499,7 @@ export type Database = {
           estado: string | null
           expected_results: string[] | null
           expected_results_other: string | null
+          feature_priorities: Json | null
           foundation_year: number | null
           full_name: string
           generated_prompt: string | null
@@ -1550,6 +1551,7 @@ export type Database = {
           estado?: string | null
           expected_results?: string[] | null
           expected_results_other?: string | null
+          feature_priorities?: Json | null
           foundation_year?: number | null
           full_name: string
           generated_prompt?: string | null
@@ -1601,6 +1603,7 @@ export type Database = {
           estado?: string | null
           expected_results?: string[] | null
           expected_results_other?: string | null
+          feature_priorities?: Json | null
           foundation_year?: number | null
           full_name?: string
           generated_prompt?: string | null

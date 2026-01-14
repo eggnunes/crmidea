@@ -12,10 +12,22 @@ interface DiagnosticStep6Props {
   updateFormData: (updates: Partial<DiagnosticFormData>) => void;
 }
 
+type Priority = 'alta' | 'media' | 'baixa';
+
+const PRIORITY_CONFIG: Record<Priority, { label: string; emoji: string; className: string }> = {
+  alta: { label: 'Alta', emoji: '🔴', className: 'bg-red-100 text-red-800 border-red-200' },
+  media: { label: 'Média', emoji: '🟡', className: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
+  baixa: { label: 'Baixa', emoji: '🟢', className: 'bg-green-100 text-green-800 border-green-200' },
+};
+
 export function DiagnosticStep6({ formData, updateFormData }: DiagnosticStep6Props) {
   const selectedFeatures = CONSULTING_FEATURES.filter((f) =>
     formData.selected_features.includes(f.id)
   );
+  
+  const getPriority = (featureId: number): Priority => {
+    return formData.feature_priorities?.[featureId] || 'media';
+  };
   
   const groupedFeatures = selectedFeatures.reduce((acc, feature) => {
     if (!acc[feature.category]) {
@@ -120,11 +132,20 @@ export function DiagnosticStep6({ formData, updateFormData }: DiagnosticStep6Pro
                     </Badge>
                   </div>
                   <div className="flex flex-wrap gap-2 pl-6">
-                    {features.map((feature) => (
-                      <Badge key={feature.id} variant="secondary" className="text-xs">
-                        {feature.name}
-                      </Badge>
-                    ))}
+                    {features.map((feature) => {
+                      const priority = getPriority(feature.id);
+                      const config = PRIORITY_CONFIG[priority];
+                      return (
+                        <Badge 
+                          key={feature.id} 
+                          variant="outline" 
+                          className={`text-xs gap-1 ${config.className}`}
+                        >
+                          <span>{config.emoji}</span>
+                          {feature.name}
+                        </Badge>
+                      );
+                    })}
                   </div>
                 </div>
               ))}
