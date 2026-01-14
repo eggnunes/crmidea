@@ -28,7 +28,8 @@ import {
   Scale,
   FileDown,
   FolderOpen,
-  MessageSquare
+  MessageSquare,
+  Rocket
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -38,6 +39,7 @@ import { ConsultingSessionsManager } from "./ConsultingSessionsManager";
 import { ClientDocumentsManager } from "./ClientDocumentsManager";
 import { exportClientToPDF, exportClientToDOCX } from "@/utils/exportClient";
 import { ClientCommunicationHistory } from "./ClientCommunicationHistory";
+import { ImplementationStepsManager } from "./ImplementationStepsManager";
 
 interface ConsultingClient {
   id: string;
@@ -269,6 +271,10 @@ O prompt deve:
           <TabsTrigger value="communications" className="flex items-center gap-2">
             <MessageSquare className="w-4 h-4" />
             Comunicações
+          </TabsTrigger>
+          <TabsTrigger value="implementation" className="flex items-center gap-2">
+            <Rocket className="w-4 h-4" />
+            Implementação
           </TabsTrigger>
         </TabsList>
 
@@ -545,6 +551,13 @@ O prompt deve:
             clientPhone={client.phone}
             clientId={client.id}
             isAdminView={true}
+          />
+        </TabsContent>
+
+        <TabsContent value="implementation">
+          <ImplementationStepsManager 
+            clientId={client.id} 
+            clientName={client.full_name}
           />
         </TabsContent>
       </Tabs>
