@@ -2357,6 +2357,50 @@ export type Database = {
         }
         Relationships: []
       }
+      progress_reports: {
+        Row: {
+          client_id: string | null
+          created_at: string
+          email_opened: boolean
+          email_sent: boolean
+          id: string
+          metrics: Json
+          opened_at: string | null
+          report_type: string
+          sent_at: string
+        }
+        Insert: {
+          client_id?: string | null
+          created_at?: string
+          email_opened?: boolean
+          email_sent?: boolean
+          id?: string
+          metrics?: Json
+          opened_at?: string | null
+          report_type: string
+          sent_at?: string
+        }
+        Update: {
+          client_id?: string | null
+          created_at?: string
+          email_opened?: boolean
+          email_sent?: boolean
+          id?: string
+          metrics?: Json
+          opened_at?: string | null
+          report_type?: string
+          sent_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "progress_reports_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "consulting_clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       quick_responses: {
         Row: {
           content: string
