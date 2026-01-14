@@ -160,8 +160,10 @@ export function FragmentedPromptsGenerator({ client, onUpdate }: FragmentedPromp
           const categoryFeatures = featuresByCategory[categoryInfo.id]?.[priority] || [];
           if (categoryFeatures.length === 0) continue;
 
-          // Split into chunks of 3-5 features
-          const chunks = chunkArray(categoryFeatures, 4);
+          // Split into chunks of 3-5 features - no limit on total number of etapas
+          // Chunk size varies based on feature count to create manageable steps
+          const chunkSize = categoryFeatures.length <= 3 ? categoryFeatures.length : Math.min(4, Math.ceil(categoryFeatures.length / Math.ceil(categoryFeatures.length / 4)));
+          const chunks = chunkArray(categoryFeatures, chunkSize || 1);
           
           for (let i = 0; i < chunks.length; i++) {
             const chunk = chunks[i];
