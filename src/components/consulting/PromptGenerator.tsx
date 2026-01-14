@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { 
   Sparkles, 
@@ -9,11 +10,14 @@ import {
   Loader2, 
   Wand2,
   RefreshCw,
-  Save
+  Save,
+  Layers,
+  FileText
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { CONSULTING_FEATURES } from "@/data/consultingFeatures";
+import { FragmentedPromptsGenerator } from "./FragmentedPromptsGenerator";
 
 interface ConsultingClient {
   id: string;
@@ -29,6 +33,10 @@ interface ConsultingClient {
   selected_features: number[] | null;
   custom_features?: string | null;
   generated_prompt: string | null;
+  feature_priorities?: Record<string, string> | null;
+  fragmented_prompts?: unknown;
+  logo_url?: string | null;
+  website?: string | null;
 }
 
 interface PromptGeneratorProps {
@@ -41,8 +49,13 @@ export function PromptGenerator({ client, onUpdate }: PromptGeneratorProps) {
   const [generating, setGenerating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [activeTab, setActiveTab] = useState<string>("fragmented");
 
-  const generatePrompt = async () => {
+  useEffect(() => {
+    setPrompt(client.generated_prompt || "");
+  }, [client.generated_prompt]);
+
+  const generateSinglePrompt = async () => {
     setGenerating(true);
     try {
       const selectedFeatureNames = (client.selected_features || [])
@@ -145,120 +158,152 @@ O prompt deve ser completo, prático e pronto para ser usado diretamente no Lova
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              <Sparkles className="w-5 h-5" />
-              Prompt para o Lovable
-            </CardTitle>
-            <CardDescription>
-              Gere e edite o prompt personalizado para criar a intranet do cliente
-            </CardDescription>
-          </div>
-          
-          <div className="flex gap-2">
-            <Button 
-              onClick={generatePrompt} 
-              disabled={generating}
-              variant={prompt ? "outline" : "default"}
-              className="gap-2"
-            >
-              {generating ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Gerando...
-                </>
-              ) : prompt ? (
-                <>
-                  <RefreshCw className="w-4 h-4" />
-                  Regenerar
-                </>
-              ) : (
-                <>
-                  <Wand2 className="w-4 h-4" />
-                  Gerar com IA
-                </>
-              )}
-            </Button>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent>
-        {!prompt && !generating ? (
-          <div className="text-center py-8 text-muted-foreground">
-            <Wand2 className="w-16 h-16 mx-auto mb-4 opacity-50" />
-            <h3 className="font-semibold mb-2">Nenhum prompt gerado ainda</h3>
-            <p className="text-sm mb-4 max-w-md mx-auto">
-              Clique no botão "Gerar com IA" para criar um prompt personalizado 
-              baseado nas informações do cliente.
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {/* Info box */}
-            <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg">
-              <p className="text-sm">
-                <strong>Dica:</strong> O prompt abaixo será exibido automaticamente no dashboard do cliente. 
-                Você pode editar o texto manualmente antes de salvar.
-              </p>
-            </div>
+    <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+      <TabsList className="grid w-full grid-cols-2">
+        <TabsTrigger value="fragmented" className="gap-2">
+          <Layers className="w-4 h-4" />
+          Prompts por Etapas (Recomendado)
+        </TabsTrigger>
+        <TabsTrigger value="single" className="gap-2">
+          <FileText className="w-4 h-4" />
+          Prompt Único
+        </TabsTrigger>
+      </TabsList>
 
-            {/* Editable prompt */}
-            <Textarea
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              placeholder="O prompt será gerado aqui..."
-              className="min-h-[400px] font-mono text-sm"
-            />
+      {/* Fragmented Prompts Tab */}
+      <TabsContent value="fragmented">
+        <FragmentedPromptsGenerator client={client as any} onUpdate={onUpdate} />
+      </TabsContent>
 
-            {/* Action buttons */}
+      {/* Single Prompt Tab */}
+      <TabsContent value="single">
+        <Card>
+          <CardHeader>
             <div className="flex items-center justify-between">
-              <div className="text-sm text-muted-foreground">
-                {prompt.length} caracteres
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Sparkles className="w-5 h-5" />
+                  Prompt Único para o Lovable
+                </CardTitle>
+                <CardDescription>
+                  Gera um único prompt com todas as funcionalidades (não recomendado para projetos grandes)
+                </CardDescription>
               </div>
+              
               <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  onClick={copyPrompt}
-                  disabled={!prompt}
+                <Button 
+                  onClick={generateSinglePrompt} 
+                  disabled={generating}
+                  variant={prompt ? "outline" : "default"}
                   className="gap-2"
                 >
-                  {copied ? (
-                    <>
-                      <Check className="w-4 h-4" />
-                      Copiado!
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="w-4 h-4" />
-                      Copiar
-                    </>
-                  )}
-                </Button>
-                <Button
-                  onClick={savePrompt}
-                  disabled={saving || !prompt}
-                  className="gap-2"
-                >
-                  {saving ? (
+                  {generating ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      Salvando...
+                      Gerando...
+                    </>
+                  ) : prompt ? (
+                    <>
+                      <RefreshCw className="w-4 h-4" />
+                      Regenerar
                     </>
                   ) : (
                     <>
-                      <Save className="w-4 h-4" />
-                      Salvar Prompt
+                      <Wand2 className="w-4 h-4" />
+                      Gerar com IA
                     </>
                   )}
                 </Button>
               </div>
             </div>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+          </CardHeader>
+          <CardContent>
+            {!prompt && !generating ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Wand2 className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                <h3 className="font-semibold mb-2">Nenhum prompt gerado ainda</h3>
+                <p className="text-sm mb-4 max-w-md mx-auto">
+                  Clique no botão "Gerar com IA" para criar um prompt personalizado 
+                  baseado nas informações do cliente.
+                </p>
+                <p className="text-xs text-orange-600 dark:text-orange-400">
+                  ⚠️ Para projetos com muitas funcionalidades, recomendamos usar a aba "Prompts por Etapas"
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {/* Warning box */}
+                <div className="p-4 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg">
+                  <p className="text-sm text-orange-700 dark:text-orange-300">
+                    <strong>⚠️ Atenção:</strong> Prompts muito grandes podem não ser processados completamente pelo Lovable. 
+                    Para melhores resultados, use a aba "Prompts por Etapas" que divide o projeto em partes menores.
+                  </p>
+                </div>
+
+                {/* Info box */}
+                <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg">
+                  <p className="text-sm">
+                    <strong>Dica:</strong> O prompt abaixo será exibido automaticamente no dashboard do cliente. 
+                    Você pode editar o texto manualmente antes de salvar.
+                  </p>
+                </div>
+
+                {/* Editable prompt */}
+                <Textarea
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  placeholder="O prompt será gerado aqui..."
+                  className="min-h-[400px] font-mono text-sm"
+                />
+
+                {/* Action buttons */}
+                <div className="flex items-center justify-between">
+                  <div className="text-sm text-muted-foreground">
+                    {prompt.length} caracteres
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={copyPrompt}
+                      disabled={!prompt}
+                      className="gap-2"
+                    >
+                      {copied ? (
+                        <>
+                          <Check className="w-4 h-4" />
+                          Copiado!
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-4 h-4" />
+                          Copiar
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      onClick={savePrompt}
+                      disabled={saving || !prompt}
+                      className="gap-2"
+                    >
+                      {saving ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Salvando...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="w-4 h-4" />
+                          Salvar Prompt
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </TabsContent>
+    </Tabs>
   );
 }
