@@ -24,7 +24,8 @@ import {
   ShieldCheck,
   MailCheck,
   CalendarCog,
-  UserCheck
+  UserCheck,
+  BarChart3
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -186,6 +187,10 @@ export function ConsultingPage() {
           <TabsTrigger value="settings" className="gap-2">
             <Settings className="w-4 h-4" />
             Notificações
+          </TabsTrigger>
+          <TabsTrigger value="reports" className="gap-2">
+            <BarChart3 className="w-4 h-4" />
+            Relatórios
           </TabsTrigger>
         </TabsList>
 
@@ -355,6 +360,10 @@ export function ConsultingPage() {
 
         <TabsContent value="settings">
           <ConsultingNotificationSettings />
+        </TabsContent>
+
+        <TabsContent value="reports">
+          <ProgressReportsDashboard />
         </TabsContent>
       </Tabs>
 
