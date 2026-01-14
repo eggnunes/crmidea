@@ -148,16 +148,32 @@ export function ImplementationStepsManager({ clientId, clientName }: Implementat
     // For subsequent steps, if we have a project URL, add prompt to existing project
     if (etapa.ordem === 1 || !projectUrl) {
       // First step or no project URL - create new project with referral
-      const url = `https://lovable.dev/${LOVABLE_REFERRAL}&autosubmit=true#prompt=${encodedPrompt}`;
+      // Correct URL format: https://lovable.dev?via=rafaelegg&autosubmit=true#prompt=...
+      const url = `https://lovable.dev${LOVABLE_REFERRAL}&autosubmit=true#prompt=${encodedPrompt}`;
       window.open(url, '_blank');
       toast.success("Abrindo Lovable... Aguarde a geração automática.", {
         description: "Após criar o projeto, salve a URL para continuar as próximas etapas."
       });
     } else {
       // Subsequent steps - add to existing project
-      // Lovable format: project-url#prompt=...
-      const existingProjectUrl = projectUrl.endsWith('/') ? projectUrl.slice(0, -1) : projectUrl;
-      const url = `${existingProjectUrl}?autosubmit=true#prompt=${encodedPrompt}`;
+      let cleanUrl = projectUrl.trim();
+      
+      // Remove trailing slash
+      if (cleanUrl.endsWith('/')) {
+        cleanUrl = cleanUrl.slice(0, -1);
+      }
+      
+      // Validate Lovable URL
+      if (!cleanUrl.includes('lovable.dev') && !cleanUrl.includes('lovable.app')) {
+        toast.error("URL do projeto inválida", {
+          description: "Verifique se é uma URL do Lovable (lovable.dev ou lovable.app)."
+        });
+        return;
+      }
+      
+      // Build URL with proper separator
+      const separator = cleanUrl.includes('?') ? '&' : '?';
+      const url = `${cleanUrl}${separator}autosubmit=true#prompt=${encodedPrompt}`;
       window.open(url, '_blank');
       toast.success("Abrindo seu projeto existente...", {
         description: "O prompt será adicionado ao mesmo projeto."
@@ -514,6 +530,20 @@ export function ImplementationStepsManager({ clientId, clientName }: Implementat
                         Abrir no Lovable
                       </Button>
                     </div>
+
+                    {/* Alert to save project URL after step 1 */}
+                    {etapa.ordem === 1 && !projectUrl && !isCompleted && (
+                      <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                        <p className="text-sm text-yellow-800 dark:text-yellow-200 flex items-start gap-2">
+                          <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+                          <span>
+                            <strong>Importante:</strong> Após concluir esta etapa, copie a URL do seu projeto 
+                            Lovable e salve no campo no topo da página para que as próximas etapas sejam 
+                            adicionadas ao mesmo projeto.
+                          </span>
+                        </p>
+                      </div>
+                    )}
 
                     {/* Mark as complete */}
                     <div className="flex items-center gap-3 pt-4 border-t">
