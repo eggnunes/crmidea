@@ -6,6 +6,8 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Progress } from "@/components/ui/progress";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { 
   Copy, 
   Check, 
@@ -16,7 +18,9 @@ import {
   Circle,
   Rocket,
   Clock,
-  AlertCircle
+  AlertCircle,
+  Link,
+  Save
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -76,10 +80,22 @@ const getCategoryIcon = (categoria: string) => {
   return icons[categoria] || '📦';
 };
 
+// Lovable referral link
+const LOVABLE_REFERRAL = "?via=rafaelegg";
+
+interface ClientData {
+  phone: string;
+  email: string;
+  office_name: string;
+  lovable_project_url?: string;
+}
+
 export function ImplementationStepsManager({ clientId, clientName }: ImplementationStepsManagerProps) {
   const [etapas, setEtapas] = useState<EtapaPrompt[]>([]);
   const [loading, setLoading] = useState(true);
   const [copiedId, setCopiedId] = useState<number | null>(null);
+  const [clientData, setClientData] = useState<ClientData | null>(null);
+  const [projectUrl, setProjectUrl] = useState<string | null>(null);
 
   useEffect(() => {
     loadEtapas();
@@ -89,7 +105,7 @@ export function ImplementationStepsManager({ clientId, clientName }: Implementat
     try {
       const { data, error } = await supabase
         .from('consulting_clients')
-        .select('fragmented_prompts')
+        .select('fragmented_prompts, phone, email, office_name, lovable_project_url')
         .eq('id', clientId)
         .single();
 
@@ -97,6 +113,19 @@ export function ImplementationStepsManager({ clientId, clientName }: Implementat
       
       if (data?.fragmented_prompts && Array.isArray(data.fragmented_prompts)) {
         setEtapas(data.fragmented_prompts as unknown as EtapaPrompt[]);
+      }
+      
+      // Store client data for notifications
+      setClientData({
+        phone: data?.phone || '',
+        email: data?.email || '',
+        office_name: data?.office_name || '',
+        lovable_project_url: data?.lovable_project_url || undefined
+      });
+      
+      // Set project URL if exists
+      if (data?.lovable_project_url) {
+        setProjectUrl(data.lovable_project_url);
       }
     } catch (error) {
       console.error("Error loading etapas:", error);
@@ -114,13 +143,79 @@ export function ImplementationStepsManager({ clientId, clientName }: Implementat
 
   const openInLovable = (etapa: EtapaPrompt) => {
     const encodedPrompt = encodeURIComponent(etapa.prompt);
-    const url = `https://lovable.dev/?autosubmit=true#prompt=${encodedPrompt}`;
-    window.open(url, '_blank');
-    toast.success("Abrindo Lovable... Aguarde a geração automática.");
+    
+    // For step 1, use referral link to create new project
+    // For subsequent steps, if we have a project URL, add prompt to existing project
+    if (etapa.ordem === 1 || !projectUrl) {
+      // First step or no project URL - create new project with referral
+      const url = `https://lovable.dev/${LOVABLE_REFERRAL}&autosubmit=true#prompt=${encodedPrompt}`;
+      window.open(url, '_blank');
+      toast.success("Abrindo Lovable... Aguarde a geração automática.", {
+        description: "Após criar o projeto, salve a URL para continuar as próximas etapas."
+      });
+    } else {
+      // Subsequent steps - add to existing project
+      // Lovable format: project-url#prompt=...
+      const existingProjectUrl = projectUrl.endsWith('/') ? projectUrl.slice(0, -1) : projectUrl;
+      const url = `${existingProjectUrl}?autosubmit=true#prompt=${encodedPrompt}`;
+      window.open(url, '_blank');
+      toast.success("Abrindo seu projeto existente...", {
+        description: "O prompt será adicionado ao mesmo projeto."
+      });
+    }
+  };
+
+  const saveProjectUrl = async (url: string) => {
+    try {
+      const { error } = await supabase
+        .from('consulting_clients')
+        .update({ lovable_project_url: url })
+        .eq('id', clientId);
+
+      if (error) throw error;
+      setProjectUrl(url);
+      toast.success("URL do projeto salva com sucesso!");
+    } catch (error) {
+      console.error("Error saving project URL:", error);
+      toast.error("Erro ao salvar URL do projeto");
+    }
+  };
+
+  const sendStepCompletionNotification = async (etapa: EtapaPrompt, nextEtapa?: EtapaPrompt) => {
+    if (!clientData?.phone) {
+      console.log("No phone number for client, skipping notification");
+      return;
+    }
+
+    try {
+      const { error } = await supabase.functions.invoke('notify-step-completed', {
+        body: {
+          clientId,
+          clientName,
+          clientPhone: clientData.phone,
+          completedStep: etapa.ordem,
+          completedStepTitle: etapa.titulo,
+          totalSteps: etapas.length,
+          nextStepTitle: nextEtapa?.titulo || null,
+          nextStepOrder: nextEtapa?.ordem || null
+        }
+      });
+
+      if (error) {
+        console.error("Error sending step notification:", error);
+      } else {
+        console.log("Step completion notification sent successfully");
+      }
+    } catch (error) {
+      console.error("Error invoking notify-step-completed:", error);
+    }
   };
 
   const toggleEtapaConcluida = async (etapaId: number) => {
     const now = new Date().toISOString();
+    const etapaAtual = etapas.find(e => e.id === etapaId);
+    const isBeingCompleted = etapaAtual && !etapaAtual.concluida;
+    
     const updatedEtapas = etapas.map(e => 
       e.id === etapaId 
         ? { 
@@ -144,6 +239,15 @@ export function ImplementationStepsManager({ clientId, clientName }: Implementat
     setEtapas(updatedEtapas);
     const etapa = updatedEtapas.find(e => e.id === etapaId);
     toast.success(etapa?.concluida ? "Etapa marcada como concluída! 🎉" : "Etapa desmarcada");
+    
+    // Send WhatsApp notification when step is completed
+    if (isBeingCompleted && etapaAtual) {
+      const nextEtapa = updatedEtapas
+        .filter(e => !e.concluida)
+        .sort((a, b) => a.ordem - b.ordem)[0];
+      
+      sendStepCompletionNotification(etapaAtual, nextEtapa);
+    }
   };
 
   const completedCount = etapas.filter(e => e.concluida).length;
@@ -202,12 +306,49 @@ export function ImplementationStepsManager({ clientId, clientName }: Implementat
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span>{completedCount} de {etapas.length} etapas concluídas</span>
-              <span className="font-medium">{Math.round(progressPercent)}%</span>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span>{completedCount} de {etapas.length} etapas concluídas</span>
+                <span className="font-medium">{Math.round(progressPercent)}%</span>
+              </div>
+              <Progress value={progressPercent} className="h-3" />
             </div>
-            <Progress value={progressPercent} className="h-3" />
+            
+            {/* Project URL Section */}
+            <div className="border-t pt-4">
+              <Label htmlFor="projectUrl" className="flex items-center gap-2 text-sm font-medium mb-2">
+                <Link className="w-4 h-4" />
+                URL do Projeto no Lovable
+              </Label>
+              <p className="text-xs text-muted-foreground mb-2">
+                Após criar seu projeto na Etapa 1, cole a URL aqui para que as próximas etapas sejam adicionadas ao mesmo projeto.
+              </p>
+              <div className="flex gap-2">
+                <Input
+                  id="projectUrl"
+                  placeholder="https://lovable.dev/projects/seu-projeto"
+                  value={projectUrl || ''}
+                  onChange={(e) => setProjectUrl(e.target.value)}
+                  className="flex-1"
+                />
+                <Button 
+                  onClick={() => projectUrl && saveProjectUrl(projectUrl)}
+                  disabled={!projectUrl}
+                  size="sm"
+                  className="gap-2"
+                >
+                  <Save className="w-4 h-4" />
+                  Salvar
+                </Button>
+              </div>
+              {projectUrl && (
+                <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
+                  <CheckCircle2 className="w-3 h-3" />
+                  URL salva! As próximas etapas serão adicionadas a este projeto.
+                </p>
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>
