@@ -1501,6 +1501,7 @@ export type Database = {
           expected_results_other: string | null
           feature_priorities: Json | null
           foundation_year: number | null
+          fragmented_prompts: Json | null
           full_name: string
           generated_prompt: string | null
           has_chatgpt_app: boolean | null
@@ -1553,6 +1554,7 @@ export type Database = {
           expected_results_other?: string | null
           feature_priorities?: Json | null
           foundation_year?: number | null
+          fragmented_prompts?: Json | null
           full_name: string
           generated_prompt?: string | null
           has_chatgpt_app?: boolean | null
@@ -1605,6 +1607,7 @@ export type Database = {
           expected_results_other?: string | null
           feature_priorities?: Json | null
           foundation_year?: number | null
+          fragmented_prompts?: Json | null
           full_name?: string
           generated_prompt?: string | null
           has_chatgpt_app?: boolean | null
