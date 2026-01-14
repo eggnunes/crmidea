@@ -141,12 +141,53 @@ const STEPS = [
 export function PublicDiagnosticForm() {
   const { consultantId } = useParams<{ consultantId: string }>();
   const [currentStep, setCurrentStep] = useState(1);
-  const [formData, setFormData] = useState<DiagnosticFormData>(initialFormData);
+  const [formData, setFormData] = useState<DiagnosticFormData>(() => {
+    // Try to load from localStorage on init
+    const saved = localStorage.getItem(`diagnostic_form_${consultantId}`);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        return { ...initialFormData, ...parsed.formData };
+      } catch {
+        return initialFormData;
+      }
+    }
+    return initialFormData;
+  });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
   const [createdClientId, setCreatedClientId] = useState<string | null>(null);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
   
   const progress = (currentStep / STEPS.length) * 100;
+  
+  // Load saved step from localStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem(`diagnostic_form_${consultantId}`);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed.currentStep) {
+          setCurrentStep(parsed.currentStep);
+        }
+      } catch {
+        // ignore parse errors
+      }
+    }
+  }, [consultantId]);
+
+  // Auto-save to localStorage whenever formData or step changes
+  useEffect(() => {
+    if (consultantId && !isCompleted) {
+      const dataToSave = {
+        formData,
+        currentStep,
+        savedAt: new Date().toISOString()
+      };
+      localStorage.setItem(`diagnostic_form_${consultantId}`, JSON.stringify(dataToSave));
+      setLastSaved(new Date());
+    }
+  }, [formData, currentStep, consultantId, isCompleted]);
   
   const updateFormData = (updates: Partial<DiagnosticFormData>) => {
     setFormData(prev => ({ ...prev, ...updates }));
@@ -227,6 +268,8 @@ export function PublicDiagnosticForm() {
       
       setCreatedClientId(data.id);
       setIsCompleted(true);
+      // Clear localStorage after successful submission
+      localStorage.removeItem(`diagnostic_form_${consultantId}`);
       toast.success("Diagnóstico enviado com sucesso!");
 
       // Generate implementation plan automatically
@@ -334,6 +377,11 @@ export function PublicDiagnosticForm() {
             ))}
           </div>
           <Progress value={progress} className="h-2" />
+          {lastSaved && (
+            <p className="text-xs text-muted-foreground text-right mt-1">
+              ✓ Salvo automaticamente às {lastSaved.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+            </p>
+          )}
         </div>
         
         {/* Step Content */}
