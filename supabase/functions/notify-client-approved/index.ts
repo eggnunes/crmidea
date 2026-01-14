@@ -14,7 +14,11 @@ serve(async (req) => {
   }
 
   try {
-    const { clientName, clientEmail, clientPhone, dashboardUrl } = await req.json();
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    const { clientName, clientEmail, clientPhone, dashboardUrl, consultantId } = await req.json();
 
     console.log("Notifying client about approval:", { clientName, clientEmail, clientPhone });
 
@@ -23,10 +27,22 @@ serve(async (req) => {
     const ZAPI_CLIENT_TOKEN = Deno.env.get("ZAPI_CLIENT_TOKEN");
     const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 
+    // Get admin user ID for logging if not provided
+    let adminUserId = consultantId;
+    if (!adminUserId) {
+      const { data: adminUser } = await supabase
+        .from("profiles")
+        .select("user_id")
+        .limit(1)
+        .single();
+      adminUserId = adminUser?.user_id;
+    }
+
     // ========= SEND APPROVAL EMAIL =========
     if (RESEND_API_KEY && clientEmail) {
       try {
         const resend = new Resend(RESEND_API_KEY);
+        const emailSubject = "🎉 Cadastro Aprovado - Consultoria IDEA";
         
         const emailHtml = `
           <!DOCTYPE html>
@@ -78,10 +94,27 @@ serve(async (req) => {
         await resend.emails.send({
           from: "Rafael Egg <naoresponda@rafaelegg.com>",
           to: [clientEmail],
-          subject: "🎉 Cadastro Aprovado - Consultoria IDEA",
+          subject: emailSubject,
           html: emailHtml,
         });
         console.log("Approval email sent to:", clientEmail);
+
+        // Log the sent email
+        if (adminUserId) {
+          try {
+            await supabase.from("sent_emails_log").insert({
+              user_id: adminUserId,
+              recipient_email: clientEmail,
+              recipient_name: clientName,
+              subject: emailSubject,
+              email_type: "client_approval",
+              status: "sent",
+              metadata: { dashboard_url: dashboardUrl }
+            });
+          } catch (logError) {
+            console.error("Error logging email:", logError);
+          }
+        }
       } catch (emailError) {
         console.error("Error sending approval email:", emailError);
       }
