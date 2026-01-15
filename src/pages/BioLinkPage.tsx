@@ -19,7 +19,7 @@ const products = [
   {
     title: "Consultoria IDEA",
     description: "Consultoria personalizada em IA para escritórios de advocacia",
-    link: "/consultoria-publica",
+    link: "/consultoria",
     logo: logoConsultoria,
     external: false,
     category: "premium"
