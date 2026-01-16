@@ -328,11 +328,12 @@ Deno.serve(async (req) => {
     const rawPayload = await req.json();
     
     console.log('Raw payload keys:', Object.keys(rawPayload));
+    console.log('Full raw payload:', JSON.stringify(rawPayload, null, 2));
     
-    // Normalize payload - handle both direct and nested (order) formats
-    // Kiwify can send in 2 formats:
+    // Normalize payload - handle THREE possible formats from Kiwify:
     // 1. Nested: { url, signature, order: { Customer, Product, ... } }
-    // 2. Direct: { Customer, Product, webhook_event_type, ... } (no order wrapper)
+    // 2. Direct with capitalized: { Customer, Product, webhook_event_type, ... }
+    // 3. Direct with lowercase (new format): { name, email, phone, product_name, status, ... }
     const orderData = rawPayload.order;
     const hasOrderWrapper = !!(orderData && typeof orderData === 'object');
     console.log('Has order wrapper:', hasOrderWrapper);
@@ -340,19 +341,57 @@ Deno.serve(async (req) => {
     // Use the order data if wrapped, otherwise use rawPayload directly
     const payloadData = hasOrderWrapper ? orderData : rawPayload;
     
-    // Extract data - Product and Customer are capitalized in Kiwify
-    const customer = payloadData.Customer;
-    const productName = payloadData.Product?.product_name;
-    const eventType = payloadData.webhook_event_type;
-    const commissions = payloadData.Commissions;
-    const orderId = payloadData.order_id;
+    // Check for the new lowercase format (format 3)
+    const isNewLowercaseFormat = !!(payloadData.email && payloadData.name && !payloadData.Customer);
+    console.log('Is new lowercase format:', isNewLowercaseFormat);
+    
+    // Extract data - handle both old capitalized format and new lowercase format
+    let customer;
+    let productName;
+    let eventType;
+    let commissions;
+    let orderId;
+    
+    if (isNewLowercaseFormat) {
+      // New Kiwify format with lowercase fields directly in payload
+      customer = {
+        full_name: payloadData.name || payloadData.first_name || '',
+        first_name: payloadData.first_name || payloadData.name?.split(' ')[0] || '',
+        email: payloadData.email,
+        mobile: payloadData.phone,
+        CPF: payloadData.cpf || payloadData.cnpj
+      };
+      productName = payloadData.product_name || payloadData.offer_name;
+      // Map status to event type
+      const statusLower = (payloadData.status || '').toLowerCase();
+      if (statusLower === 'paid' || statusLower === 'approved') {
+        eventType = 'compra_aprovada';
+      } else if (statusLower === 'refunded') {
+        eventType = 'reembolso';
+      } else if (statusLower === 'waiting_payment') {
+        eventType = 'pix_gerado';
+      } else if (statusLower === 'abandoned') {
+        eventType = 'carrinho_abandonado';
+      } else if (statusLower === 'refused' || statusLower === 'declined') {
+        eventType = 'compra_recusada';
+      } else {
+        eventType = payloadData.status || 'unknown';
+      }
+      orderId = payloadData.id;
+      commissions = null;
+      console.log('Mapped status to event:', payloadData.status, '->', eventType);
+    } else {
+      // Old format with capitalized Customer and Product objects
+      customer = payloadData.Customer;
+      productName = payloadData.Product?.product_name;
+      eventType = payloadData.webhook_event_type;
+      commissions = payloadData.Commissions;
+      orderId = payloadData.order_id;
+    }
     
     console.log('Order ID:', orderId);
-    console.log('Product object:', JSON.stringify(payloadData.Product));
-    console.log('Customer object:', JSON.stringify(customer));
-    
-    console.log('Webhook event type:', eventType);
-    console.log('Customer:', customer?.full_name, customer?.email);
+    console.log('Event type:', eventType);
+    console.log('Customer:', JSON.stringify(customer));
     console.log('Product name:', productName);
 
     if (!customer?.email) {
@@ -364,15 +403,20 @@ Deno.serve(async (req) => {
     }
 
     if (!eventType) {
-      console.log('No event type in payload');
-      return new Response(
-        JSON.stringify({ success: false, error: 'No event type' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
-      );
+      console.log('No event type in payload - using status field or default');
+      // For new format, try to use status directly if eventType mapping failed
+      if (payloadData.status) {
+        eventType = payloadData.status;
+      } else {
+        return new Response(
+          JSON.stringify({ success: false, error: 'No event type' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+        );
+      }
     }
 
     if (!productName) {
-      console.log('No product name in payload - full order data:', JSON.stringify(orderData));
+      console.log('No product name in payload - full payload:', JSON.stringify(payloadData));
       return new Response(
         JSON.stringify({ success: false, error: 'No product name' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
