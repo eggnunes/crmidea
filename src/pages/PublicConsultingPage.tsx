@@ -257,7 +257,7 @@ export function PublicConsultingPage() {
                 </Link>
               </Button>
               <Button className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 border-0" asChild>
-                <a href="https://mentoriarafaelegg.com.br/consultoria-idea/" target="_blank" rel="noopener noreferrer">
+                <a href="https://pay.kiwify.com.br/3Z1PXqV" target="_blank" rel="noopener noreferrer">
                   Contratar
                 </a>
               </Button>
@@ -292,7 +292,7 @@ export function PublicConsultingPage() {
                         </Link>
                       </Button>
                       <Button className="w-full bg-gradient-to-r from-blue-500 to-purple-600" asChild onClick={() => setMobileMenuOpen(false)}>
-                        <a href="https://mentoriarafaelegg.com.br/consultoria-idea/" target="_blank" rel="noopener noreferrer">
+                        <a href="https://pay.kiwify.com.br/3Z1PXqV" target="_blank" rel="noopener noreferrer">
                           Contratar Consultoria
                         </a>
                       </Button>
@@ -387,7 +387,7 @@ export function PublicConsultingPage() {
               
               <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start mb-12">
                 <Button size="lg" className="gap-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 border-0 text-lg px-8 py-6" asChild>
-                  <a href="https://mentoriarafaelegg.com.br/consultoria-idea/" target="_blank" rel="noopener noreferrer">
+                  <a href="https://pay.kiwify.com.br/3Z1PXqV" target="_blank" rel="noopener noreferrer">
                     EU QUERO A CONSULTORIA IDEA
                     <ArrowRight className="w-5 h-5" />
                   </a>
@@ -668,7 +668,7 @@ export function PublicConsultingPage() {
           
           <div className="text-center mt-12">
             <Button size="lg" className="gap-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 border-0 text-lg px-8 py-6" asChild>
-              <a href="https://mentoriarafaelegg.com.br/consultoria-idea/" target="_blank" rel="noopener noreferrer">
+              <a href="https://pay.kiwify.com.br/3Z1PXqV" target="_blank" rel="noopener noreferrer">
                 <ArrowRight className="w-5 h-5" />
                 Contratar Consultoria
               </a>
@@ -857,7 +857,7 @@ export function PublicConsultingPage() {
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
             <Button size="lg" variant="secondary" className="gap-2 bg-white text-blue-600 hover:bg-white/90 text-lg px-8 py-6" asChild>
-              <a href="https://mentoriarafaelegg.com.br/consultoria-idea/" target="_blank" rel="noopener noreferrer">
+              <a href="https://pay.kiwify.com.br/3Z1PXqV" target="_blank" rel="noopener noreferrer">
                 Contratar Consultoria
                 <ArrowRight className="w-5 h-5" />
               </a>
