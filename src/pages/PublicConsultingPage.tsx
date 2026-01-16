@@ -31,7 +31,8 @@ import {
   Play,
   Sparkles,
   TrendingUp,
-  Award
+  Award,
+  MessageCircle
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -939,6 +940,20 @@ export function PublicConsultingPage() {
           </div>
         </div>
       </footer>
+
+      {/* Floating WhatsApp Button */}
+      <a
+        href="https://wa.me/5531991891251?text=Olá!%20Vim%20pela%20página%20da%20Consultoria%20IDEA%20e%20gostaria%20de%20saber%20mais."
+        target="_blank"
+        rel="noopener noreferrer"
+        className="fixed bottom-6 right-6 z-50 bg-[#25D366] hover:bg-[#20bd5a] text-white p-4 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110 group"
+        aria-label="Conversar no WhatsApp"
+      >
+        <MessageCircle className="h-7 w-7 fill-current" />
+        <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 bg-white text-gray-800 px-3 py-2 rounded-lg shadow-lg text-sm font-medium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+          Fale comigo no WhatsApp
+        </span>
+      </a>
 
       {/* Custom CSS for marquee animation */}
       <style>{`
