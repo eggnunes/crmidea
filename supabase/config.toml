@@ -128,3 +128,6 @@ verify_jwt = true
 
 [functions.appstore-webhook]
 verify_jwt = false
+
+[functions.send-simple-whatsapp]
+verify_jwt = false
