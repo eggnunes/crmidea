@@ -39,6 +39,7 @@ const handler = async (req: Request): Promise<Response> => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const zapiInstanceId = Deno.env.get("ZAPI_INSTANCE_ID");
     const zapiToken = Deno.env.get("ZAPI_TOKEN");
+    const zapiClientToken = Deno.env.get("ZAPI_CLIENT_TOKEN");
     
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -110,7 +111,10 @@ _Consultoria IDEA_`;
           `https://api.z-api.io/instances/${zapiInstanceId}/token/${zapiToken}/send-text`,
           {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { 
+              "Content-Type": "application/json",
+              ...(zapiClientToken && { "Client-Token": zapiClientToken }),
+            },
             body: JSON.stringify({
               phone: formattedPhone,
               message: clientMessage
@@ -156,13 +160,19 @@ Um cliente acabou de completar o formulário de diagnóstico.
 • ${diagnosticSummary.selectedFeaturesCount} funcionalidades selecionadas
 • Experiência com IA: ${diagnosticSummary.aiExperience}
 
+📅 *Link de agendamento enviado ao cliente:*
+${bookingUrl}
+
 Acesse o painel para ver os detalhes completos.`;
 
         const response = await fetch(
           `https://api.z-api.io/instances/${zapiInstanceId}/token/${zapiToken}/send-text`,
           {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { 
+              "Content-Type": "application/json",
+              ...(zapiClientToken && { "Client-Token": zapiClientToken }),
+            },
             body: JSON.stringify({
               phone: formattedConsultantPhone,
               message: consultantMessage

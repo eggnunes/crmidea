@@ -284,16 +284,28 @@ export function PublicDiagnosticForm() {
 
       // Send notifications (WhatsApp and Email)
       try {
-        await supabase.functions.invoke("send-consulting-notification", {
+        const aiExperienceText = formData.has_used_ai 
+          ? `${formData.ai_familiarity_level || "Iniciante"} - Já usou IA`
+          : "Nunca usou IA";
+
+        await supabase.functions.invoke("send-diagnostic-notification", {
           body: {
-            action: "form_submitted",
-            clientId: data.id,
-            consultantId: consultantId,
-            clientEmail: formData.email,
             clientName: formData.full_name,
-            clientPhone: formData.phone
-          }
+            clientEmail: formData.email,
+            clientPhone: formData.phone,
+            officeName: formData.office_name,
+            consultantEmail: "contato@idea.com.br",
+            consultantId: consultantId,
+            diagnosticSummary: {
+              practiceAreas: formData.practice_areas || "",
+              numLawyers: formData.num_lawyers,
+              numEmployees: formData.num_employees,
+              selectedFeaturesCount: formData.selected_features?.length || 0,
+              aiExperience: aiExperienceText,
+            },
+          },
         });
+        console.log("Notification sent successfully");
       } catch (notifError) {
         console.error("Error sending notifications:", notifError);
         // Don't fail the form submission if notifications fail

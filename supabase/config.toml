@@ -91,7 +91,7 @@ verify_jwt = false
 verify_jwt = true
 
 [functions.send-diagnostic-notification]
-verify_jwt = true
+verify_jwt = false
 
 [functions.generate-consulting-prompt]
 verify_jwt = true
