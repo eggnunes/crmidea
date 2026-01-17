@@ -118,6 +118,20 @@ serve(async (req) => {
       });
     }
 
+    // Check if AI is disabled for this specific conversation
+    const { data: conversationData } = await supabase
+      .from('whatsapp_conversations')
+      .select('ai_disabled')
+      .eq('id', conversationId)
+      .maybeSingle();
+
+    if (conversationData?.ai_disabled) {
+      console.log('AI disabled for this conversation, skipping response');
+      return new Response(JSON.stringify({ status: 'skipped', reason: 'ai_disabled_for_conversation' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     // RATE LIMITING: Check if we already responded recently (within 5 seconds)
     // This prevents multiple responses when Z-API sends duplicate webhooks
     const { data: recentAIMessages } = await supabase

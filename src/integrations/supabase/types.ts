@@ -2631,6 +2631,7 @@ export type Database = {
       }
       whatsapp_conversations: {
         Row: {
+          ai_disabled: boolean
           channel: Database["public"]["Enums"]["channel_type"]
           channel_page_id: string | null
           channel_user_id: string | null
@@ -2648,6 +2649,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          ai_disabled?: boolean
           channel?: Database["public"]["Enums"]["channel_type"]
           channel_page_id?: string | null
           channel_user_id?: string | null
@@ -2665,6 +2667,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          ai_disabled?: boolean
           channel?: Database["public"]["Enums"]["channel_type"]
           channel_page_id?: string | null
           channel_user_id?: string | null

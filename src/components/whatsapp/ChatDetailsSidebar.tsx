@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,7 +36,8 @@ import {
   UserPlus,
   Users,
   Search,
-  Trash2
+  Trash2,
+  Bot
 } from "lucide-react";
 import { WhatsAppConversation } from "@/hooks/useWhatsAppConversations";
 import { useWhatsAppContacts, ContactTag } from "@/hooks/useWhatsAppContacts";
@@ -99,6 +101,10 @@ export function ChatDetailsSidebar({ conversation, onContactNameUpdated, onQuick
   const [subscriberId, setSubscriberId] = useState(conversation.manychat_subscriber_id || "");
   const [savingSubscriberId, setSavingSubscriberId] = useState(false);
   const [searchingSubscriber, setSearchingSubscriber] = useState(false);
+  
+  // AI toggle for this conversation
+  const [aiDisabled, setAiDisabled] = useState(conversation.ai_disabled ?? false);
+  const [togglingAi, setTogglingAi] = useState(false);
 
   const existingContact = contacts.find(c => c.phone === conversation.contact_phone);
 
@@ -321,8 +327,49 @@ export function ChatDetailsSidebar({ conversation, onContactNameUpdated, onQuick
     "#ec4899", "#06b6d4", "#f97316", "#6366f1", "#14b8a6"
   ];
 
+  const handleToggleAiDisabled = async (disabled: boolean) => {
+    setTogglingAi(true);
+    try {
+      const { error } = await supabase
+        .from("whatsapp_conversations")
+        .update({ ai_disabled: disabled })
+        .eq("id", conversation.id);
+      
+      if (error) throw error;
+      
+      setAiDisabled(disabled);
+      toast({ 
+        title: disabled ? "IA desativada" : "IA ativada",
+        description: disabled 
+          ? "A IA não responderá mais nesta conversa"
+          : "A IA voltará a responder nesta conversa"
+      });
+      onContactNameUpdated();
+    } catch (error) {
+      console.error("Error toggling AI:", error);
+      toast({ title: "Erro", description: "Não foi possível alterar", variant: "destructive" });
+    } finally {
+      setTogglingAi(false);
+    }
+  };
+
   return (
     <div className="h-full flex flex-col border-l bg-card">
+      {/* AI Toggle - always visible */}
+      <div className="p-3 border-b bg-muted/30 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <Bot className={cn("w-4 h-4", aiDisabled ? "text-muted-foreground" : "text-primary")} />
+          <span className="text-sm font-medium">
+            IA {aiDisabled ? "desativada" : "ativa"}
+          </span>
+        </div>
+        <Switch
+          checked={!aiDisabled}
+          onCheckedChange={(checked) => handleToggleAiDisabled(!checked)}
+          disabled={togglingAi}
+        />
+      </div>
+
       {/* Header with contact info */}
       <div className="p-4 border-b space-y-3">
         <div className="flex items-center justify-between">
