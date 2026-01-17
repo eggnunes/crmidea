@@ -261,7 +261,7 @@ function getProductWelcomeMessage(firstName: string, productName: string, produc
         `✅ Acompanhamento completo: Histórico de reuniões e evolução do projeto\n` +
         `✅ Suporte especializado: 6 meses de acompanhamento incluso\n\n` +
         `🔗 *Acesse o Sistema de Consultoria e comece agora:*\n` +
-        `https://eggnunes.lovable.app/client-auth\n\n` +
+        `https://rafaelegg.com/consultoria/login\n\n` +
         `Não deixe esse benefício incrível sem uso! Sua intranet personalizada está esperando por você. 🚀\n\n` +
         `Qualquer dúvida, estou à disposição!\n\n` +
         `Vamos construir juntos a transformação digital do seu escritório!\n\n` +
