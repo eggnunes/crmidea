@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { MessageSquare, Bot, Users, Settings2, Radio, BarChart3, Wifi, WifiOff } from "lucide-react";
+import { MessageSquare, Bot, Users, Settings2, Radio, BarChart3, Wifi, WifiOff, MessageCircle, Instagram } from "lucide-react";
 import { WhatsAppConversations } from "@/components/whatsapp/WhatsAppConversations";
 import { AIProfileSettings } from "@/components/whatsapp/AIProfileSettings";
 import { AIWorkSettings } from "@/components/whatsapp/AIWorkSettings";
@@ -128,10 +128,32 @@ export function WhatsAppPage() {
         </ScrollArea>
 
         <TabsContent value="conversas" className="space-y-4">
-          <WhatsAppConversations 
-            initialConversationId={selectedConversationId}
-            onConversationSelected={handleConversationSelected}
-          />
+          <Tabs defaultValue="whatsapp" className="space-y-4">
+            <TabsList>
+              <TabsTrigger value="whatsapp" className="flex items-center gap-2">
+                <MessageCircle className="w-4 h-4 text-green-500" />
+                WhatsApp
+              </TabsTrigger>
+              <TabsTrigger value="instagram" className="flex items-center gap-2">
+                <Instagram className="w-4 h-4 text-pink-500" />
+                Instagram
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="whatsapp">
+              <WhatsAppConversations 
+                initialConversationId={selectedConversationId}
+                onConversationSelected={handleConversationSelected}
+                channelFilterProp="whatsapp"
+              />
+            </TabsContent>
+            <TabsContent value="instagram">
+              <WhatsAppConversations 
+                initialConversationId={selectedConversationId}
+                onConversationSelected={handleConversationSelected}
+                channelFilterProp="instagram"
+              />
+            </TabsContent>
+          </Tabs>
         </TabsContent>
 
         <TabsContent value="ia" className="space-y-6">
