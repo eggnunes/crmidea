@@ -58,9 +58,10 @@ const getChannelColor = (channel?: ChannelType) => {
 interface WhatsAppConversationsProps {
   initialConversationId?: string | null;
   onConversationSelected?: () => void;
+  channelFilterProp?: ChannelType;
 }
 
-export function WhatsAppConversations({ initialConversationId, onConversationSelected }: WhatsAppConversationsProps = {}) {
+export function WhatsAppConversations({ initialConversationId, onConversationSelected, channelFilterProp }: WhatsAppConversationsProps = {}) {
   const {
     conversations,
     allConversations,
@@ -74,6 +75,13 @@ export function WhatsAppConversations({ initialConversationId, onConversationSel
     setChannelFilter,
     refetch,
   } = useWhatsAppConversations();
+
+  // Set channel filter from prop
+  useEffect(() => {
+    if (channelFilterProp) {
+      setChannelFilter(channelFilterProp);
+    }
+  }, [channelFilterProp, setChannelFilter]);
   
   const { toast } = useToast();
   const { results: searchResults, searching, search: globalSearch, clearSearch } = useGlobalMessageSearch();
@@ -403,21 +411,24 @@ export function WhatsAppConversations({ initialConversationId, onConversationSel
             }} />
             <SyncLeadsToContacts />
           </div>
-          <Select value={channelFilter} onValueChange={(value) => setChannelFilter(value as ChannelType | 'all')}>
-            <SelectTrigger className="w-full h-8 text-xs">
-              <SelectValue placeholder="Canal" />
-            </SelectTrigger>
-            <SelectContent>
-              {CHANNEL_OPTIONS.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  <div className="flex items-center gap-2">
-                    <option.icon className="w-4 h-4" />
-                    {option.label}
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {/* Only show channel selector when no fixed channel filter is set */}
+          {!channelFilterProp && (
+            <Select value={channelFilter} onValueChange={(value) => setChannelFilter(value as ChannelType | 'all')}>
+              <SelectTrigger className="w-full h-8 text-xs">
+                <SelectValue placeholder="Canal" />
+              </SelectTrigger>
+              <SelectContent>
+                {CHANNEL_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    <div className="flex items-center gap-2">
+                      <option.icon className="w-4 h-4" />
+                      {option.label}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
             <SelectTrigger className="w-full h-8 text-xs">
               <Users className="w-3 h-3 mr-1" />

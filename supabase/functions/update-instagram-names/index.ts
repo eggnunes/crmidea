@@ -35,11 +35,12 @@ Deno.serve(async (req) => {
     const results: { id: string; oldName: string | null; newName: string | null; status: string }[] = [];
 
     for (const conv of conversations || []) {
-      // Check if name is a placeholder (IG XXXXXX format or null)
+      // Check if name is a placeholder (IG XXXXXX format, Instagram User format, or null)
       const isPlaceholder = !conv.contact_name || 
         /^IG\s*\d*$/i.test(conv.contact_name.trim()) ||
-        conv.contact_name === 'Instagram User';
+        /^Instagram User/i.test(conv.contact_name.trim());
 
+      // Always try to update if it's a placeholder and we have a subscriber ID
       if (!isPlaceholder) {
         console.log(`Skipping ${conv.id} - already has good name: ${conv.contact_name}`);
         results.push({ id: conv.id, oldName: conv.contact_name, newName: conv.contact_name, status: 'skipped' });
