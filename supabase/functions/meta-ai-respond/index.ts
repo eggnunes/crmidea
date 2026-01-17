@@ -129,6 +129,14 @@ serve(async (req) => {
       throw new Error('Conversation not found');
     }
 
+    // Check if AI is disabled for this specific conversation
+    if (conversation.ai_disabled) {
+      console.log('AI disabled for this conversation, skipping response');
+      return new Response(JSON.stringify({ status: 'skipped', reason: 'ai_disabled_for_conversation' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     // Fetch and update user profile if not already done
     if (!conversation.contact_name || conversation.contact_name.startsWith('Instagram User') || conversation.contact_name.startsWith('Facebook User')) {
       const profile = await fetchMetaProfile(contactId, channelConfig.access_token);

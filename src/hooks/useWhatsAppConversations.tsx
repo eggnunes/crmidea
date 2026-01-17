@@ -37,6 +37,7 @@ export interface WhatsAppConversation {
   channel_page_id?: string | null;
   profile_picture_url?: string | null;
   manychat_subscriber_id?: string | null;
+  ai_disabled?: boolean;
 }
 
 export function useWhatsAppConversations() {
