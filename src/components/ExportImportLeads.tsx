@@ -112,7 +112,7 @@ const kiwifyProductMap: Record<string, ProductType> = {
   
   // E-books Unitários (Guia de IA + Código dos Prompts unificados)
   'guia de ia para advogados': 'ebook-unitario',
-  'guia de ia para advogados com rafael egg nunes': 'ebook-unitario',
+  'guia de ia para advogados com rafael egg': 'ebook-unitario',
   'guia de ia': 'ebook-unitario',
   'guia ia': 'ebook-unitario',
   'código dos prompts': 'ebook-unitario',
@@ -129,8 +129,8 @@ const kiwifyProductMap: Record<string, ProductType> = {
   // Imersão IDEA
   'imersão idea': 'imersao-idea',
   'imersao idea': 'imersao-idea',
-  'imersão idea com rafael egg nunes': 'imersao-idea',
-  'orderbump - imersão idea com rafael egg nunes': 'imersao-idea',
+  'imersão idea com rafael egg': 'imersao-idea',
+  'orderbump - imersão idea com rafael egg': 'imersao-idea',
   'orderbump imersão idea': 'imersao-idea',
   
   // Fraternidade Safe Black

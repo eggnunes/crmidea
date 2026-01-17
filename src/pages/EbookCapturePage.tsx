@@ -385,7 +385,7 @@ export function EbookCapturePage() {
           {/* Footer */}
           <div className="mt-8 text-center">
             <p className="text-slate-500 text-sm mb-2">
-              Rafael Nunes • Especialista em IA para Advogados
+              Rafael Egg • Especialista em IA para Advogados
             </p>
             <p className="text-slate-600 text-xs">
               © 2025 Todos os direitos reservados
