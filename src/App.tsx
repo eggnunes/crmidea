@@ -22,6 +22,7 @@ import { PublicConsultingPage } from "./pages/PublicConsultingPage";
 import { ClientAuthPage } from "./pages/ClientAuthPage";
 import { ClientDashboardPage } from "./pages/ClientDashboardPage";
 import { ClientDiagnosticForm } from "./pages/ClientDiagnosticForm";
+import { EditFeaturePrioritiesPage } from "./pages/EditFeaturePrioritiesPage";
 import AdminUsersPage from "./pages/AdminUsersPage";
 import { AdminClientViewPage } from "./pages/AdminClientViewPage";
 import { ConsultingPage } from "./pages/ConsultingPage";
@@ -65,6 +66,7 @@ function AppRoutes() {
       <Route path="/consultoria/login" element={<ClientAuthPage />} />
       <Route path="/consultoria/dashboard" element={<ClientDashboardPage />} />
       <Route path="/consultoria/diagnostico" element={<ClientDiagnosticForm />} />
+      <Route path="/consultoria/editar-prioridades" element={<EditFeaturePrioritiesPage />} />
       <Route path="/cadastro-cliente/:consultantId" element={<ClientAuthPage />} />
       
       {/* Método IDEA - CRM Admin - /metodo-idea (requer login do admin) */}

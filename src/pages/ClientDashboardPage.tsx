@@ -29,7 +29,8 @@ import {
   Trophy,
   BarChart3,
   FolderOpen,
-  Rocket
+  Rocket,
+  Edit
 } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -369,7 +370,34 @@ export function ClientDashboardPage() {
           </Card>
         )}
 
-        {/* Welcome Card */}
+        {/* Alert: Edit Feature Priorities (when form is completed) */}
+        {formProgress?.is_completed && consultingClient && (
+          <Card className="mb-6 border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 dark:border-blue-700">
+            <CardContent className="pt-6">
+              <div className="flex flex-col md:flex-row md:items-center gap-4">
+                <div className="w-14 h-14 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center flex-shrink-0">
+                  <Edit className="w-7 h-7 text-blue-600 dark:text-blue-400" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-bold text-lg text-blue-800 dark:text-blue-300">
+                    ✏️ Ajuste as Prioridades das Funcionalidades
+                  </h3>
+                  <p className="text-blue-700 dark:text-blue-400 text-sm mt-1">
+                    Defina quais funcionalidades são mais importantes para você. 
+                    Isso nos ajuda a criar um plano de implementação personalizado, começando pelas prioridades altas.
+                  </p>
+                </div>
+                <Button asChild size="lg" className="gap-2 bg-blue-600 hover:bg-blue-700 text-white">
+                  <Link to="/consultoria/editar-prioridades">
+                    Editar Prioridades
+                    <ArrowRight className="w-4 h-4" />
+                  </Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         <Card className="mb-8 border-primary/20 bg-gradient-to-r from-primary/5 to-transparent">
           <CardContent className="pt-6">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
