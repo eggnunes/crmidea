@@ -81,6 +81,35 @@ export function DiagnosticStep4({ formData, updateFormData }: DiagnosticStep4Pro
   
   return (
     <div className="space-y-6">
+      {/* Priority Alert */}
+      <div className="p-4 rounded-lg border-2 border-amber-300 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30 dark:border-amber-700">
+        <div className="flex items-start gap-3">
+          <span className="text-2xl">⚠️</span>
+          <div>
+            <h3 className="font-bold text-amber-800 dark:text-amber-300">
+              Importante: Defina a Prioridade de Cada Funcionalidade!
+            </h3>
+            <p className="text-amber-700 dark:text-amber-400 text-sm mt-1">
+              Ao selecionar uma funcionalidade, <strong>clique no seletor de prioridade</strong> ao lado dela para definir:
+            </p>
+            <div className="flex flex-wrap gap-3 mt-2">
+              <span className="inline-flex items-center gap-1.5 text-sm bg-white dark:bg-gray-800 px-2 py-1 rounded border">
+                🔴 <strong>Alta</strong> - Implementar primeiro
+              </span>
+              <span className="inline-flex items-center gap-1.5 text-sm bg-white dark:bg-gray-800 px-2 py-1 rounded border">
+                🟡 <strong>Média</strong> - Implementar depois
+              </span>
+              <span className="inline-flex items-center gap-1.5 text-sm bg-white dark:bg-gray-800 px-2 py-1 rounded border">
+                🟢 <strong>Baixa</strong> - Pode esperar
+              </span>
+            </div>
+            <p className="text-amber-700 dark:text-amber-400 text-xs mt-2">
+              💡 As prioridades nos ajudam a criar um plano de implementação personalizado para você!
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* AI Assistant */}
       <AIFeatureSuggestions
         formData={{

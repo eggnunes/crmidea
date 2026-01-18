@@ -303,90 +303,150 @@ export function ClientDiagnosticForm() {
         })
         .eq("client_user_id", user.id);
 
-      // Create consulting_client record with status "in_progress" since form is completed
-      const { error } = await supabase
-        .from("consulting_clients")
-        .insert({
-          user_id: consultantId,
-          full_name: formData.full_name,
-          email: formData.email,
-          phone: formData.phone,
-          cpf_cnpj: formData.cpf_cnpj || null,
-          oab_number: formData.oab_number || null,
-          office_name: formData.office_name,
-          office_address: formData.office_address,
-          address_number: formData.address_number || null,
-          address_complement: formData.address_complement || null,
-          bairro: formData.bairro || null,
-          cidade: formData.cidade || null,
-          estado: formData.estado || null,
-          website: formData.website || null,
-          foundation_year: formData.foundation_year,
-          num_lawyers: formData.num_lawyers,
-          num_employees: formData.num_employees,
-          practice_areas: formData.practice_areas || null,
-          logo_url: formData.logo_url,
-          has_used_ai: formData.has_used_ai,
-          has_used_chatgpt: formData.has_used_chatgpt,
-          has_chatgpt_paid: formData.has_chatgpt_paid,
-          has_chatgpt_app: formData.has_chatgpt_app,
-          ai_familiarity_level: formData.ai_familiarity_level || null,
-          ai_usage_frequency: formData.ai_usage_frequency || null,
-          ai_tools_used: formData.ai_tools_used || null,
-          ai_tasks_used: formData.ai_tasks_used || null,
-          ai_difficulties: formData.ai_difficulties || null,
-          other_ai_tools: formData.other_ai_tools || null,
-          comfortable_with_tech: formData.comfortable_with_tech,
-          case_management_system: formData.case_management_system || null,
-          case_management_other: formData.case_management_other || null,
-          case_management_flow: formData.case_management_flow || null,
-          client_service_flow: formData.client_service_flow || null,
-          selected_features: formData.selected_features,
-          feature_priorities: formData.feature_priorities,
-          custom_features: formData.custom_features || null,
-          motivations: formData.motivations,
-          motivations_other: formData.motivations_other || null,
-          expected_results: formData.expected_results,
-          expected_results_other: formData.expected_results_other || null,
-          tasks_to_automate: formData.tasks_to_automate || null,
-          status: "in_progress",
-        });
-
-      if (error) throw error;
-
-      // Get the created consulting_client id to award badge
-      const { data: createdClient } = await supabase
+      // Check if consulting_client already exists for this email
+      const { data: existingClient } = await supabase
         .from("consulting_clients")
         .select("id")
         .eq("email", formData.email)
+        .eq("user_id", consultantId)
         .maybeSingle();
 
-      // Award "Primeiro Passo" badge (diagnostic_complete)
-      if (createdClient) {
-        const { data: firstStepBadge } = await supabase
-          .from("client_badges")
+      let clientId: string;
+
+      if (existingClient) {
+        // Update existing client record
+        const { error } = await supabase
+          .from("consulting_clients")
+          .update({
+            full_name: formData.full_name,
+            phone: formData.phone,
+            cpf_cnpj: formData.cpf_cnpj || null,
+            oab_number: formData.oab_number || null,
+            office_name: formData.office_name,
+            office_address: formData.office_address,
+            address_number: formData.address_number || null,
+            address_complement: formData.address_complement || null,
+            bairro: formData.bairro || null,
+            cidade: formData.cidade || null,
+            estado: formData.estado || null,
+            website: formData.website || null,
+            foundation_year: formData.foundation_year,
+            num_lawyers: formData.num_lawyers,
+            num_employees: formData.num_employees,
+            practice_areas: formData.practice_areas || null,
+            logo_url: formData.logo_url,
+            has_used_ai: formData.has_used_ai,
+            has_used_chatgpt: formData.has_used_chatgpt,
+            has_chatgpt_paid: formData.has_chatgpt_paid,
+            has_chatgpt_app: formData.has_chatgpt_app,
+            ai_familiarity_level: formData.ai_familiarity_level || null,
+            ai_usage_frequency: formData.ai_usage_frequency || null,
+            ai_tools_used: formData.ai_tools_used || null,
+            ai_tasks_used: formData.ai_tasks_used || null,
+            ai_difficulties: formData.ai_difficulties || null,
+            other_ai_tools: formData.other_ai_tools || null,
+            comfortable_with_tech: formData.comfortable_with_tech,
+            case_management_system: formData.case_management_system || null,
+            case_management_other: formData.case_management_other || null,
+            case_management_flow: formData.case_management_flow || null,
+            client_service_flow: formData.client_service_flow || null,
+            selected_features: formData.selected_features,
+            feature_priorities: formData.feature_priorities,
+            custom_features: formData.custom_features || null,
+            motivations: formData.motivations,
+            motivations_other: formData.motivations_other || null,
+            expected_results: formData.expected_results,
+            expected_results_other: formData.expected_results_other || null,
+            tasks_to_automate: formData.tasks_to_automate || null,
+            status: "in_progress",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", existingClient.id);
+
+        if (error) throw error;
+        clientId = existingClient.id;
+        console.log("Updated existing consulting_client:", clientId);
+      } else {
+        // Create new consulting_client record
+        const { data: newClient, error } = await supabase
+          .from("consulting_clients")
+          .insert({
+            user_id: consultantId,
+            full_name: formData.full_name,
+            email: formData.email,
+            phone: formData.phone,
+            cpf_cnpj: formData.cpf_cnpj || null,
+            oab_number: formData.oab_number || null,
+            office_name: formData.office_name,
+            office_address: formData.office_address,
+            address_number: formData.address_number || null,
+            address_complement: formData.address_complement || null,
+            bairro: formData.bairro || null,
+            cidade: formData.cidade || null,
+            estado: formData.estado || null,
+            website: formData.website || null,
+            foundation_year: formData.foundation_year,
+            num_lawyers: formData.num_lawyers,
+            num_employees: formData.num_employees,
+            practice_areas: formData.practice_areas || null,
+            logo_url: formData.logo_url,
+            has_used_ai: formData.has_used_ai,
+            has_used_chatgpt: formData.has_used_chatgpt,
+            has_chatgpt_paid: formData.has_chatgpt_paid,
+            has_chatgpt_app: formData.has_chatgpt_app,
+            ai_familiarity_level: formData.ai_familiarity_level || null,
+            ai_usage_frequency: formData.ai_usage_frequency || null,
+            ai_tools_used: formData.ai_tools_used || null,
+            ai_tasks_used: formData.ai_tasks_used || null,
+            ai_difficulties: formData.ai_difficulties || null,
+            other_ai_tools: formData.other_ai_tools || null,
+            comfortable_with_tech: formData.comfortable_with_tech,
+            case_management_system: formData.case_management_system || null,
+            case_management_other: formData.case_management_other || null,
+            case_management_flow: formData.case_management_flow || null,
+            client_service_flow: formData.client_service_flow || null,
+            selected_features: formData.selected_features,
+            feature_priorities: formData.feature_priorities,
+            custom_features: formData.custom_features || null,
+            motivations: formData.motivations,
+            motivations_other: formData.motivations_other || null,
+            expected_results: formData.expected_results,
+            expected_results_other: formData.expected_results_other || null,
+            tasks_to_automate: formData.tasks_to_automate || null,
+            status: "in_progress",
+          })
           .select("id")
-          .eq("requirement_type", "diagnostic_complete")
+          .single();
+
+        if (error) throw error;
+        clientId = newClient.id;
+        console.log("Created new consulting_client:", clientId);
+      }
+
+      // Award "Primeiro Passo" badge (diagnostic_complete)
+      const { data: firstStepBadge } = await supabase
+        .from("client_badges")
+        .select("id")
+        .eq("requirement_type", "diagnostic_complete")
+        .maybeSingle();
+
+      if (firstStepBadge) {
+        // Check if badge already earned
+        const { data: existingBadge } = await supabase
+          .from("client_earned_badges")
+          .select("id")
+          .eq("client_id", clientId)
+          .eq("badge_id", firstStepBadge.id)
           .maybeSingle();
 
-        if (firstStepBadge) {
-          // Check if badge already earned
-          const { data: existingBadge } = await supabase
+        if (!existingBadge) {
+          await supabase
             .from("client_earned_badges")
-            .select("id")
-            .eq("client_id", createdClient.id)
-            .eq("badge_id", firstStepBadge.id)
-            .maybeSingle();
-
-          if (!existingBadge) {
-            await supabase
-              .from("client_earned_badges")
-              .insert({
-                client_id: createdClient.id,
-                badge_id: firstStepBadge.id,
-              });
-            console.log("Badge 'Primeiro Passo' awarded to client");
-          }
+            .insert({
+              client_id: clientId,
+              badge_id: firstStepBadge.id,
+            });
+          console.log("Badge 'Primeiro Passo' awarded to client");
         }
       }
 
