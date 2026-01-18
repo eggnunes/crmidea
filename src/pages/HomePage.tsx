@@ -39,6 +39,7 @@ import {
 } from "lucide-react";
 import logoRE from "@/assets/logo-re.png";
 import { Link } from "react-router-dom";
+import { Helmet } from "react-helmet";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import logoMentoria from "@/assets/logo-mentoria-new.png";
@@ -203,7 +204,32 @@ export function HomePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#1a1f2e] via-[#0f1419] to-[#1a1f2e]">
+    <>
+      <Helmet>
+        <title>Rafael Egg - IA para Advogados | Consultoria, Mentoria e Cursos</title>
+        <meta name="description" content="Rafael Egg - Especialista em Inteligência Artificial para Advogados. Consultoria personalizada, Mentoria e Cursos para transformar sua advocacia com IA." />
+        <meta name="keywords" content="IA para advogados, inteligência artificial advocacia, consultoria jurídica, ChatGPT advogados, automação jurídica, Rafael Egg" />
+        <meta name="robots" content="index, follow" />
+        <link rel="canonical" href="https://rafaelegg.com/" />
+        
+        {/* Open Graph */}
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://rafaelegg.com/" />
+        <meta property="og:title" content="Rafael Egg - IA para Advogados" />
+        <meta property="og:description" content="Especialista em Inteligência Artificial para Advogados. Consultoria, Mentoria e Cursos." />
+        <meta property="og:image" content="https://rafaelegg.com/og-image.png" />
+        <meta property="og:site_name" content="Rafael Egg - IA para Advogados" />
+        <meta property="og:locale" content="pt_BR" />
+        
+        {/* Twitter */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:url" content="https://rafaelegg.com/" />
+        <meta name="twitter:title" content="Rafael Egg - IA para Advogados" />
+        <meta name="twitter:description" content="Especialista em Inteligência Artificial para Advogados. Consultoria, Mentoria e Cursos." />
+        <meta name="twitter:image" content="https://rafaelegg.com/og-image.png" />
+      </Helmet>
+      
+      <div className="min-h-screen bg-gradient-to-br from-[#1a1f2e] via-[#0f1419] to-[#1a1f2e]">
       {/* Hero Section */}
       <header className="relative overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-amber-600/20 via-transparent to-transparent" />
@@ -935,5 +961,6 @@ export function HomePage() {
         </div>
       </footer>
     </div>
+    </>
   );
 }
