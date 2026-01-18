@@ -1,8 +1,0 @@
-# Servir arquivos estáticos diretamente
-/robots.txt    /robots.txt    200
-/sitemap.xml   /sitemap.xml   200
-/favicon.ico   /favicon.ico   200
-/favicon.png   /favicon.png   200
-
-# SPA fallback - todas outras rotas vão para index.html
-/*    /index.html   200
