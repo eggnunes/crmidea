@@ -280,6 +280,10 @@ serve(async (req) => {
       }))
       .filter(msg => msg.content.length > 0); // Remove empty messages after cleaning
 
+    // Check if this is a NEW conversation (no prior messages) or ONGOING
+    const isNewConversation = conversationHistory.length === 0;
+    console.log(`Conversation status: ${isNewConversation ? 'NEW' : 'ONGOING'} (${conversationHistory.length} previous messages)`);
+
     // Build system prompt
     const communicationStyles: Record<string, string> = {
       formal: 'Responda de forma formal, profissional e respeitosa.',
@@ -289,6 +293,11 @@ serve(async (req) => {
 
     const styleKey = aiConfig.communication_style || 'descontraida';
     const communicationStyle = communicationStyles[styleKey] || communicationStyles.descontraida;
+
+    // Dynamic introduction rule based on conversation state
+    const introductionRule = isNewConversation 
+      ? `- Esta é uma NOVA conversa. Você pode se apresentar brevemente UMA VEZ.`
+      : `- Esta é uma conversa EM ANDAMENTO. NUNCA se apresente novamente! Você já se apresentou. Vá direto ao ponto respondendo a pergunta do usuário.`;
 
     let systemPrompt = `Você é ${aiConfig.agent_name}, um assistente de IA especializado.
 
@@ -341,9 +350,13 @@ ${knowledgeBase}
    - OCR → escreva "O C R"
    - API → escreva "A P I"
    Use sempre separação de sílabas ou espaços em nomes técnicos para garantir pronúncia clara.
-7. OBJETIVO: Resposta em NO MÁXIMO 50 palavras.
-8. NUNCA inclua URLs, links ou endereços web na sua resposta.
-9. NUNCA mencione "áudio" ou metadados técnicos na sua resposta.`;
+8. OBJETIVO: Resposta em NO MÁXIMO 50 palavras.
+9. NUNCA inclua URLs, links ou endereços web na sua resposta.
+10. NUNCA mencione "áudio" ou metadados técnicos na sua resposta.
+
+## REGRA CRÍTICA DE APRESENTAÇÃO
+${introductionRule}
+NUNCA repita apresentações como "Olá, sou [nome]" ou "Prazer em conhecê-lo" se já houver mensagens anteriores na conversa!`;
 
     const zapiInstanceId = Deno.env.get('ZAPI_INSTANCE_ID');
     const zapiToken = Deno.env.get('ZAPI_TOKEN');
