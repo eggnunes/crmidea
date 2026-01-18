@@ -253,13 +253,32 @@ serve(async (req) => {
       ).join('\n');
     }
 
-    // Build conversation history
+    // Build conversation history - clean content to remove URLs, audio metadata, etc.
+    const cleanMessageContent = (content: string): string => {
+      if (!content) return '';
+      
+      // Remove audio metadata and URLs
+      let cleaned = content
+        // Remove the audio header prefix
+        .replace(/🔊\s*\*?Áudio enviado pela IA:?\*?\s*/gi, '')
+        // Remove audio URLs in brackets
+        .replace(/\[Áudio:\s*https?:\/\/[^\]]+\]/gi, '')
+        // Remove any standalone URLs (http/https)
+        .replace(/https?:\/\/[^\s\]]+/gi, '')
+        // Remove empty lines that result from cleaning
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+      
+      return cleaned;
+    };
+    
     const conversationHistory = (recentMessages || [])
       .reverse()
       .map(msg => ({
         role: msg.is_from_contact ? 'user' : 'assistant',
-        content: msg.content,
-      }));
+        content: cleanMessageContent(msg.content),
+      }))
+      .filter(msg => msg.content.length > 0); // Remove empty messages after cleaning
 
     // Build system prompt
     const communicationStyles: Record<string, string> = {
@@ -312,7 +331,9 @@ ${knowledgeBase}
 4. Use APENAS informações da base de conhecimento. NUNCA invente!
 5. Se não souber, diga apenas: "Não tenho essa informação."
 6. PROIBIDO: introduções longas, explicações detalhadas, múltiplos parágrafos.
-7. OBJETIVO: Resposta em NO MÁXIMO 50 palavras.`;
+7. OBJETIVO: Resposta em NO MÁXIMO 50 palavras.
+8. NUNCA inclua URLs, links ou endereços web na sua resposta.
+9. NUNCA mencione "áudio" ou metadados técnicos na sua resposta.`;
 
     const zapiInstanceId = Deno.env.get('ZAPI_INSTANCE_ID');
     const zapiToken = Deno.env.get('ZAPI_TOKEN');
@@ -500,18 +521,17 @@ ${knowledgeBase}
         const sendData = await sendResponse.json();
         console.log('Z-API audio send response:', sendData);
 
-        // Save AI message to database with audio URL for CRM playback
-        const messageContent = audioStorageUrl 
-          ? `🔊 *Áudio enviado pela IA:*\n\n${aiMessage}\n\n[Áudio: ${audioStorageUrl}]`
-          : `🔊 *Áudio enviado pela IA:*\n\n${aiMessage}`;
-        
+        // Save AI message to database - store text and audio URL separately for CRM playback
+        // The content field stores ONLY the text message (no URLs) for clean history
+        // Audio URL is stored in a separate field or as structured metadata
         await supabase
           .from('whatsapp_messages')
           .insert({
             conversation_id: conversationId,
             user_id: userId,
             message_type: 'audio',
-            content: messageContent,
+            content: aiMessage, // Store ONLY the clean text - no URLs or metadata
+            audio_url: audioStorageUrl || null, // Store audio URL separately
             is_from_contact: false,
             is_ai_response: true,
             zapi_message_id: sendData.messageId || sendData.zapiMessageId,
