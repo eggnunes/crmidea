@@ -337,10 +337,162 @@ O prompt deve ser tão completo que o Lovable consiga criar o sistema inteiro ap
       }
     }
 
+    // Generate implementation plan (with priorities if available)
+    console.log('[auto-generate-client-plan] Generating implementation plan...');
+    
+    // Get feature priorities
+    const featurePriorities = client.feature_priorities || {};
+    
+    // Organize features by priority
+    const highPriorityFeatures: string[] = [];
+    const mediumPriorityFeatures: string[] = [];
+    const lowPriorityFeatures: string[] = [];
+    
+    if (client.selected_features?.length) {
+      client.selected_features.forEach((id: number) => {
+        const feature = CONSULTING_FEATURES[id];
+        if (feature) {
+          const priority = featurePriorities[id] || 'media';
+          const featureText = `- ${feature.name} (${feature.category}): ${feature.description}`;
+          
+          if (priority === 'alta') {
+            highPriorityFeatures.push(featureText);
+          } else if (priority === 'baixa') {
+            lowPriorityFeatures.push(featureText);
+          } else {
+            mediumPriorityFeatures.push(featureText);
+          }
+        }
+      });
+    }
+    
+    const prioritizedFeatures = `
+**🔴 ALTA PRIORIDADE (implementar primeiro):**
+${highPriorityFeatures.length > 0 ? highPriorityFeatures.join('\n') : 'Nenhuma funcionalidade de alta prioridade'}
+
+**🟡 MÉDIA PRIORIDADE:**
+${mediumPriorityFeatures.length > 0 ? mediumPriorityFeatures.join('\n') : 'Nenhuma funcionalidade de média prioridade'}
+
+**🟢 BAIXA PRIORIDADE (implementar por último):**
+${lowPriorityFeatures.length > 0 ? lowPriorityFeatures.join('\n') : 'Nenhuma funcionalidade de baixa prioridade'}`;
+
+    const planSystemPrompt = `Você é um especialista em criar planos de implementação para sistemas de intranet de escritórios de advocacia no Lovable.dev.
+
+Sua tarefa é criar um PLANO DE IMPLEMENTAÇÃO GRADUAL com prompts que o cliente pode copiar e colar diretamente no Lovable.dev.
+
+REGRAS IMPORTANTES:
+1. Crie no MÁXIMO 5 etapas (ideal são 3-4 etapas)
+2. Cada etapa deve ter um prompt COMPLETO e PRONTO para colar no Lovable
+3. Os prompts devem ser em português brasileiro
+4. O primeiro prompt deve criar a estrutura base do sistema
+5. Os prompts seguintes devem adicionar funcionalidades de forma incremental
+6. RESPEITE AS PRIORIDADES: funcionalidades de ALTA prioridade devem vir PRIMEIRO
+7. Seja específico e detalhado nos prompts para evitar erros
+8. Inclua requisitos de design, cores e UX em cada prompt
+9. Mencione integrações e autenticação quando necessário
+
+FORMATO DE SAÍDA (JSON):
+{
+  "etapas": [
+    {
+      "numero": 1,
+      "titulo": "Título da Etapa",
+      "descricao": "Breve descrição do que será implementado",
+      "prompt": "O prompt completo para colar no Lovable"
+    }
+  ]
+}`;
+
+    const planUserPrompt = `Crie um plano de implementação gradual para o seguinte escritório de advocacia:
+
+**INFORMAÇÕES DO ESCRITÓRIO:**
+- Nome: ${client.office_name}
+- Responsável: ${client.full_name}
+- Número de advogados: ${client.num_lawyers}
+- Número de colaboradores: ${client.num_employees}
+- Áreas de atuação: ${client.practice_areas || 'Não informado'}
+
+**NÍVEL DE FAMILIARIDADE COM IA:** ${client.ai_familiarity_level || 'Iniciante'}
+
+**SISTEMA DE GESTÃO ATUAL:** ${client.case_management_system || 'Não utiliza'}
+
+**FUNCIONALIDADES ORGANIZADAS POR PRIORIDADE:**
+${prioritizedFeatures}
+
+**FUNCIONALIDADES PERSONALIZADAS:** ${client.custom_features || 'Nenhuma'}
+
+Crie um plano com no máximo 5 etapas, onde cada etapa tem um prompt completo que o cliente pode copiar e colar no Lovable.dev para implementar sua intranet de forma gradual.
+
+IMPORTANTE: Respeite as prioridades! Funcionalidades de ALTA prioridade devem ser implementadas nas PRIMEIRAS etapas. Funcionalidades de BAIXA prioridade podem ficar para as ÚLTIMAS etapas.
+
+O primeiro prompt deve criar a base do sistema com autenticação, layout e estrutura principal, junto com as funcionalidades de ALTA prioridade.`;
+
+    let implementationPlan = null;
+    
+    const planResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${Deno.env.get('LOVABLE_API_KEY')}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash',
+        messages: [
+          { role: 'system', content: planSystemPrompt },
+          { role: 'user', content: planUserPrompt }
+        ],
+        max_tokens: 8000,
+        temperature: 0.7,
+      }),
+    });
+
+    if (planResponse.ok) {
+      const planData = await planResponse.json();
+      const planContent = planData.choices?.[0]?.message?.content || '';
+      
+      try {
+        const jsonMatch = planContent.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          implementationPlan = JSON.parse(jsonMatch[0]);
+          console.log('[auto-generate-client-plan] Implementation plan generated successfully');
+        }
+      } catch (parseError) {
+        console.error('[auto-generate-client-plan] Error parsing plan:', parseError);
+        implementationPlan = {
+          etapas: [{
+            numero: 1,
+            titulo: "Prompt Completo",
+            descricao: "Prompt gerado para implementação",
+            prompt: planContent
+          }]
+        };
+      }
+      
+      // Update client with implementation plan
+      if (implementationPlan) {
+        const { error: planUpdateError } = await supabase
+          .from("consulting_clients")
+          .update({
+            implementation_plan: implementationPlan,
+            updated_at: new Date().toISOString()
+          })
+          .eq("id", client.id);
+
+        if (planUpdateError) {
+          console.error('[auto-generate-client-plan] Error saving plan:', planUpdateError);
+        } else {
+          console.log('[auto-generate-client-plan] Implementation plan saved successfully');
+        }
+      }
+    } else {
+      console.error('[auto-generate-client-plan] Error generating plan:', await planResponse.text());
+    }
+
     return new Response(
       JSON.stringify({ 
         success: true, 
-        generatedPrompt: !!generatedPrompt
+        generatedPrompt: !!generatedPrompt,
+        generatedPlan: !!implementationPlan
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
