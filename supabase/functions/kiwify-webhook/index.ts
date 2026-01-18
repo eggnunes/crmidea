@@ -690,27 +690,72 @@ Deno.serve(async (req) => {
       }
     }
     if (eventType.toLowerCase() === 'carrinho_abandonado' && customer.mobile) {
-      console.log('Triggering abandoned cart WhatsApp alert for:', customer.full_name);
+      console.log('Checking if customer already purchased this product before sending abandoned cart alert...');
       
-      try {
-        const alertResponse = await fetch(`${supabaseUrl}/functions/v1/abandoned-cart-alert`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${supabaseServiceKey}`,
-          },
-          body: JSON.stringify({
-            leadId: leadId,
-            leadName: customer.full_name,
-            productName: productName,
-            phone: customer.mobile,
-          }),
-        });
+      // Check if customer already purchased this same product
+      const { data: existingPurchase } = await supabase
+        .from('interactions')
+        .select('id')
+        .eq('lead_id', leadId)
+        .eq('type', 'venda')
+        .ilike('description', `%${productName}%`)
+        .limit(1)
+        .maybeSingle();
+      
+      if (existingPurchase) {
+        console.log('Customer already purchased this product, skipping abandoned cart alert for:', customer.full_name);
+      } else {
+        console.log('No previous purchase found, triggering abandoned cart WhatsApp alert for:', customer.full_name);
         
-        const alertResult = await alertResponse.json();
-        console.log('Abandoned cart alert result:', alertResult);
-      } catch (alertError) {
-        console.error('Error sending abandoned cart alert:', alertError);
+        try {
+          // First, trigger the standard abandoned cart alert (ManyChat flow)
+          const alertResponse = await fetch(`${supabaseUrl}/functions/v1/abandoned-cart-alert`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${supabaseServiceKey}`,
+            },
+            body: JSON.stringify({
+              leadId: leadId,
+              leadName: customer.full_name,
+              productName: productName,
+              phone: customer.mobile,
+            }),
+          });
+          
+          const alertResult = await alertResponse.json();
+          console.log('Abandoned cart alert result:', alertResult);
+          
+          // Second, trigger AI sales recovery for curso_idea product
+          if (productType === 'curso_idea') {
+            console.log('Triggering AI sales recovery for curso IDEA...');
+            
+            try {
+              const recoveryResponse = await fetch(`${supabaseUrl}/functions/v1/ai-sales-recovery`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${supabaseServiceKey}`,
+                },
+                body: JSON.stringify({
+                  leadId: leadId,
+                  leadName: customer.full_name,
+                  firstName: customer.first_name || customer.full_name.split(' ')[0],
+                  productName: productName,
+                  phone: customer.mobile,
+                  userId: userId,
+                }),
+              });
+              
+              const recoveryResult = await recoveryResponse.json();
+              console.log('AI sales recovery result:', recoveryResult);
+            } catch (recoveryError) {
+              console.error('Error triggering AI sales recovery:', recoveryError);
+            }
+          }
+        } catch (alertError) {
+          console.error('Error sending abandoned cart alert:', alertError);
+        }
       }
     }
 
