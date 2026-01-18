@@ -35,6 +35,7 @@ import {
   MessageCircle
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
+import { Helmet } from "react-helmet";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRoles } from "@/hooks/useUserRoles";
 import { CONSULTING_FEATURES, FEATURE_CATEGORIES } from "@/data/consultingFeatures";
@@ -224,7 +225,31 @@ export function PublicConsultingPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-[hsl(222,47%,5%)] overflow-x-hidden">
+    <>
+      <Helmet>
+        <title>Consultoria IDEA - Implementação de IA para Advogados | Rafael Egg</title>
+        <meta name="description" content="Consultoria especializada em implementação de Inteligência Artificial para escritórios de advocacia. Aumente sua produtividade em até 10x com IA aplicada ao Direito." />
+        <meta name="keywords" content="consultoria IA advogados, inteligência artificial advocacia, automação jurídica, ChatGPT advogados, IA para escritórios, produtividade jurídica, Rafael Egg" />
+        <link rel="canonical" href="https://rafaelegg.com/consultoria" />
+        
+        {/* Open Graph */}
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://rafaelegg.com/consultoria" />
+        <meta property="og:title" content="Consultoria IDEA - IA para Advogados | Rafael Egg" />
+        <meta property="og:description" content="Consultoria especializada em implementação de IA para escritórios de advocacia. Aumente sua produtividade em até 10x." />
+        <meta property="og:image" content="https://rafaelegg.com/og-image.png" />
+        <meta property="og:site_name" content="Rafael Egg - IA para Advogados" />
+        <meta property="og:locale" content="pt_BR" />
+        
+        {/* Twitter */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:url" content="https://rafaelegg.com/consultoria" />
+        <meta name="twitter:title" content="Consultoria IDEA - IA para Advogados | Rafael Egg" />
+        <meta name="twitter:description" content="Consultoria especializada em implementação de IA para escritórios de advocacia." />
+        <meta name="twitter:image" content="https://rafaelegg.com/og-image.png" />
+      </Helmet>
+      
+      <div className="min-h-screen bg-[hsl(222,47%,5%)] overflow-x-hidden">
       {/* Navigation */}
       <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-xl bg-[hsl(222,47%,5%)]/80 border-b border-white/5">
         <div className="container mx-auto px-4 py-3">
@@ -963,5 +988,6 @@ export function PublicConsultingPage() {
         }
       `}</style>
     </div>
+    </>
   );
 }
