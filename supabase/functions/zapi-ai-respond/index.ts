@@ -331,6 +331,16 @@ ${knowledgeBase}
 4. Use APENAS informações da base de conhecimento. NUNCA invente!
 5. Se não souber, diga apenas: "Não tenho essa informação."
 6. PROIBIDO: introduções longas, explicações detalhadas, múltiplos parágrafos.
+7. PRONÚNCIA CLARA: Ao mencionar nomes de ferramentas ou termos técnicos em inglês, escreva de forma que facilite a pronúncia correta. Exemplos:
+   - Turboscribe → escreva "Turbo Scribe" (com espaço)
+   - ChatGPT → escreva "Chat G P T" 
+   - DeepL → escreva "Deep L"
+   - YouTube → escreva "You Tube"
+   - ElevenLabs → escreva "Eleven Labs"
+   - Whisper → escreva "Uísper"
+   - OCR → escreva "O C R"
+   - API → escreva "A P I"
+   Use sempre separação de sílabas ou espaços em nomes técnicos para garantir pronúncia clara.
 7. OBJETIVO: Resposta em NO MÁXIMO 50 palavras.
 8. NUNCA inclua URLs, links ou endereços web na sua resposta.
 9. NUNCA mencione "áudio" ou metadados técnicos na sua resposta.`;
@@ -374,26 +384,58 @@ ${knowledgeBase}
       elevenlabsApiKey && 
       aiConfig.elevenlabs_voice_id;
 
-    // Helper function to send presence status via Z-API
-    // Valid states: 'available' (online), 'composing' (typing), 'recording' (recording audio), 'unavailable'
-    const sendPresenceStatus = async (presence: 'available' | 'composing' | 'recording' | 'unavailable') => {
-      try {
-        console.log(`Sending presence status: ${presence}`);
-        const presenceResponse = await fetch(`https://api.z-api.io/instances/${zapiInstanceId}/token/${zapiToken}/chat-presence`, {
-          method: 'POST',
-          headers: zapiHeaders,
-          body: JSON.stringify({ 
-            phone: formattedPhone,
-            presence: presence
-          }),
+    // Helper function to send presence/typing status via Z-API
+    // Trying multiple endpoint patterns for compatibility
+    const sendPresenceStatus = async (action: 'typing' | 'recording' | 'available' | 'unavailable') => {
+      // Map actions to Z-API endpoints
+      const endpoints = [
+        // Try the typing endpoint first (most common pattern)
+        { url: `https://api.z-api.io/instances/${zapiInstanceId}/token/${zapiToken}/typing`, 
+          body: { phone: formattedPhone, duration: 5000 } },
+        // Try update-status endpoint
+        { url: `https://api.z-api.io/instances/${zapiInstanceId}/token/${zapiToken}/update-status`,
+          body: { phone: formattedPhone, status: action.toUpperCase() } },
+        // Try chat-presence with uppercase values
+        { url: `https://api.z-api.io/instances/${zapiInstanceId}/token/${zapiToken}/chat-presence`,
+          body: { phone: formattedPhone, presence: action.toUpperCase() } },
+      ];
+      
+      // For recording, use send-recording-presence if available
+      if (action === 'recording') {
+        endpoints.unshift({
+          url: `https://api.z-api.io/instances/${zapiInstanceId}/token/${zapiToken}/recording`,
+          body: { phone: formattedPhone, duration: 10000 }
         });
-        const presenceResult = await presenceResponse.text();
-        console.log(`Presence status '${presence}' response:`, presenceResult);
-        return true;
-      } catch (e) {
-        console.log(`Failed to send presence status '${presence}':`, e);
-        return false;
       }
+      
+      // For typing, prioritize the typing endpoint
+      if (action === 'typing') {
+        // Already prioritized above
+      }
+      
+      for (const endpoint of endpoints) {
+        try {
+          console.log(`Trying presence endpoint: ${endpoint.url}`);
+          const presenceResponse = await fetch(endpoint.url, {
+            method: 'POST',
+            headers: zapiHeaders,
+            body: JSON.stringify(endpoint.body),
+          });
+          const presenceResult = await presenceResponse.text();
+          console.log(`Presence response from ${endpoint.url}:`, presenceResult);
+          
+          // If successful (no error in response), return
+          if (presenceResponse.ok && !presenceResult.includes('NOT_FOUND') && !presenceResult.includes('error')) {
+            console.log(`✓ Presence status '${action}' sent successfully via ${endpoint.url}`);
+            return true;
+          }
+        } catch (e) {
+          console.log(`Failed endpoint ${endpoint.url}:`, e);
+        }
+      }
+      
+      console.log(`All presence endpoints failed for action '${action}'`);
+      return false;
     };
 
     // First, show "online" status
@@ -409,7 +451,7 @@ ${knowledgeBase}
       await sendPresenceStatus('recording');
     } else if (aiConfig.show_typing_indicator) {
       // Will respond with text, show typing indicator
-      await sendPresenceStatus('composing');
+      await sendPresenceStatus('typing');
     }
 
     // Wait for response delay if configured
@@ -584,7 +626,7 @@ ${knowledgeBase}
 
     // Show typing status before sending text
     if (aiConfig.show_typing_indicator) {
-      await sendPresenceStatus('composing');
+      await sendPresenceStatus('typing');
     }
 
     // ALWAYS send ONE complete message - never split to avoid incomplete responses
