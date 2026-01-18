@@ -374,27 +374,42 @@ ${knowledgeBase}
       elevenlabsApiKey && 
       aiConfig.elevenlabs_voice_id;
 
-    // Show typing or recording indicator BEFORE processing (so user sees it immediately)
-    // Using Z-API's update-chat-status endpoint for presence indicators
-    const presenceState = shouldRespondWithAudio && aiConfig.show_recording_indicator ? 'recording' : 
-                          aiConfig.show_typing_indicator ? 'composing' : null;
-    
-    if (presenceState) {
+    // Helper function to send presence status via Z-API
+    // Valid states: 'available' (online), 'composing' (typing), 'recording' (recording audio), 'unavailable'
+    const sendPresenceStatus = async (presence: 'available' | 'composing' | 'recording' | 'unavailable') => {
       try {
-        console.log(`Sending ${presenceState} indicator...`);
-        const presenceResponse = await fetch(`https://api.z-api.io/instances/${zapiInstanceId}/token/${zapiToken}/update-chat-status`, {
+        console.log(`Sending presence status: ${presence}`);
+        const presenceResponse = await fetch(`https://api.z-api.io/instances/${zapiInstanceId}/token/${zapiToken}/chat-presence`, {
           method: 'POST',
           headers: zapiHeaders,
           body: JSON.stringify({ 
             phone: formattedPhone,
-            presence: presenceState
+            presence: presence
           }),
         });
         const presenceResult = await presenceResponse.text();
-        console.log('Presence indicator response:', presenceResult);
+        console.log(`Presence status '${presence}' response:`, presenceResult);
+        return true;
       } catch (e) {
-        console.log('Failed to send presence indicator:', e);
+        console.log(`Failed to send presence status '${presence}':`, e);
+        return false;
       }
+    };
+
+    // First, show "online" status
+    await sendPresenceStatus('available');
+    
+    // Small delay to ensure online status is seen
+    await new Promise(resolve => setTimeout(resolve, 300));
+
+    // Show typing or recording indicator BEFORE processing (so user sees it immediately)
+    // Using Z-API's chat-presence endpoint for presence indicators
+    if (shouldRespondWithAudio && aiConfig.show_recording_indicator) {
+      // Will respond with audio, show recording indicator
+      await sendPresenceStatus('recording');
+    } else if (aiConfig.show_typing_indicator) {
+      // Will respond with text, show typing indicator
+      await sendPresenceStatus('composing');
     }
 
     // Wait for response delay if configured
@@ -449,6 +464,9 @@ ${knowledgeBase}
 
     if (shouldRespondWithAudio) {
       console.log('Generating audio response with ElevenLabs...');
+      
+      // Ensure recording status is shown during audio generation
+      await sendPresenceStatus('recording');
 
       try {
         // Generate audio with ElevenLabs - configurações otimizadas para máxima qualidade
@@ -544,6 +562,9 @@ ${knowledgeBase}
           .update({ last_message_at: new Date().toISOString() })
           .eq('id', conversationId);
 
+        // Clear presence status after sending
+        await sendPresenceStatus('unavailable');
+
         return new Response(JSON.stringify({ 
           success: true,
           messagesSent: 1,
@@ -555,8 +576,15 @@ ${knowledgeBase}
 
       } catch (audioError) {
         console.error('Error sending audio, falling back to text:', audioError);
+        // Clear recording status before falling back to text
+        await sendPresenceStatus('unavailable');
         // Fall through to text response
       }
+    }
+
+    // Show typing status before sending text
+    if (aiConfig.show_typing_indicator) {
+      await sendPresenceStatus('composing');
     }
 
     // ALWAYS send ONE complete message - never split to avoid incomplete responses
@@ -601,6 +629,9 @@ ${knowledgeBase}
           status: 'sent',
         });
     }
+
+    // Clear presence status after sending all messages
+    await sendPresenceStatus('unavailable');
 
     // Update conversation
     await supabase
