@@ -2696,6 +2696,7 @@ export type Database = {
       }
       whatsapp_messages: {
         Row: {
+          audio_url: string | null
           channel: Database["public"]["Enums"]["channel_type"]
           channel_message_id: string | null
           content: string
@@ -2712,6 +2713,7 @@ export type Database = {
           zapi_message_id: string | null
         }
         Insert: {
+          audio_url?: string | null
           channel?: Database["public"]["Enums"]["channel_type"]
           channel_message_id?: string | null
           content: string
@@ -2728,6 +2730,7 @@ export type Database = {
           zapi_message_id?: string | null
         }
         Update: {
+          audio_url?: string | null
           channel?: Database["public"]["Enums"]["channel_type"]
           channel_message_id?: string | null
           content?: string
