@@ -58,6 +58,7 @@ import {
   Tag,
   Package,
   Filter,
+  BarChart3,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -66,6 +67,7 @@ import { useLeadTags } from "@/hooks/useLeadTags";
 import { PRODUCTS, STATUSES } from "@/types/crm";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { EmailCampaignDashboard } from "@/components/campaigns/EmailCampaignDashboard";
 
 const statusConfig = {
   rascunho: { label: "Rascunho", color: "bg-secondary text-secondary-foreground", icon: Clock },
@@ -396,6 +398,7 @@ function CampaignList({
   type: 'email' | 'whatsapp';
 }) {
   const { campaigns, loading, createCampaign, deleteCampaign, getCampaignFilters, populateRecipients } = useCampaigns(type);
+  const [showDashboard, setShowDashboard] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -456,36 +459,56 @@ function CampaignList({
             className="pl-9"
           />
         </div>
-        <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-          <DialogTrigger asChild>
-            <Button className="gap-2">
-              <Plus className="w-4 h-4" />
-              Nova Campanha
+        <div className="flex gap-2">
+          {type === 'email' && (
+            <Button 
+              variant={showDashboard ? "default" : "outline"} 
+              className="gap-2"
+              onClick={() => setShowDashboard(!showDashboard)}
+            >
+              <BarChart3 className="w-4 h-4" />
+              {showDashboard ? "Ver Campanhas" : "Dashboard"}
             </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                {type === 'email' ? (
-                  <Mail className="w-5 h-5" />
-                ) : (
-                  <MessageCircle className="w-5 h-5" />
-                )}
-                Nova Campanha de {type === 'email' ? 'Email' : 'WhatsApp'}
-              </DialogTitle>
-              <DialogDescription>
-                Crie uma campanha para enviar {type === 'email' ? 'emails' : 'mensagens'} para seus leads
-              </DialogDescription>
-            </DialogHeader>
-            <CampaignForm
-              type={type}
-              onSubmit={handleCreate}
-              onClose={() => setIsCreateOpen(false)}
-            />
-          </DialogContent>
-        </Dialog>
+          )}
+          <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+            <DialogTrigger asChild>
+              <Button className="gap-2">
+                <Plus className="w-4 h-4" />
+                Nova Campanha
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  {type === 'email' ? (
+                    <Mail className="w-5 h-5" />
+                  ) : (
+                    <MessageCircle className="w-5 h-5" />
+                  )}
+                  Nova Campanha de {type === 'email' ? 'Email' : 'WhatsApp'}
+                </DialogTitle>
+                <DialogDescription>
+                  Crie uma campanha para enviar {type === 'email' ? 'emails' : 'mensagens'} para seus leads
+                </DialogDescription>
+              </DialogHeader>
+              <CampaignForm
+                type={type}
+                onSubmit={handleCreate}
+                onClose={() => setIsCreateOpen(false)}
+              />
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
+      {/* Dashboard View for Email */}
+      {type === 'email' && showDashboard && (
+        <EmailCampaignDashboard campaigns={campaigns} />
+      )}
+
+      {/* Stats and Campaigns List - only show when not in dashboard mode */}
+      {!(type === 'email' && showDashboard) && (
+        <>
       {/* Stats */}
       <div className="grid grid-cols-4 gap-4">
         <Card className="bg-secondary/30">
@@ -589,6 +612,8 @@ function CampaignList({
             />
           ))}
         </div>
+      )}
+        </>
       )}
 
       {/* Delete Confirmation */}
