@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -12,6 +12,7 @@ import {
   Users,
   BarChart3,
   Target,
+  UserMinus,
 } from "lucide-react";
 import { CampaignWithStats } from "@/hooks/useCampaigns";
 import { 
@@ -26,24 +27,59 @@ import {
   Pie,
   Cell,
   Legend,
+  LineChart,
+  Line,
 } from "recharts";
 import { format, parseISO, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { supabase } from "@/integrations/supabase/client";
+
+interface EmailUnsubscribe {
+  id: string;
+  email: string;
+  unsubscribed_at: string;
+  reason: string | null;
+  campaign_id: string | null;
+}
 
 interface EmailCampaignDashboardProps {
   campaigns: CampaignWithStats[];
 }
 
 export function EmailCampaignDashboard({ campaigns }: EmailCampaignDashboardProps) {
+  const [unsubscribes, setUnsubscribes] = useState<EmailUnsubscribe[]>([]);
+  const [loadingUnsubscribes, setLoadingUnsubscribes] = useState(true);
+
+  useEffect(() => {
+    const fetchUnsubscribes = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("email_unsubscribes")
+          .select("*")
+          .order("unsubscribed_at", { ascending: false });
+        
+        if (error) throw error;
+        setUnsubscribes(data || []);
+      } catch (err) {
+        console.error("Error fetching unsubscribes:", err);
+      } finally {
+        setLoadingUnsubscribes(false);
+      }
+    };
+    fetchUnsubscribes();
+  }, []);
+
   const stats = useMemo(() => {
     const totalRecipients = campaigns.reduce((acc, c) => acc + c.total_recipients, 0);
     const totalSent = campaigns.reduce((acc, c) => acc + c.sent_count, 0);
     const totalFailed = campaigns.reduce((acc, c) => acc + c.failed_count, 0);
     const totalOpened = campaigns.reduce((acc, c) => acc + c.opened_count, 0);
+    const totalUnsubscribed = unsubscribes.length;
     
     const openRate = totalSent > 0 ? (totalOpened / totalSent) * 100 : 0;
     const deliveryRate = totalRecipients > 0 ? (totalSent / totalRecipients) * 100 : 0;
     const failureRate = totalRecipients > 0 ? (totalFailed / totalRecipients) * 100 : 0;
+    const unsubscribeRate = totalSent > 0 ? (totalUnsubscribed / totalSent) * 100 : 0;
     
     return {
       totalCampaigns: campaigns.length,
@@ -51,11 +87,31 @@ export function EmailCampaignDashboard({ campaigns }: EmailCampaignDashboardProp
       totalSent,
       totalFailed,
       totalOpened,
+      totalUnsubscribed,
       openRate,
       deliveryRate,
       failureRate,
+      unsubscribeRate,
     };
-  }, [campaigns]);
+  }, [campaigns, unsubscribes]);
+
+  const unsubscribesByDay = useMemo(() => {
+    const last30Days = Array.from({ length: 30 }, (_, i) => {
+      const date = subDays(new Date(), 29 - i);
+      return format(date, "yyyy-MM-dd");
+    });
+
+    const countByDay = unsubscribes.reduce((acc, u) => {
+      const day = format(parseISO(u.unsubscribed_at), "yyyy-MM-dd");
+      acc[day] = (acc[day] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    return last30Days.map(date => ({
+      date: format(parseISO(date), "dd/MM", { locale: ptBR }),
+      descadastros: countByDay[date] || 0,
+    }));
+  }, [unsubscribes]);
 
   const statusData = useMemo(() => {
     const statusCounts = campaigns.reduce((acc, c) => {
@@ -93,8 +149,8 @@ export function EmailCampaignDashboard({ campaigns }: EmailCampaignDashboardProp
 
   return (
     <div className="space-y-6">
-      {/* Key Metrics */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      {/* Key Metrics - 5 cards now */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <Card>
           <CardContent className="pt-4">
             <div className="flex items-center gap-3">
@@ -150,10 +206,23 @@ export function EmailCampaignDashboard({ campaigns }: EmailCampaignDashboardProp
             </div>
           </CardContent>
         </Card>
+        <Card>
+          <CardContent className="pt-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-full bg-destructive/10">
+                <UserMinus className="w-5 h-5 text-destructive" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{stats.totalUnsubscribed.toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground">Descadastros</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Rates Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
@@ -219,6 +288,29 @@ export function EmailCampaignDashboard({ campaigns }: EmailCampaignDashboardProp
               <Progress value={stats.failureRate} className="h-2 [&>div]:bg-destructive" />
               <p className="text-xs text-muted-foreground">
                 {stats.totalFailed} emails falharam
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <UserMinus className="w-4 h-4" />
+              Taxa de Descadastro
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              <div className="flex items-end justify-between">
+                <span className="text-3xl font-bold">{stats.unsubscribeRate.toFixed(2)}%</span>
+                <Badge variant="outline" className={stats.unsubscribeRate <= 0.5 ? "text-success border-success" : "text-warning border-warning"}>
+                  {stats.unsubscribeRate <= 0.5 ? "Normal" : "Atenção"}
+                </Badge>
+              </div>
+              <Progress value={Math.min(stats.unsubscribeRate * 10, 100)} className="h-2 [&>div]:bg-warning" />
+              <p className="text-xs text-muted-foreground">
+                {stats.totalUnsubscribed} descadastros
               </p>
             </div>
           </CardContent>
@@ -328,6 +420,88 @@ export function EmailCampaignDashboard({ campaigns }: EmailCampaignDashboardProp
           </CardContent>
         </Card>
       )}
+
+      {/* Unsubscribes Chart and Recent List */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Unsubscribes over time */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <UserMinus className="w-5 h-5" />
+              Descadastros nos Últimos 30 Dias
+            </CardTitle>
+            <CardDescription>
+              Evolução diária de descadastros
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={250}>
+              <LineChart data={unsubscribesByDay}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis 
+                  dataKey="date" 
+                  tick={{ fontSize: 10 }} 
+                  interval="preserveStartEnd"
+                />
+                <YAxis allowDecimals={false} />
+                <Tooltip />
+                <Line 
+                  type="monotone" 
+                  dataKey="descadastros" 
+                  name="Descadastros"
+                  stroke="hsl(var(--destructive))" 
+                  strokeWidth={2}
+                  dot={{ fill: "hsl(var(--destructive))" }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        {/* Recent Unsubscribes */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <UserMinus className="w-5 h-5" />
+              Descadastros Recentes
+            </CardTitle>
+            <CardDescription>
+              Últimos e-mails descadastrados
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {loadingUnsubscribes ? (
+              <div className="text-center py-4 text-muted-foreground">
+                Carregando...
+              </div>
+            ) : unsubscribes.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <UserMinus className="w-10 h-10 mx-auto mb-2 opacity-20" />
+                <p>Nenhum descadastro registrado</p>
+              </div>
+            ) : (
+              <div className="space-y-3 max-h-[250px] overflow-y-auto">
+                {unsubscribes.slice(0, 10).map((unsub) => (
+                  <div 
+                    key={unsub.id}
+                    className="flex items-center justify-between p-3 rounded-lg bg-muted/50 border"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-sm truncate">{unsub.email}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {format(parseISO(unsub.unsubscribed_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                      </p>
+                    </div>
+                    <Badge variant="outline" className="text-destructive border-destructive ml-2">
+                      Descadastrado
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
