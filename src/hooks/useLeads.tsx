@@ -115,17 +115,31 @@ export function useLeads() {
         return;
       }
 
-      const { data: interactionsData, error: interactionsError } = await supabase
-        .from('interactions')
-        .select('*')
-        .in('lead_id', leadsData.map(l => l.id));
-
-      if (interactionsError) throw interactionsError;
+      // Fetch interactions in batches to avoid URL length limits
+      // With 1000+ leads, the IN clause becomes too long (>2000 chars)
+      const BATCH_SIZE = 50;
+      const leadIds = leadsData.map(l => l.id);
+      let allInteractions: DbInteraction[] = [];
+      
+      for (let i = 0; i < leadIds.length; i += BATCH_SIZE) {
+        const batchIds = leadIds.slice(i, i + BATCH_SIZE);
+        const { data: batchInteractions, error: batchError } = await supabase
+          .from('interactions')
+          .select('*')
+          .in('lead_id', batchIds);
+        
+        if (batchError) {
+          console.error('Error fetching interactions batch:', batchError);
+          // Continue with other batches even if one fails
+        } else if (batchInteractions) {
+          allInteractions = [...allInteractions, ...batchInteractions];
+        }
+      }
 
       const mappedLeads = leadsData.map(lead => 
         mapDbLeadToLead(
           lead, 
-          (interactionsData || []).filter(i => i.lead_id === lead.id)
+          allInteractions.filter(i => i.lead_id === lead.id)
         )
       );
 
