@@ -398,73 +398,82 @@ NUNCA repita apresentações como "Olá, sou [nome]" ou "Prazer em conhecê-lo" 
       aiConfig.elevenlabs_voice_id;
 
     // Helper function to send presence/typing status via Z-API
-    // Trying multiple endpoint patterns for compatibility
-    const sendPresenceStatus = async (action: 'typing' | 'recording' | 'available' | 'unavailable') => {
-      // Map actions to Z-API endpoints
-      const endpoints = [
-        // Try the typing endpoint first (most common pattern)
-        { url: `https://api.z-api.io/instances/${zapiInstanceId}/token/${zapiToken}/typing`, 
-          body: { phone: formattedPhone, duration: 5000 } },
-        // Try update-status endpoint
-        { url: `https://api.z-api.io/instances/${zapiInstanceId}/token/${zapiToken}/update-status`,
-          body: { phone: formattedPhone, status: action.toUpperCase() } },
-        // Try chat-presence with uppercase values
-        { url: `https://api.z-api.io/instances/${zapiInstanceId}/token/${zapiToken}/chat-presence`,
-          body: { phone: formattedPhone, presence: action.toUpperCase() } },
-      ];
+    // Using the documented /send-action-chat endpoint for presence indicators
+    const sendPresenceStatus = async (action: 'composing' | 'recording' | 'paused') => {
+      // Z-API uses /send-action-chat endpoint with action parameter
+      // Actions: composing (typing), recording, paused (clear)
+      const actionUrl = `https://api.z-api.io/instances/${zapiInstanceId}/token/${zapiToken}/send-action-chat`;
       
-      // For recording, use send-recording-presence if available
-      if (action === 'recording') {
-        endpoints.unshift({
-          url: `https://api.z-api.io/instances/${zapiInstanceId}/token/${zapiToken}/recording`,
-          body: { phone: formattedPhone, duration: 10000 }
+      try {
+        console.log(`Sending presence action '${action}' to ${formattedPhone}`);
+        const presenceResponse = await fetch(actionUrl, {
+          method: 'POST',
+          headers: zapiHeaders,
+          body: JSON.stringify({
+            phone: formattedPhone,
+            action: action, // composing, recording, or paused
+          }),
         });
-      }
-      
-      // For typing, prioritize the typing endpoint
-      if (action === 'typing') {
-        // Already prioritized above
-      }
-      
-      for (const endpoint of endpoints) {
-        try {
-          console.log(`Trying presence endpoint: ${endpoint.url}`);
-          const presenceResponse = await fetch(endpoint.url, {
-            method: 'POST',
-            headers: zapiHeaders,
-            body: JSON.stringify(endpoint.body),
-          });
-          const presenceResult = await presenceResponse.text();
-          console.log(`Presence response from ${endpoint.url}:`, presenceResult);
-          
-          // If successful (no error in response), return
-          if (presenceResponse.ok && !presenceResult.includes('NOT_FOUND') && !presenceResult.includes('error')) {
-            console.log(`✓ Presence status '${action}' sent successfully via ${endpoint.url}`);
-            return true;
-          }
-        } catch (e) {
-          console.log(`Failed endpoint ${endpoint.url}:`, e);
+        
+        const presenceResult = await presenceResponse.text();
+        console.log(`Presence response:`, presenceResult);
+        
+        if (presenceResponse.ok) {
+          console.log(`✓ Presence action '${action}' sent successfully`);
+          return true;
         }
+        
+        // If send-action-chat fails, try legacy endpoints
+        console.log(`send-action-chat failed, trying legacy endpoints...`);
+        
+        // Try alternative endpoints based on action
+        const legacyEndpoints = [];
+        
+        if (action === 'composing') {
+          legacyEndpoints.push(
+            { url: `https://api.z-api.io/instances/${zapiInstanceId}/token/${zapiToken}/typing`, body: { phone: formattedPhone, value: true, duration: 5000 } },
+            { url: `https://api.z-api.io/instances/${zapiInstanceId}/token/${zapiToken}/send-typing`, body: { phone: formattedPhone } }
+          );
+        } else if (action === 'recording') {
+          legacyEndpoints.push(
+            { url: `https://api.z-api.io/instances/${zapiInstanceId}/token/${zapiToken}/recording`, body: { phone: formattedPhone, value: true, duration: 10000 } },
+            { url: `https://api.z-api.io/instances/${zapiInstanceId}/token/${zapiToken}/send-recording`, body: { phone: formattedPhone } }
+          );
+        }
+        
+        for (const endpoint of legacyEndpoints) {
+          try {
+            const legacyResponse = await fetch(endpoint.url, {
+              method: 'POST',
+              headers: zapiHeaders,
+              body: JSON.stringify(endpoint.body),
+            });
+            const legacyResult = await legacyResponse.text();
+            console.log(`Legacy endpoint ${endpoint.url}:`, legacyResult);
+            
+            if (legacyResponse.ok && !legacyResult.includes('NOT_FOUND') && !legacyResult.includes('error')) {
+              return true;
+            }
+          } catch (e) {
+            console.log(`Legacy endpoint failed:`, e);
+          }
+        }
+        
+        return false;
+      } catch (e) {
+        console.error(`Presence status error:`, e);
+        return false;
       }
-      
-      console.log(`All presence endpoints failed for action '${action}'`);
-      return false;
     };
 
-    // First, show "online" status
-    await sendPresenceStatus('available');
-    
-    // Small delay to ensure online status is seen
-    await new Promise(resolve => setTimeout(resolve, 300));
-
     // Show typing or recording indicator BEFORE processing (so user sees it immediately)
-    // Using Z-API's chat-presence endpoint for presence indicators
+    // This runs in parallel with AI processing for better UX
     if (shouldRespondWithAudio && aiConfig.show_recording_indicator) {
       // Will respond with audio, show recording indicator
       await sendPresenceStatus('recording');
     } else if (aiConfig.show_typing_indicator) {
-      // Will respond with text, show typing indicator
-      await sendPresenceStatus('typing');
+      // Will respond with text, show composing indicator
+      await sendPresenceStatus('composing');
     }
 
     // Wait for response delay if configured
@@ -618,7 +627,7 @@ NUNCA repita apresentações como "Olá, sou [nome]" ou "Prazer em conhecê-lo" 
           .eq('id', conversationId);
 
         // Clear presence status after sending
-        await sendPresenceStatus('unavailable');
+        await sendPresenceStatus('paused');
 
         return new Response(JSON.stringify({ 
           success: true,
@@ -632,14 +641,14 @@ NUNCA repita apresentações como "Olá, sou [nome]" ou "Prazer em conhecê-lo" 
       } catch (audioError) {
         console.error('Error sending audio, falling back to text:', audioError);
         // Clear recording status before falling back to text
-        await sendPresenceStatus('unavailable');
+        await sendPresenceStatus('paused');
         // Fall through to text response
       }
     }
 
     // Show typing status before sending text
     if (aiConfig.show_typing_indicator) {
-      await sendPresenceStatus('typing');
+      await sendPresenceStatus('composing');
     }
 
     // ALWAYS send ONE complete message - never split to avoid incomplete responses
@@ -686,7 +695,7 @@ NUNCA repita apresentações como "Olá, sou [nome]" ou "Prazer em conhecê-lo" 
     }
 
     // Clear presence status after sending all messages
-    await sendPresenceStatus('unavailable');
+    await sendPresenceStatus('paused');
 
     // Update conversation
     await supabase
