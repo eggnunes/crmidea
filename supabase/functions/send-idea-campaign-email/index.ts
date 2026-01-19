@@ -187,8 +187,8 @@ serve(async (req) => {
                 <tr>
                   <td align="center" style="padding: 20px;">
                     <p style="color: #ffffff; margin: 0 0 10px 0; font-size: 14px;">Quer transformar seu escritório com IA?</p>
-                    <a href="https://www.rafaelegg.com/consultoria" style="color: #667eea; font-weight: bold; font-size: 16px; text-decoration: none;">
-                      www.rafaelegg.com/consultoria
+                    <a href="https://rafaelegg.com/consultoria" style="color: #667eea; font-weight: bold; font-size: 16px; text-decoration: none;">
+                      rafaelegg.com/consultoria
                     </a>
                   </td>
                 </tr>
