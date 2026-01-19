@@ -36,6 +36,7 @@ import { BioLinkPage } from "./pages/BioLinkPage";
 import { EbookCapturePage } from "./pages/EbookCapturePage";
 import { AITeleprompterAdminPage } from "./pages/AITeleprompterAdminPage";
 import { EmailCenterPage } from "./pages/EmailCenterPage";
+import CampaignsPage from "./pages/CampaignsPage";
 import RobotsTxtPage from "./pages/RobotsTxtPage";
 import SitemapXmlPage from "./pages/SitemapXmlPage";
 
@@ -91,6 +92,7 @@ function AppRoutes() {
                 <Route path="/whatsapp" element={<WhatsAppPage />} />
                 <Route path="/alertas" element={<AlertsCenterPage />} />
                 <Route path="/emails" element={<EmailCenterPage />} />
+                <Route path="/campanhas" element={<CampaignsPage />} />
                 <Route path="/calendario" element={<CalendarPage />} />
                 <Route path="/consultoria" element={<ConsultingPage />} />
                 <Route path="/consultoria/cliente/:clientId" element={<AdminClientViewPage />} />
