@@ -2603,6 +2603,63 @@ export type Database = {
         }
         Relationships: []
       }
+      scheduled_campaign_emails: {
+        Row: {
+          content: string
+          created_at: string
+          cta_text: string | null
+          cta_url: string
+          email_number: number
+          failed_count: number | null
+          id: string
+          image_url: string | null
+          recipients_count: number | null
+          scheduled_date: string
+          scheduled_time: string
+          sent_at: string | null
+          status: string
+          subject: string
+          success_count: number | null
+          updated_at: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          cta_text?: string | null
+          cta_url?: string
+          email_number: number
+          failed_count?: number | null
+          id?: string
+          image_url?: string | null
+          recipients_count?: number | null
+          scheduled_date: string
+          scheduled_time?: string
+          sent_at?: string | null
+          status?: string
+          subject: string
+          success_count?: number | null
+          updated_at?: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          cta_text?: string | null
+          cta_url?: string
+          email_number?: number
+          failed_count?: number | null
+          id?: string
+          image_url?: string | null
+          recipients_count?: number | null
+          scheduled_date?: string
+          scheduled_time?: string
+          sent_at?: string | null
+          status?: string
+          subject?: string
+          success_count?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       scheduled_messages: {
         Row: {
           contact_phone: string
