@@ -1,0 +1,12 @@
+# Custom headers for SEO and caching
+/robots.txt
+  Content-Type: text/plain; charset=utf-8
+  Cache-Control: public, max-age=86400
+
+/sitemap.xml
+  Content-Type: application/xml; charset=utf-8
+  Cache-Control: public, max-age=86400
+
+/*
+  X-Robots-Tag: index, follow
+  X-Content-Type-Options: nosniff
