@@ -1,0 +1,8 @@
+# Serve static files directly with 200 status
+/robots.txt    /robots.txt    200
+/sitemap.xml   /sitemap.xml   200
+/favicon.ico   /favicon.ico   200
+/favicon.png   /favicon.png   200
+
+# SPA fallback - all other routes go to index.html
+/*    /index.html   200
