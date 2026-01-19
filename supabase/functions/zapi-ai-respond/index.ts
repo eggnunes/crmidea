@@ -7,6 +7,84 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Helper function to search for updated AI tools information using Perplexity
+async function searchPerplexityForAITools(query: string): Promise<string | null> {
+  const perplexityApiKey = Deno.env.get('PERPLEXITY_API_KEY');
+  
+  if (!perplexityApiKey) {
+    console.log('Perplexity API key not configured, skipping real-time search');
+    return null;
+  }
+  
+  try {
+    console.log('Searching Perplexity for:', query);
+    
+    const response = await fetch('https://api.perplexity.ai/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${perplexityApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'sonar',
+        messages: [
+          { 
+            role: 'system', 
+            content: 'Você é um especialista em ferramentas de IA. Responda em português brasileiro de forma concisa (máximo 100 palavras). Foque nas ferramentas mais bem avaliadas e atualizadas para a função pedida.'
+          },
+          { 
+            role: 'user', 
+            content: query 
+          }
+        ],
+        max_tokens: 300,
+        temperature: 0.3,
+        search_recency_filter: 'month', // Get recent information
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      console.error('Perplexity error:', error);
+      return null;
+    }
+
+    const data = await response.json();
+    const aiResponse = data.choices?.[0]?.message?.content;
+    const citations = data.citations || [];
+    
+    console.log('Perplexity response:', aiResponse?.substring(0, 100) + '...');
+    
+    if (aiResponse) {
+      return `[INFORMAÇÃO ATUALIZADA DA WEB]\n${aiResponse}\n${citations.length > 0 ? `Fontes: ${citations.slice(0, 2).join(', ')}` : ''}`;
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Perplexity search error:', error);
+    return null;
+  }
+}
+
+// Detect if the user is asking about AI tools/software recommendations
+function shouldSearchForAITools(message: string): boolean {
+  const aiToolKeywords = [
+    'qual melhor', 'qual a melhor', 'quais as melhores', 'melhores ferramentas',
+    'qual ferramenta', 'recomenda', 'indicar', 'indicação',
+    'qual ia', 'qual inteligência artificial', 'qual software',
+    'para transcrever', 'para transcrição', 'para editar', 'para escrever',
+    'para pesquisar', 'para criar', 'para gerar', 'para resumir',
+    'melhor ia para', 'melhor app para', 'melhor aplicativo',
+    'alternativa', 'parecido com', 'similar ao',
+    'atualizado', 'novidade', 'lançamento', 'novo',
+    'ranking', 'top ', 'comparar', 'comparação',
+    'bem ranqueado', 'bem avaliado', 'mais usado'
+  ];
+  
+  const lowerMessage = message.toLowerCase();
+  return aiToolKeywords.some(keyword => lowerMessage.includes(keyword));
+}
+
 // Transcribe audio using OpenAI Whisper via Lovable AI
 async function transcribeAudio(audioUrl: string, lovableApiKey: string): Promise<string> {
   console.log("Transcribing audio from:", audioUrl);
@@ -239,6 +317,19 @@ serve(async (req) => {
       knowledgeBase = trainingDocs.map(doc => `[${doc.title}]\n${doc.content}`).join('\n\n');
     }
 
+    // Search Perplexity for updated AI tools info if the user is asking about tools/software
+    let perplexityInfo = '';
+    if (shouldSearchForAITools(processedContent)) {
+      console.log('User is asking about AI tools, searching Perplexity for updated info...');
+      const perplexityResult = await searchPerplexityForAITools(
+        `Quais são as melhores ferramentas de IA em 2025 para: ${processedContent}. Foque em ferramentas gratuitas ou com plano gratuito.`
+      );
+      if (perplexityResult) {
+        perplexityInfo = perplexityResult;
+        console.log('Got Perplexity info:', perplexityInfo.substring(0, 100) + '...');
+      }
+    }
+
     // Build intents context
     let intentsContext = '';
     if (intents && intents.length > 0) {
@@ -320,11 +411,20 @@ ${aiConfig.sign_agent_name ? `- Assine suas mensagens como "${aiConfig.agent_nam
 
     if (knowledgeBase) {
       systemPrompt += `
-## BASE DE CONHECIMENTO (OBRIGATÓRIO)
-ATENÇÃO: Você DEVE usar EXCLUSIVAMENTE as informações abaixo para responder. NÃO invente informações!
-Se a resposta não estiver na base de conhecimento, diga: "Não tenho essa informação específica na minha base de conhecimento."
+## BASE DE CONHECIMENTO
+Use as informações abaixo como referência principal. Se a resposta não estiver aqui, use as informações atualizadas da web.
 
 ${knowledgeBase}
+`;
+    }
+
+    // Add Perplexity real-time info if available
+    if (perplexityInfo) {
+      systemPrompt += `
+## INFORMAÇÃO ATUALIZADA (PRIORIDADE)
+A informação abaixo foi pesquisada em tempo real e está mais atualizada que a base de conhecimento. PRIORIZE esta informação quando for sobre ferramentas de IA ou recomendações de software:
+
+${perplexityInfo}
 `;
     }
 
