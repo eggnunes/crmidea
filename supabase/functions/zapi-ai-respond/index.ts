@@ -26,20 +26,26 @@ async function searchPerplexityForAITools(query: string): Promise<string | null>
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'sonar',
+        model: 'sonar-pro',
         messages: [
           { 
             role: 'system', 
-            content: 'Você é um especialista em ferramentas de IA. Responda em português brasileiro de forma concisa (máximo 100 palavras). Foque nas ferramentas mais bem avaliadas e atualizadas para a função pedida.'
+            content: `Você é um especialista em ferramentas e modelos de IA em 2025. Responda em português brasileiro.
+IMPORTANTE: Sempre inclua as ferramentas mais recentes e avançadas:
+- Para VÍDEO: Sora 2 (OpenAI), Veo 3 (Google), Runway Gen-4, Kling AI, Minimax
+- Para IMAGEM: Midjourney v6, DALL-E 3, Stable Diffusion 3, Ideogram 2.0, Flux
+- Para TEXTO: ChatGPT (GPT-5), Claude 4, Gemini 2.5, Llama 4
+- Para ÁUDIO: ElevenLabs, Suno AI, Udio
+Foque nas TOP 3-5 ferramentas mais bem avaliadas e recentes. Seja conciso (máximo 150 palavras).`
           },
           { 
             role: 'user', 
             content: query 
           }
         ],
-        max_tokens: 300,
-        temperature: 0.3,
-        search_recency_filter: 'month', // Get recent information
+        max_tokens: 500,
+        temperature: 0.2,
+        search_recency_filter: 'week',
       }),
     });
 
@@ -53,10 +59,10 @@ async function searchPerplexityForAITools(query: string): Promise<string | null>
     const aiResponse = data.choices?.[0]?.message?.content;
     const citations = data.citations || [];
     
-    console.log('Perplexity response:', aiResponse?.substring(0, 100) + '...');
+    console.log('Perplexity response:', aiResponse?.substring(0, 200) + '...');
     
     if (aiResponse) {
-      return `[INFORMAÇÃO ATUALIZADA DA WEB]\n${aiResponse}\n${citations.length > 0 ? `Fontes: ${citations.slice(0, 2).join(', ')}` : ''}`;
+      return `[INFORMAÇÃO ATUALIZADA DA WEB - JANEIRO 2025]\n${aiResponse}\n${citations.length > 0 ? `Fontes: ${citations.slice(0, 3).join(', ')}` : ''}`;
     }
     
     return null;
@@ -69,16 +75,30 @@ async function searchPerplexityForAITools(query: string): Promise<string | null>
 // Detect if the user is asking about AI tools/software recommendations
 function shouldSearchForAITools(message: string): boolean {
   const aiToolKeywords = [
+    // Perguntas gerais sobre IAs
     'qual melhor', 'qual a melhor', 'quais as melhores', 'melhores ferramentas',
     'qual ferramenta', 'recomenda', 'indicar', 'indicação',
     'qual ia', 'qual inteligência artificial', 'qual software',
+    // Ações específicas
     'para transcrever', 'para transcrição', 'para editar', 'para escrever',
     'para pesquisar', 'para criar', 'para gerar', 'para resumir',
+    'para fazer vídeo', 'para vídeo', 'para video', 'criar vídeo', 'criar video',
+    'gerar vídeo', 'gerar video', 'fazer vídeo', 'fazer video',
+    'para imagem', 'criar imagem', 'gerar imagem',
+    'para áudio', 'para audio', 'criar música', 'gerar música',
+    'para texto', 'para escrever', 'para código', 'para programar',
+    // Comparações
     'melhor ia para', 'melhor app para', 'melhor aplicativo',
     'alternativa', 'parecido com', 'similar ao',
-    'atualizado', 'novidade', 'lançamento', 'novo',
+    'atualizado', 'novidade', 'lançamento', 'novo', 'recente',
     'ranking', 'top ', 'comparar', 'comparação',
-    'bem ranqueado', 'bem avaliado', 'mais usado'
+    'bem ranqueado', 'bem avaliado', 'mais usado',
+    // Ferramentas específicas (para comparação)
+    'sora', 'veo', 'runway', 'midjourney', 'dall-e', 'chatgpt',
+    'gemini', 'claude', 'copilot', 'kling', 'pika', 'minimax',
+    // Tipos de conteúdo
+    'vídeo com ia', 'video com ia', 'imagem com ia', 'música com ia',
+    'texto com ia', 'avatar', 'deepfake', 'animação'
   ];
   
   const lowerMessage = message.toLowerCase();
@@ -418,13 +438,17 @@ ${knowledgeBase}
 `;
     }
 
-    // Add Perplexity real-time info if available
+    // Add Perplexity real-time info if available - with MAXIMUM priority
     if (perplexityInfo) {
       systemPrompt += `
-## INFORMAÇÃO ATUALIZADA (PRIORIDADE)
-A informação abaixo foi pesquisada em tempo real e está mais atualizada que a base de conhecimento. PRIORIZE esta informação quando for sobre ferramentas de IA ou recomendações de software:
+## ⚠️ INFORMAÇÃO ATUALIZADA EM TEMPO REAL (PRIORIDADE MÁXIMA!) ⚠️
+A informação abaixo foi pesquisada AGORA na internet e representa o estado mais atual das ferramentas de IA em janeiro de 2025.
+VOCÊ DEVE OBRIGATORIAMENTE usar esta informação ao responder sobre ferramentas de IA, IGNORANDO a base de conhecimento para este tópico específico.
+Mencione os nomes das ferramentas exatamente como estão aqui (Sora 2, Veo 3, etc.).
 
 ${perplexityInfo}
+
+LEMBRE-SE: As ferramentas acima são as mais recentes e bem ranqueadas. USE ELAS NA SUA RESPOSTA!
 `;
     }
 
@@ -498,67 +522,106 @@ NUNCA repita apresentações como "Olá, sou [nome]" ou "Prazer em conhecê-lo" 
       aiConfig.elevenlabs_voice_id;
 
     // Helper function to send presence/typing status via Z-API
-    // Using the documented /send-action-chat endpoint for presence indicators
+    // Based on Z-API official documentation: https://developer.z-api.io/
     const sendPresenceStatus = async (action: 'composing' | 'recording' | 'paused') => {
-      // Z-API uses /send-action-chat endpoint with action parameter
-      // Actions: composing (typing), recording, paused (clear)
-      const actionUrl = `https://api.z-api.io/instances/${zapiInstanceId}/token/${zapiToken}/send-action-chat`;
+      // Z-API endpoints for presence status - using the correct documented endpoints
+      const baseUrl = `https://api.z-api.io/instances/${zapiInstanceId}/token/${zapiToken}`;
       
       try {
         console.log(`Sending presence action '${action}' to ${formattedPhone}`);
-        const presenceResponse = await fetch(actionUrl, {
+        
+        // First, set online status using update-presence endpoint
+        const onlineUrl = `${baseUrl}/update-presence`;
+        const onlineBody = { 
+          phone: formattedPhone,
+          presence: 'available' // Mark as online/available
+        };
+        
+        const onlineResponse = await fetch(onlineUrl, {
           method: 'POST',
           headers: zapiHeaders,
-          body: JSON.stringify({
-            phone: formattedPhone,
-            action: action, // composing, recording, or paused
-          }),
+          body: JSON.stringify(onlineBody),
         });
+        const onlineResult = await onlineResponse.text();
+        console.log(`Online presence response:`, onlineResult);
         
-        const presenceResult = await presenceResponse.text();
-        console.log(`Presence response:`, presenceResult);
-        
-        if (presenceResponse.ok) {
-          console.log(`✓ Presence action '${action}' sent successfully`);
+        // Now send the specific action (composing/recording)
+        if (action === 'paused') {
+          // Just stop typing/recording - no additional action needed after setting presence
           return true;
         }
         
-        // If send-action-chat fails, try legacy endpoints
-        console.log(`send-action-chat failed, trying legacy endpoints...`);
+        // Use the chat-presence endpoint for typing/recording indicators
+        // This is the documented way for Multi-Device instances
+        const presenceUrl = `${baseUrl}/chat-presence`;
+        const presenceBody = {
+          phone: formattedPhone,
+          presence: action === 'composing' ? 'composing' : 'recording'
+        };
         
-        // Try alternative endpoints based on action
-        const legacyEndpoints = [];
+        const presenceResponse = await fetch(presenceUrl, {
+          method: 'POST',
+          headers: zapiHeaders,
+          body: JSON.stringify(presenceBody),
+        });
         
-        if (action === 'composing') {
-          legacyEndpoints.push(
-            { url: `https://api.z-api.io/instances/${zapiInstanceId}/token/${zapiToken}/typing`, body: { phone: formattedPhone, value: true, duration: 5000 } },
-            { url: `https://api.z-api.io/instances/${zapiInstanceId}/token/${zapiToken}/send-typing`, body: { phone: formattedPhone } }
-          );
-        } else if (action === 'recording') {
-          legacyEndpoints.push(
-            { url: `https://api.z-api.io/instances/${zapiInstanceId}/token/${zapiToken}/recording`, body: { phone: formattedPhone, value: true, duration: 10000 } },
-            { url: `https://api.z-api.io/instances/${zapiInstanceId}/token/${zapiToken}/send-recording`, body: { phone: formattedPhone } }
-          );
+        const presenceResult = await presenceResponse.text();
+        console.log(`Chat presence response for '${action}':`, presenceResult);
+        
+        if (presenceResponse.ok && !presenceResult.includes('error')) {
+          console.log(`✓ Presence action '${action}' sent successfully via chat-presence`);
+          return true;
         }
         
-        for (const endpoint of legacyEndpoints) {
-          try {
-            const legacyResponse = await fetch(endpoint.url, {
-              method: 'POST',
-              headers: zapiHeaders,
-              body: JSON.stringify(endpoint.body),
-            });
-            const legacyResult = await legacyResponse.text();
-            console.log(`Legacy endpoint ${endpoint.url}:`, legacyResult);
-            
-            if (legacyResponse.ok && !legacyResult.includes('NOT_FOUND') && !legacyResult.includes('error')) {
-              return true;
-            }
-          } catch (e) {
-            console.log(`Legacy endpoint failed:`, e);
-          }
+        // Fallback: Try send-action-chat endpoint
+        console.log(`chat-presence didn't work, trying send-action-chat...`);
+        const actionUrl = `${baseUrl}/send-action-chat`;
+        const actionBody = {
+          phone: formattedPhone,
+          action: action
+        };
+        
+        const actionResponse = await fetch(actionUrl, {
+          method: 'POST',
+          headers: zapiHeaders,
+          body: JSON.stringify(actionBody),
+        });
+        
+        const actionResult = await actionResponse.text();
+        console.log(`send-action-chat response:`, actionResult);
+        
+        if (actionResponse.ok && !actionResult.includes('error')) {
+          console.log(`✓ Presence action '${action}' sent via send-action-chat`);
+          return true;
         }
         
+        // Second fallback: Try legacy typing/recording endpoints
+        console.log(`send-action-chat didn't work, trying legacy endpoints...`);
+        
+        const legacyEndpoint = action === 'composing' 
+          ? `${baseUrl}/typing`
+          : `${baseUrl}/recording`;
+        
+        const legacyBody = {
+          phone: formattedPhone,
+          value: true
+        };
+        
+        const legacyResponse = await fetch(legacyEndpoint, {
+          method: 'POST',
+          headers: zapiHeaders,
+          body: JSON.stringify(legacyBody),
+        });
+        
+        const legacyResult = await legacyResponse.text();
+        console.log(`Legacy endpoint (${action}) response:`, legacyResult);
+        
+        if (legacyResponse.ok) {
+          console.log(`✓ Presence action '${action}' sent via legacy endpoint`);
+          return true;
+        }
+        
+        console.log(`All presence endpoints failed for action '${action}'`);
         return false;
       } catch (e) {
         console.error(`Presence status error:`, e);
