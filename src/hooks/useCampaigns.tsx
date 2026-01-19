@@ -76,19 +76,41 @@ export function useCampaigns(campaignType?: 'email' | 'whatsapp') {
 
       if (error) throw error;
 
-      // Fetch recipient stats for each campaign
+      // Fetch recipient stats for each campaign using COUNT to avoid 1000 limit
       const campaignsWithStats = await Promise.all(
         (data || []).map(async (campaign) => {
-          const { data: recipients } = await supabase
+          // Get total count
+          const { count: totalCount } = await supabase
             .from('campaign_recipients')
-            .select('status')
+            .select('*', { count: 'exact', head: true })
             .eq('campaign_id', campaign.id);
 
+          // Get sent count
+          const { count: sentCount } = await supabase
+            .from('campaign_recipients')
+            .select('*', { count: 'exact', head: true })
+            .eq('campaign_id', campaign.id)
+            .eq('status', 'enviado');
+
+          // Get failed count
+          const { count: failedCount } = await supabase
+            .from('campaign_recipients')
+            .select('*', { count: 'exact', head: true })
+            .eq('campaign_id', campaign.id)
+            .eq('status', 'falhou');
+
+          // Get opened count
+          const { count: openedCount } = await supabase
+            .from('campaign_recipients')
+            .select('*', { count: 'exact', head: true })
+            .eq('campaign_id', campaign.id)
+            .eq('status', 'aberto');
+
           const stats = {
-            total_recipients: recipients?.length || 0,
-            sent_count: recipients?.filter(r => r.status === 'enviado').length || 0,
-            failed_count: recipients?.filter(r => r.status === 'falhou').length || 0,
-            opened_count: recipients?.filter(r => r.status === 'aberto').length || 0,
+            total_recipients: totalCount || 0,
+            sent_count: sentCount || 0,
+            failed_count: failedCount || 0,
+            opened_count: openedCount || 0,
           };
 
           return { ...campaign, ...stats } as CampaignWithStats;
