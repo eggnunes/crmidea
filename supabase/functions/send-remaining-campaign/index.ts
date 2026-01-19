@@ -23,35 +23,25 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const resend = new Resend(resendApiKey);
 
-    // Get today's scheduled email
-    const today = new Date().toISOString().split('T')[0];
+    // Get specific email by number
+    const { emailNumber } = await req.json();
     
-    console.log(`Checking for scheduled emails for date: ${today}`);
-
     const { data: scheduledEmail, error: fetchError } = await supabase
       .from('scheduled_campaign_emails')
       .select('*')
-      .eq('scheduled_date', today)
-      .eq('status', 'pending')
+      .eq('email_number', emailNumber || 1)
       .single();
 
     if (fetchError || !scheduledEmail) {
-      console.log('No scheduled email found for today');
       return new Response(
-        JSON.stringify({ success: true, message: "No email scheduled for today" }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: "Email not found" }),
+        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    console.log(`Found scheduled email #${scheduledEmail.email_number}: ${scheduledEmail.subject}`);
+    console.log(`Sending remaining emails for campaign #${scheduledEmail.email_number}`);
 
-    // Mark as processing
-    await supabase
-      .from('scheduled_campaign_emails')
-      .update({ status: 'processing' })
-      .eq('id', scheduledEmail.id);
-
-    // Get ALL leads with email (paginated to avoid 1000 row limit)
+    // Get ALL leads with email (paginated)
     let allLeads: { id: string; name: string; email: string }[] = [];
     let offset = 0;
     const PAGE_SIZE = 1000;
@@ -75,10 +65,8 @@ serve(async (req) => {
       if (leadsPage.length < PAGE_SIZE) break;
       offset += PAGE_SIZE;
     }
-    
-    const leads = allLeads;
 
-    console.log(`Found ${leads?.length || 0} leads with email`);
+    console.log(`Found ${allLeads.length} total leads`);
 
     // Get unsubscribed emails
     const { data: unsubscribed } = await supabase
@@ -90,11 +78,21 @@ serve(async (req) => {
     );
 
     // Filter out unsubscribed
-    const validLeads = (leads || []).filter(
+    const validLeads = allLeads.filter(
       lead => lead.email && !unsubscribedEmails.has(lead.email.toLowerCase())
     );
 
-    console.log(`${validLeads.length} valid leads after filtering unsubscribed`);
+    // Skip first 1000 (already sent)
+    const remainingLeads = validLeads.slice(1000);
+
+    console.log(`${remainingLeads.length} remaining leads to send`);
+
+    if (remainingLeads.length === 0) {
+      return new Response(
+        JSON.stringify({ success: true, message: "No remaining leads to send" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     let successCount = 0;
     let failedCount = 0;
@@ -109,7 +107,6 @@ serve(async (req) => {
         .replace(/\[NOME\]/gi, leadName || 'Advogado(a)')
         .replace(/\{nome\}/gi, leadName || 'Advogado(a)');
 
-      // Parse content sections
       const lines = personalizedContent.split('\n');
       let htmlContent = '';
       
@@ -118,20 +115,16 @@ serve(async (req) => {
         if (!trimmedLine) {
           htmlContent += '<br/>';
         } else if (trimmedLine.startsWith('**') && trimmedLine.endsWith('**')) {
-          // Bold paragraph
           htmlContent += `<p style="margin: 15px 0; font-weight: bold; color: #1a1a2e;">${trimmedLine.replace(/\*\*/g, '')}</p>`;
         } else if (trimmedLine.startsWith('- ')) {
-          // List item
           htmlContent += `<li style="margin: 8px 0; color: #333;">${trimmedLine.substring(2)}</li>`;
         } else if (trimmedLine.startsWith('✅')) {
-          // Checkmark item
           htmlContent += `<p style="margin: 8px 0; color: #333;">${trimmedLine}</p>`;
         } else {
           htmlContent += `<p style="margin: 10px 0; color: #333; line-height: 1.6;">${trimmedLine}</p>`;
         }
       }
 
-      // Generate unsubscribe link
       const encodedEmail = btoa(leadEmail);
       const unsubscribeUrl = `${supabaseUrl}/functions/v1/email-unsubscribe?email=${encodedEmail}`;
 
@@ -150,7 +143,6 @@ serve(async (req) => {
         <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
           
           ${imageUrl ? `
-          <!-- Header Image -->
           <tr>
             <td style="padding: 0;">
               <img src="${baseUrl}${imageUrl}" alt="${subject}" style="width: 100%; height: auto; display: block; border-radius: 12px 12px 0 0;" />
@@ -158,7 +150,6 @@ serve(async (req) => {
           </tr>
           ` : ''}
           
-          <!-- Content -->
           <tr>
             <td style="padding: 30px 40px;">
               <div style="font-size: 16px; line-height: 1.7; color: #333;">
@@ -166,7 +157,6 @@ serve(async (req) => {
               </div>
               
               ${ctaText ? `
-              <!-- CTA Button -->
               <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin: 30px 0;">
                 <tr>
                   <td align="center">
@@ -180,7 +170,6 @@ serve(async (req) => {
             </td>
           </tr>
           
-          <!-- Consultoria Link -->
           <tr>
             <td style="padding: 0 40px 30px 40px;">
               <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); border-radius: 8px; padding: 20px;">
@@ -196,7 +185,6 @@ serve(async (req) => {
             </td>
           </tr>
           
-          <!-- Footer -->
           <tr>
             <td style="padding: 30px 40px; background-color: #f8f9fa; border-top: 1px solid #e9ecef;">
               <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
@@ -231,10 +219,10 @@ serve(async (req) => {
 
     // Send emails in batches
     const BATCH_SIZE = 50;
-    const DELAY_BETWEEN_BATCHES = 2000; // 2 seconds
+    const DELAY_BETWEEN_BATCHES = 2000;
 
-    for (let i = 0; i < validLeads.length; i += BATCH_SIZE) {
-      const batch = validLeads.slice(i, i + BATCH_SIZE);
+    for (let i = 0; i < remainingLeads.length; i += BATCH_SIZE) {
+      const batch = remainingLeads.slice(i, i + BATCH_SIZE);
       
       const promises = batch.map(async (lead) => {
         try {
@@ -282,66 +270,43 @@ serve(async (req) => {
         }
       }
 
-      // Delay between batches to avoid rate limiting
-      if (i + BATCH_SIZE < validLeads.length) {
+      if (i + BATCH_SIZE < remainingLeads.length) {
         await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_BATCHES));
       }
     }
 
-    // Send copy to personal email
-    try {
-      const copyHtml = buildEmailHtml(
-        "Rafael (CÓPIA)",
-        scheduledEmail.content,
-        scheduledEmail.subject,
-        scheduledEmail.image_url,
-        scheduledEmail.cta_text,
-        scheduledEmail.cta_url,
-        COPY_EMAIL
-      );
+    // Update count
+    const newTotal = (scheduledEmail.recipients_count || 0) + remainingLeads.length;
+    const newSuccess = (scheduledEmail.success_count || 0) + successCount;
+    const newFailed = (scheduledEmail.failed_count || 0) + failedCount;
 
-      await resend.emails.send({
-        from: "Rafael Egg <contato@rafaelegg.com>",
-        to: [COPY_EMAIL],
-        subject: `[CÓPIA] ${scheduledEmail.subject}`,
-        html: copyHtml,
-      });
-
-      console.log(`Copy sent to ${COPY_EMAIL}`);
-    } catch (copyError) {
-      console.error(`Error sending copy to ${COPY_EMAIL}:`, copyError);
-    }
-
-    // Update scheduled email status
     await supabase
       .from('scheduled_campaign_emails')
       .update({
-        status: 'sent',
-        sent_at: new Date().toISOString(),
-        recipients_count: validLeads.length,
-        success_count: successCount,
-        failed_count: failedCount,
+        recipients_count: newTotal,
+        success_count: newSuccess,
+        failed_count: newFailed,
       })
       .eq('id', scheduledEmail.id);
 
-    console.log(`Campaign email #${scheduledEmail.email_number} completed: ${successCount} sent, ${failedCount} failed`);
+    console.log(`Remaining campaign emails sent: ${successCount} success, ${failedCount} failed`);
 
     return new Response(
       JSON.stringify({
         success: true,
-        message: `Email #${scheduledEmail.email_number} sent`,
+        message: `Remaining emails sent for campaign #${scheduledEmail.email_number}`,
         stats: {
-          total: validLeads.length,
+          remaining: remainingLeads.length,
           success: successCount,
           failed: failedCount,
         },
-        errors: errors.slice(0, 10), // Limit error details
+        errors: errors.slice(0, 10),
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
   } catch (error: unknown) {
-    console.error("Error in send-idea-campaign-email:", error);
+    console.error("Error:", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return new Response(
       JSON.stringify({ error: errorMessage }),
