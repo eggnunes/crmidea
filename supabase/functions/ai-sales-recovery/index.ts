@@ -48,14 +48,14 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Get training documents about the curso IDEA
+    // Get training documents about the curso IDEA and consultoria
     const { data: trainingDocs } = await supabase
       .from('ai_training_documents')
       .select('title, content')
       .eq('user_id', userId)
       .eq('status', 'trained')
-      .or('title.ilike.%idea%,title.ilike.%curso%,content.ilike.%curso idea%')
-      .limit(5);
+      .or('title.ilike.%idea%,title.ilike.%curso%,title.ilike.%consultoria%,content.ilike.%curso idea%,content.ilike.%consultoria%')
+      .limit(10);
 
     // Build knowledge base from training documents
     let knowledgeBase = '';
@@ -63,14 +63,23 @@ Deno.serve(async (req) => {
       knowledgeBase = trainingDocs.map(doc => `[${doc.title}]\n${doc.content}`).join('\n\n');
     }
 
+    // Determine which product was abandoned
+    const isConsultoria = productName.toLowerCase().includes('consultoria');
+    const isCursoIDEA = productName.toLowerCase().includes('idea') || productName.toLowerCase().includes('curso');
+    
+    // Set the appropriate link based on product
+    const productLink = isConsultoria 
+      ? 'https://www.rafaelegg.com.br/consultoria'
+      : 'https://kfrfrfe.pay.ofrfrfy.com.br/MNyPobNNqGhOrKM'; // Link curso IDEA
+    
     // System prompt for sales recovery
     const systemPrompt = `Você é um assistente de vendas especializado da IDEA (Inteligência de Dados e Artificial). 
 Seu objetivo é recuperar um carrinho abandonado de forma natural, empática e persuasiva.
 
 ## Contexto
-O cliente ${firstName} demonstrou interesse no Curso IDEA (${productName}) mas não finalizou a compra.
+O cliente ${firstName} demonstrou interesse em ${productName} mas não finalizou a compra.
 
-## Sobre o Curso IDEA
+## Conhecimento sobre os produtos
 ${knowledgeBase || `
 O Curso IDEA é um programa completo sobre Inteligência Artificial para advogados, com:
 - 11 módulos e mais de 70 aulas práticas
@@ -79,19 +88,24 @@ O Curso IDEA é um programa completo sobre Inteligência Artificial para advogad
 - Certificado de conclusão
 - Suporte e comunidade exclusiva
 - Acesso vitalício às atualizações
+
+A Consultoria IDEA é um serviço de implementação personalizada de IA:
+- Análise completa do fluxo de trabalho do escritório
+- Chatbot inteligente para atendimento de clientes
+- Automação de documentos e processos
+- Acompanhamento individual com Rafael
 `}
 
 ## Regras da Mensagem
 1. Seja breve e direto (máximo 3-4 parágrafos curtos)
 2. Use o primeiro nome do cliente (${firstName})
 3. Não seja agressivo ou insistente demais
-4. Mencione 1-2 benefícios chave do curso
+4. Mencione 1-2 benefícios chave do produto
 5. Ofereça ajuda para tirar dúvidas
-6. Inclua um call-to-action sutil
+6. INCLUA O LINK do produto no final da mensagem: ${productLink}
 7. Use emojis moderadamente (2-3 no máximo)
-8. NÃO inclua links (o cliente já conhece a página)
-9. Pergunte se há alguma dúvida específica que impediu a compra
-10. Finalize oferecendo falar com o Rafael se preferir atendimento humano
+8. Pergunte se há alguma dúvida específica que impediu a compra
+9. Finalize oferecendo falar com o Rafael se preferir atendimento humano
 
 ## Tom
 Amigável, profissional, compreensivo. Como um colega que quer genuinamente ajudar.`;
