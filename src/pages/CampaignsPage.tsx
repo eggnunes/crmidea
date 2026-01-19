@@ -68,6 +68,7 @@ import { PRODUCTS, STATUSES } from "@/types/crm";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { EmailCampaignDashboard } from "@/components/campaigns/EmailCampaignDashboard";
+import { CampaignDetailDialog } from "@/components/campaigns/CampaignDetailDialog";
 
 const statusConfig = {
   rascunho: { label: "Rascunho", color: "bg-secondary text-secondary-foreground", icon: Clock },
@@ -323,7 +324,10 @@ function CampaignCard({
   const StatusIcon = config.icon;
 
   return (
-    <Card className="hover:shadow-md transition-shadow">
+    <Card 
+      className="hover:shadow-md transition-shadow cursor-pointer"
+      onClick={onView}
+    >
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className="flex-1">
@@ -346,17 +350,25 @@ function CampaignCard({
             </Badge>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8">
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-8 w-8"
+                  onClick={(e) => e.stopPropagation()}
+                >
                   <MoreHorizontal className="w-4 h-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={onView}>
+                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onView(); }}>
                   <Eye className="w-4 h-4 mr-2" />
                   Ver detalhes
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={onDelete} className="text-destructive">
+                <DropdownMenuItem 
+                  onClick={(e) => { e.stopPropagation(); onDelete(); }} 
+                  className="text-destructive"
+                >
                   <Trash2 className="w-4 h-4 mr-2" />
                   Excluir
                 </DropdownMenuItem>
@@ -368,19 +380,19 @@ function CampaignCard({
       <CardContent>
         <div className="grid grid-cols-4 gap-4 text-center">
           <div>
-            <p className="text-2xl font-bold">{campaign.total_recipients}</p>
+            <p className="text-2xl font-bold">{campaign.total_recipients.toLocaleString('pt-BR')}</p>
             <p className="text-xs text-muted-foreground">Destinatários</p>
           </div>
           <div>
-            <p className="text-2xl font-bold text-success">{campaign.sent_count}</p>
+            <p className="text-2xl font-bold text-success">{campaign.sent_count.toLocaleString('pt-BR')}</p>
             <p className="text-xs text-muted-foreground">Enviados</p>
           </div>
           <div>
-            <p className="text-2xl font-bold text-destructive">{campaign.failed_count}</p>
+            <p className="text-2xl font-bold text-destructive">{campaign.failed_count.toLocaleString('pt-BR')}</p>
             <p className="text-xs text-muted-foreground">Falhas</p>
           </div>
           <div>
-            <p className="text-2xl font-bold text-info">{campaign.opened_count}</p>
+            <p className="text-2xl font-bold text-info">{campaign.opened_count.toLocaleString('pt-BR')}</p>
             <p className="text-xs text-muted-foreground">Abertos</p>
           </div>
         </div>
@@ -402,6 +414,7 @@ function CampaignList({
   const [searchTerm, setSearchTerm] = useState('');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [selectedCampaign, setSelectedCampaign] = useState<CampaignWithStats | null>(null);
 
   const filteredCampaigns = campaigns.filter(c =>
     c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -607,7 +620,7 @@ function CampaignList({
               key={campaign.id}
               campaign={campaign}
               type={type}
-              onView={() => toast.info("Visualização detalhada em breve")}
+              onView={() => setSelectedCampaign(campaign)}
               onDelete={() => setDeleteId(campaign.id)}
             />
           ))}
@@ -615,6 +628,13 @@ function CampaignList({
       )}
         </>
       )}
+
+      {/* Campaign Detail Dialog */}
+      <CampaignDetailDialog
+        campaign={selectedCampaign}
+        open={!!selectedCampaign}
+        onClose={() => setSelectedCampaign(null)}
+      />
 
       {/* Delete Confirmation */}
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
