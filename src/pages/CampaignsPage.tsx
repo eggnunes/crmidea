@@ -422,7 +422,10 @@ function CampaignList({
         content: data.content,
         scheduled_at: null,
       },
-      data.filters
+      data.filters.map(f => ({
+        filter_type: f.filter_type as 'all' | 'tag' | 'product' | 'status' | 'source',
+        filter_value: f.filter_value,
+      }))
     );
 
     if (campaign) {
