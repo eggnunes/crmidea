@@ -18,7 +18,8 @@ import {
   Headphones,
   CheckCheck,
   GraduationCap,
-  Mail
+  Mail,
+  Megaphone
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NavLink } from "@/components/NavLink";
@@ -58,6 +59,7 @@ const operationalItems = [
   { to: "/metodo-idea/integracoes", icon: BarChart3, label: "Integrações" },
   { to: "/metodo-idea/whatsapp", icon: MessageCircle, label: "Central de Atendimento" },
   { to: "/metodo-idea/emails", icon: Mail, label: "Central de Emails" },
+  { to: "/metodo-idea/campanhas", icon: Megaphone, label: "Campanhas" },
   { to: "/metodo-idea/alertas", icon: Bell, label: "Central de Alertas" },
   { to: "/metodo-idea/configuracoes", icon: Settings, label: "Configurações" },
 ];
