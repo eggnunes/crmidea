@@ -22,6 +22,33 @@ serve(async (req) => {
     console.log(`Processing campaign message: campaignId=${campaignId}, type=${campaignType}, recipient=${recipientEmail || recipientPhone}`);
 
     if (campaignType === 'email') {
+      // Check if email is unsubscribed
+      if (recipientEmail) {
+        const { data: unsubscribed } = await supabase
+          .from('email_unsubscribes')
+          .select('id')
+          .ilike('email', recipientEmail)
+          .maybeSingle();
+
+        if (unsubscribed) {
+          console.log(`Email ${recipientEmail} is unsubscribed, skipping...`);
+          
+          // Update recipient status to blocked
+          await supabase
+            .from('campaign_recipients')
+            .update({ 
+              status: 'bloqueado',
+              error_message: 'E-mail descadastrado da lista'
+            })
+            .eq('id', recipientId);
+
+          return new Response(
+            JSON.stringify({ success: false, message: "Email is unsubscribed", skipped: true }),
+            { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+      }
+
       // Send via Resend
       const resendApiKey = Deno.env.get("RESEND_API_KEY");
       
@@ -42,11 +69,26 @@ serve(async (req) => {
         personalizedContent = personalizedContent.replace(/\{name\}/gi, recipientName);
       }
 
-      // Convert plain text to HTML
+      // Generate unsubscribe link
+      const encodedEmail = btoa(recipientEmail);
+      const unsubscribeUrl = `${supabaseUrl}/functions/v1/email-unsubscribe?email=${encodedEmail}&campaign=${campaignId || ''}`;
+
+      // Convert plain text to HTML with unsubscribe link
       const htmlContent = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
           <div style="white-space: pre-wrap; line-height: 1.6;">
 ${personalizedContent.split('\n').map((line: string) => `            <p style="margin: 0 0 10px 0;">${line || '&nbsp;'}</p>`).join('\n')}
+          </div>
+          
+          <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e5e5; text-align: center;">
+            <p style="color: #888; font-size: 12px; margin: 0;">
+              Você está recebendo este e-mail porque se inscreveu em nossa lista.
+            </p>
+            <p style="margin: 10px 0;">
+              <a href="${unsubscribeUrl}" style="color: #888; font-size: 12px; text-decoration: underline;">
+                Clique aqui para cancelar sua inscrição
+              </a>
+            </p>
           </div>
         </div>
       `;
@@ -56,6 +98,10 @@ ${personalizedContent.split('\n').map((line: string) => `            <p style="m
         to: [recipientEmail],
         subject: subject || "Mensagem da campanha",
         html: htmlContent,
+        headers: {
+          'List-Unsubscribe': `<${unsubscribeUrl}>`,
+          'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+        },
       });
 
       console.log("Email sent successfully:", emailResponse);
