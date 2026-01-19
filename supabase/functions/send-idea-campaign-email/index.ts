@@ -8,7 +8,7 @@ const corsHeaders = {
 };
 
 // Email pessoal para receber cópia
-const COPY_EMAIL = "eggnunes@icloud.com";
+const COPY_EMAIL = "eggnunes@gmail.com";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
