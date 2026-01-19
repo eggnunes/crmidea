@@ -4,7 +4,17 @@ import { useLeads } from "@/hooks/useLeads";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { Loader2, Phone, Mail, Filter, ShoppingCart, RefreshCcw, XCircle, AlertTriangle, CheckCircle, X, LayoutGrid, List, Calendar, DollarSign } from "lucide-react";
+import { Loader2, Phone, Mail, Filter, ShoppingCart, RefreshCcw, XCircle, AlertTriangle, CheckCircle, X, LayoutGrid, List, Calendar, DollarSign, Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   DndContext,
   DragEndEvent,
@@ -113,12 +123,15 @@ function getReasonDisplayInfo(reasonId: string) {
 function LeadDetailDialog({ 
   lead, 
   onAddInteraction,
-  onClose 
+  onClose,
+  onDelete
 }: { 
   lead: Lead; 
   onAddInteraction: (leadId: string, interaction: Omit<Interaction, 'id'>) => void;
   onClose: () => void;
+  onDelete: (leadId: string) => void;
 }) {
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [newInteraction, setNewInteraction] = useState({
     type: 'whatsapp' as Interaction['type'],
     description: ''
@@ -223,6 +236,43 @@ function LeadDetailDialog({
         <div className="border-t border-border pt-4">
           <LeadAssignees leadId={lead.id} />
         </div>
+
+        {/* Delete Button */}
+        <div className="border-t border-border pt-4">
+          <Button 
+            variant="destructive" 
+            size="sm" 
+            className="w-full gap-2"
+            onClick={() => setShowDeleteConfirm(true)}
+          >
+            <Trash2 className="w-4 h-4" />
+            Excluir Lead
+          </Button>
+        </div>
+
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Excluir Lead</AlertDialogTitle>
+              <AlertDialogDescription>
+                Tem certeza que deseja excluir o lead "{lead.name}"? Esta ação não pode ser desfeita.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={() => {
+                  onDelete(lead.id);
+                  onClose();
+                }}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Excluir
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
 
       {/* Interactions */}
@@ -515,11 +565,17 @@ function LeadListView({
 }
 
 export function PipelinePage() {
-  const { leads, loading, updateLeadStatus, addInteraction } = useLeads();
+  const { leads, loading, updateLeadStatus, addInteraction, deleteLead } = useLeads();
   const [activeId, setActiveId] = useState<string | null>(null);
   const [viewingLead, setViewingLead] = useState<Lead | null>(null);
   const [filterReason, setFilterReason] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'kanban' | 'lista'>('kanban');
+
+  const handleDeleteLead = async (leadId: string) => {
+    await deleteLead(leadId);
+    toast.success('Lead excluído com sucesso');
+    setViewingLead(null);
+  };
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -764,6 +820,7 @@ export function PipelinePage() {
               lead={viewingLead} 
               onAddInteraction={addInteraction}
               onClose={() => setViewingLead(null)}
+              onDelete={handleDeleteLead}
             />
           )}
         </DialogContent>
