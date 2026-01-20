@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { PRODUCTS, STATUSES, Lead, ProductType, LeadStatus, Interaction } from "@/types/crm";
-import { useLeads } from "@/hooks/useLeads";
+import { useLeads, LEADS_PER_PAGE } from "@/hooks/useLeads";
 import { useLeadProducts } from "@/hooks/useLeadProducts";
 import { useLeadTags } from "@/hooks/useLeadTags";
 import { useClients } from "@/hooks/useClients";
@@ -21,7 +21,9 @@ import {
   ChevronUp,
   MessageCircle,
   UserCheck,
-  Tag
+  Tag,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -58,7 +60,7 @@ import { DateRangeFilter } from "@/components/DateRangeFilter";
 import { isWithinInterval, startOfDay, endOfDay } from "date-fns";
 import { Checkbox } from "@/components/ui/checkbox";
 import { StartConversationButton } from "@/components/whatsapp/StartConversationButton";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { ConvertLeadToClientDialog } from "@/components/leads/ConvertLeadToClientDialog";
 import { LeadDetailPanel } from "@/components/leads/LeadDetailPanel";
 import {
@@ -71,6 +73,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+  PaginationEllipsis,
+} from "@/components/ui/pagination";
 
 function LeadForm({ 
   onSubmit, 
@@ -693,8 +704,22 @@ function LeadDetailDialog({
   );
 }
 
-export function LeadsPage() {
-  const { leads, loading, addLead, updateLead, deleteLead, addInteraction, importLeads } = useLeads();
+export default function LeadsPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const currentPage = parseInt(searchParams.get('page') || '1', 10);
+  
+  const { 
+    leads, 
+    loading, 
+    totalCount, 
+    totalPages,
+    addLead, 
+    updateLead, 
+    deleteLead, 
+    addInteraction, 
+    importLeads 
+  } = useLeads(currentPage);
+  
   const { addClient } = useClients();
   const { allTags, fetchLeadsByTag } = useLeadTags();
   const navigate = useNavigate();
@@ -714,6 +739,14 @@ export function LeadsPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [conversationPhones, setConversationPhones] = useState<Set<string>>(new Set());
   const [convertingLead, setConvertingLead] = useState<Lead | null>(null);
+
+  // Page navigation
+  const goToPage = (page: number) => {
+    if (page >= 1 && page <= totalPages) {
+      setSearchParams({ page: page.toString() });
+      setSelectedLeads(new Set()); // Clear selection when changing pages
+    }
+  };
 
   // Fetch leads by tag when tag filter changes
   useEffect(() => {
@@ -1205,6 +1238,97 @@ export function LeadsPage() {
             </tbody>
           </table>
         </div>
+        
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="p-4 border-t border-border/50">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="text-sm text-muted-foreground">
+                Mostrando {((currentPage - 1) * LEADS_PER_PAGE) + 1} - {Math.min(currentPage * LEADS_PER_PAGE, totalCount)} de {totalCount} leads
+              </div>
+              <Pagination>
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious 
+                      onClick={() => goToPage(currentPage - 1)}
+                      className={cn(
+                        "cursor-pointer",
+                        currentPage === 1 && "pointer-events-none opacity-50"
+                      )}
+                    />
+                  </PaginationItem>
+                  
+                  {/* First page */}
+                  {currentPage > 2 && (
+                    <PaginationItem>
+                      <PaginationLink onClick={() => goToPage(1)} className="cursor-pointer">
+                        1
+                      </PaginationLink>
+                    </PaginationItem>
+                  )}
+                  
+                  {/* Ellipsis before */}
+                  {currentPage > 3 && (
+                    <PaginationItem>
+                      <PaginationEllipsis />
+                    </PaginationItem>
+                  )}
+                  
+                  {/* Previous page */}
+                  {currentPage > 1 && (
+                    <PaginationItem>
+                      <PaginationLink onClick={() => goToPage(currentPage - 1)} className="cursor-pointer">
+                        {currentPage - 1}
+                      </PaginationLink>
+                    </PaginationItem>
+                  )}
+                  
+                  {/* Current page */}
+                  <PaginationItem>
+                    <PaginationLink isActive className="cursor-pointer">
+                      {currentPage}
+                    </PaginationLink>
+                  </PaginationItem>
+                  
+                  {/* Next page */}
+                  {currentPage < totalPages && (
+                    <PaginationItem>
+                      <PaginationLink onClick={() => goToPage(currentPage + 1)} className="cursor-pointer">
+                        {currentPage + 1}
+                      </PaginationLink>
+                    </PaginationItem>
+                  )}
+                  
+                  {/* Ellipsis after */}
+                  {currentPage < totalPages - 2 && (
+                    <PaginationItem>
+                      <PaginationEllipsis />
+                    </PaginationItem>
+                  )}
+                  
+                  {/* Last page */}
+                  {currentPage < totalPages - 1 && (
+                    <PaginationItem>
+                      <PaginationLink onClick={() => goToPage(totalPages)} className="cursor-pointer">
+                        {totalPages}
+                      </PaginationLink>
+                    </PaginationItem>
+                  )}
+                  
+                  <PaginationItem>
+                    <PaginationNext 
+                      onClick={() => goToPage(currentPage + 1)}
+                      className={cn(
+                        "cursor-pointer",
+                        currentPage === totalPages && "pointer-events-none opacity-50"
+                      )}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            </div>
+          </div>
+        )}
       </Card>
 
       {/* Edit Dialog */}
