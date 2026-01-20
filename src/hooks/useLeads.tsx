@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -9,6 +9,15 @@ type DbLead = Database['public']['Tables']['leads']['Row'];
 type DbInteraction = Database['public']['Tables']['interactions']['Row'];
 type DbLeadStatus = Database['public']['Enums']['lead_status'];
 type DbProductType = Database['public']['Enums']['product_type'];
+
+// Interactions cache with TTL
+interface InteractionsCache {
+  data: Map<string, DbInteraction[]>;
+  timestamp: number;
+}
+
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+let interactionsCache: InteractionsCache | null = null;
 
 // Map database enum values to frontend types
 const statusMap: Record<DbLeadStatus, LeadStatus> = {
@@ -88,11 +97,58 @@ function mapDbLeadToLead(dbLead: DbLead, interactions: DbInteraction[] = []): Le
   };
 }
 
-export function useLeads() {
+export const LEADS_PER_PAGE = 50;
+
+export function useLeads(page: number = 1) {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
+  const [totalCount, setTotalCount] = useState(0);
   const { user } = useAuth();
   const { toast } = useToast();
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  const totalPages = Math.ceil(totalCount / LEADS_PER_PAGE);
+
+  // Get cached interactions or fetch them
+  const getInteractions = useCallback(async (): Promise<Map<string, DbInteraction[]>> => {
+    const now = Date.now();
+    
+    // Return cached data if valid
+    if (interactionsCache && (now - interactionsCache.timestamp) < CACHE_TTL) {
+      return interactionsCache.data;
+    }
+
+    // Fetch all interactions and cache them
+    const { data: allInteractions, error } = await supabase
+      .from('interactions')
+      .select('*');
+    
+    if (error) {
+      console.error('Error fetching interactions:', error);
+      return new Map();
+    }
+
+    // Group interactions by lead_id for O(1) lookup
+    const interactionsMap = new Map<string, DbInteraction[]>();
+    for (const interaction of (allInteractions || [])) {
+      const existing = interactionsMap.get(interaction.lead_id) || [];
+      existing.push(interaction);
+      interactionsMap.set(interaction.lead_id, existing);
+    }
+
+    // Cache the result
+    interactionsCache = {
+      data: interactionsMap,
+      timestamp: now
+    };
+
+    return interactionsMap;
+  }, []);
+
+  // Invalidate cache when needed
+  const invalidateInteractionsCache = useCallback(() => {
+    interactionsCache = null;
+  }, []);
 
   const fetchLeads = useCallback(async () => {
     if (!user) {
@@ -101,11 +157,33 @@ export function useLeads() {
       return;
     }
 
+    // Cancel previous request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+
     try {
+      setLoading(true);
+
+      // First, get total count
+      const { count, error: countError } = await supabase
+        .from('leads')
+        .select('*', { count: 'exact', head: true });
+
+      if (countError) throw countError;
+      setTotalCount(count || 0);
+
+      // Calculate pagination range
+      const from = (page - 1) * LEADS_PER_PAGE;
+      const to = from + LEADS_PER_PAGE - 1;
+
+      // Fetch paginated leads
       const { data: leadsData, error: leadsError } = await supabase
         .from('leads')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .range(from, to);
 
       if (leadsError) throw leadsError;
 
@@ -115,25 +193,19 @@ export function useLeads() {
         return;
       }
 
-      // Fetch ALL interactions at once (RLS handles user scoping)
-      // This is more efficient than batched fetching for large lead counts
-      const { data: allInteractions, error: interactionsError } = await supabase
-        .from('interactions')
-        .select('*');
-      
-      if (interactionsError) {
-        console.error('Error fetching interactions:', interactionsError);
-      }
+      // Get interactions from cache
+      const interactionsMap = await getInteractions();
 
       const mappedLeads = leadsData.map(lead => 
         mapDbLeadToLead(
           lead, 
-          (allInteractions || []).filter(i => i.lead_id === lead.id)
+          interactionsMap.get(lead.id) || []
         )
       );
 
       setLeads(mappedLeads);
     } catch (error) {
+      if ((error as Error).name === 'AbortError') return;
       console.error('Error fetching leads:', error);
       toast({
         title: "Erro ao carregar leads",
@@ -143,7 +215,7 @@ export function useLeads() {
     } finally {
       setLoading(false);
     }
-  }, [user, toast]);
+  }, [user, toast, page, getInteractions]);
 
   useEffect(() => {
     fetchLeads();
@@ -316,6 +388,9 @@ export function useLeads() {
         description: data.description
       };
 
+      // Invalidate cache and update local state
+      invalidateInteractionsCache();
+      
       setLeads(prev => prev.map(lead =>
         lead.id === leadId
           ? { ...lead, interactions: [...lead.interactions, newInteraction] }
@@ -388,12 +463,16 @@ export function useLeads() {
   return {
     leads,
     loading,
+    totalCount,
+    totalPages,
+    currentPage: page,
     addLead,
     updateLead,
     deleteLead,
     updateLeadStatus,
     addInteraction,
     importLeads,
-    refetch: fetchLeads
+    refetch: fetchLeads,
+    invalidateInteractionsCache
   };
 }

@@ -7,7 +7,7 @@ import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { AdminRoute } from "@/components/auth/AdminRoute";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { DashboardPage } from "./pages/Dashboard";
-import { LeadsPage } from "./pages/LeadsPage";
+import LeadsPage from "./pages/LeadsPage";
 import { ClientsPage } from "./pages/ClientsPage";
 import { PipelinePage } from "./pages/PipelinePage";
 import { ProductsPage } from "./pages/ProductsPage";
