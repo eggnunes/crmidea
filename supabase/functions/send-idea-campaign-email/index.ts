@@ -313,11 +313,12 @@ serve(async (req) => {
     }
 
     // Update scheduled email status
+    const sentAt = new Date().toISOString();
     await supabase
       .from('scheduled_campaign_emails')
       .update({
         status: 'sent',
-        sent_at: new Date().toISOString(),
+        sent_at: sentAt,
         recipients_count: validLeads.length,
         success_count: successCount,
         failed_count: failedCount,
@@ -325,6 +326,54 @@ serve(async (req) => {
       .eq('id', scheduledEmail.id);
 
     console.log(`Campaign email #${scheduledEmail.email_number} completed: ${successCount} sent, ${failedCount} failed`);
+
+    // Automatically create campaign entry in the dashboard
+    const userId = 'e850e3e3-1682-4cb0-af43-d7dade2aff9e';
+    const campaignName = `Campanha IDEA - Email ${scheduledEmail.email_number}: ${scheduledEmail.subject.substring(0, 50)}`;
+    
+    const { data: newCampaign, error: campaignError } = await supabase
+      .from('campaigns')
+      .insert({
+        user_id: userId,
+        name: campaignName,
+        campaign_type: 'email',
+        status: 'concluida',
+        content: scheduledEmail.content,
+        subject: scheduledEmail.subject,
+        description: `Email ${scheduledEmail.email_number} da campanha IDEA. Enviado em ${new Date().toLocaleDateString('pt-BR')}.`,
+        completed_at: sentAt,
+      })
+      .select()
+      .single();
+
+    if (campaignError) {
+      console.error('Error creating campaign entry:', campaignError);
+    } else if (newCampaign) {
+      console.log(`Campaign entry created: ${newCampaign.id}`);
+      
+      // Add recipients to campaign_recipients table
+      const recipientRecords = validLeads.map(lead => ({
+        campaign_id: newCampaign.id,
+        lead_id: lead.id,
+        status: 'enviado',
+        sent_at: sentAt,
+      }));
+
+      // Insert in batches to avoid payload limits
+      const RECIPIENT_BATCH_SIZE = 500;
+      for (let i = 0; i < recipientRecords.length; i += RECIPIENT_BATCH_SIZE) {
+        const batch = recipientRecords.slice(i, i + RECIPIENT_BATCH_SIZE);
+        const { error: recipientError } = await supabase
+          .from('campaign_recipients')
+          .insert(batch);
+        
+        if (recipientError) {
+          console.error(`Error inserting recipients batch ${i / RECIPIENT_BATCH_SIZE + 1}:`, recipientError);
+        }
+      }
+      
+      console.log(`Added ${recipientRecords.length} recipients to campaign`);
+    }
 
     return new Response(
       JSON.stringify({
