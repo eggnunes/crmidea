@@ -70,7 +70,7 @@ Deno.serve(async (req) => {
     // Set the appropriate link based on product
     const productLink = isConsultoria 
       ? 'https://rafaelegg.com/consultoria'
-      : 'https://kfrfrfe.pay.kiwify.com.br/MNyPobNNqGhOrKM'; // Link curso IDEA na Kiwify
+      : 'https://pay.kiwify.com.br/UBlrQ5i'; // Link curso IDEA na Kiwify
     
     // System prompt for sales recovery
     const systemPrompt = `Você é um assistente de vendas especializado da IDEA (Inteligência de Dados e Artificial). 
