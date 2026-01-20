@@ -103,11 +103,17 @@ serve(async (req) => {
     // Base URL for images
     const baseUrl = "https://crmidea.lovable.app";
 
-    // Build HTML email
-    const buildEmailHtml = (leadName: string, content: string, subject: string, imageUrl: string | null, ctaText: string | null, ctaUrl: string, leadEmail: string) => {
+    // Build HTML email - now includes campaignId for tracking pixel
+    const buildEmailHtml = (leadName: string, content: string, subject: string, imageUrl: string | null, ctaText: string | null, ctaUrl: string, leadEmail: string, campaignId: string | null = null) => {
       const personalizedContent = content
         .replace(/\[NOME\]/gi, leadName || 'Advogado(a)')
         .replace(/\{nome\}/gi, leadName || 'Advogado(a)');
+      
+      // Generate tracking pixel URL
+      const encodedEmail = btoa(leadEmail);
+      const trackingPixel = campaignId 
+        ? `<img src="${supabaseUrl}/functions/v1/track-email-open?c=${campaignId}&e=${encodedEmail}" width="1" height="1" alt="" style="display:none;"/>`
+        : '';
 
       // Parse content sections
       const lines = personalizedContent.split('\n');
@@ -131,8 +137,7 @@ serve(async (req) => {
         }
       }
 
-      // Generate unsubscribe link
-      const encodedEmail = btoa(leadEmail);
+      // Generate unsubscribe link (reuse encodedEmail from above)
       const unsubscribeUrl = `${supabaseUrl}/functions/v1/email-unsubscribe?email=${encodedEmail}`;
 
       return `
@@ -222,12 +227,41 @@ serve(async (req) => {
           </tr>
           
         </table>
+        ${trackingPixel}
       </td>
     </tr>
   </table>
 </body>
 </html>`;
     };
+
+    // Create campaign entry BEFORE sending emails (to get campaignId for tracking pixel)
+    const userId = 'e850e3e3-1682-4cb0-af43-d7dade2aff9e';
+    const campaignName = `Campanha IDEA - Email ${scheduledEmail.email_number}: ${scheduledEmail.subject.substring(0, 50)}`;
+    const sentAt = new Date().toISOString();
+    
+    const { data: newCampaign, error: campaignError } = await supabase
+      .from('campaigns')
+      .insert({
+        user_id: userId,
+        name: campaignName,
+        campaign_type: 'email',
+        status: 'em_andamento',
+        content: scheduledEmail.content,
+        subject: scheduledEmail.subject,
+        description: `Email ${scheduledEmail.email_number} da campanha IDEA. Enviado em ${new Date().toLocaleDateString('pt-BR')}.`,
+        started_at: sentAt,
+      })
+      .select()
+      .single();
+
+    const campaignId = newCampaign?.id || null;
+    
+    if (campaignError) {
+      console.error('Error creating campaign entry:', campaignError);
+    } else {
+      console.log(`Campaign entry created: ${campaignId}`);
+    }
 
     // Send emails in batches
     const BATCH_SIZE = 50;
@@ -245,11 +279,12 @@ serve(async (req) => {
             scheduledEmail.image_url,
             scheduledEmail.cta_text,
             scheduledEmail.cta_url,
-            lead.email
+            lead.email,
+            campaignId // Pass campaignId for tracking pixel
           );
 
-          const encodedEmail = btoa(lead.email);
-          const unsubscribeUrl = `${supabaseUrl}/functions/v1/email-unsubscribe?email=${encodedEmail}`;
+          const encodedLeadEmail = btoa(lead.email);
+          const unsubscribeUrl = `${supabaseUrl}/functions/v1/email-unsubscribe?email=${encodedLeadEmail}`;
 
           await resend.emails.send({
             from: "Rafael Egg <contato@rafaelegg.com>",
@@ -262,10 +297,10 @@ serve(async (req) => {
             },
           });
 
-          return { success: true };
+          return { success: true, leadId: lead.id };
         } catch (error) {
           console.error(`Error sending to ${lead.email}:`, error);
-          return { success: false, email: lead.email, error: String(error) };
+          return { success: false, email: lead.email, error: String(error), leadId: lead.id };
         }
       });
 
@@ -297,7 +332,8 @@ serve(async (req) => {
         scheduledEmail.image_url,
         scheduledEmail.cta_text,
         scheduledEmail.cta_url,
-        COPY_EMAIL
+        COPY_EMAIL,
+        null // No tracking for copy
       );
 
       await resend.emails.send({
@@ -313,12 +349,12 @@ serve(async (req) => {
     }
 
     // Update scheduled email status
-    const sentAt = new Date().toISOString();
+    const completedAt = new Date().toISOString();
     await supabase
       .from('scheduled_campaign_emails')
       .update({
         status: 'sent',
-        sent_at: sentAt,
+        sent_at: completedAt,
         recipients_count: validLeads.length,
         success_count: successCount,
         failed_count: failedCount,
@@ -327,36 +363,22 @@ serve(async (req) => {
 
     console.log(`Campaign email #${scheduledEmail.email_number} completed: ${successCount} sent, ${failedCount} failed`);
 
-    // Automatically create campaign entry in the dashboard
-    const userId = 'e850e3e3-1682-4cb0-af43-d7dade2aff9e';
-    const campaignName = `Campanha IDEA - Email ${scheduledEmail.email_number}: ${scheduledEmail.subject.substring(0, 50)}`;
-    
-    const { data: newCampaign, error: campaignError } = await supabase
-      .from('campaigns')
-      .insert({
-        user_id: userId,
-        name: campaignName,
-        campaign_type: 'email',
-        status: 'concluida',
-        content: scheduledEmail.content,
-        subject: scheduledEmail.subject,
-        description: `Email ${scheduledEmail.email_number} da campanha IDEA. Enviado em ${new Date().toLocaleDateString('pt-BR')}.`,
-        completed_at: sentAt,
-      })
-      .select()
-      .single();
-
-    if (campaignError) {
-      console.error('Error creating campaign entry:', campaignError);
-    } else if (newCampaign) {
-      console.log(`Campaign entry created: ${newCampaign.id}`);
+    // Update campaign status to completed and add recipients
+    if (newCampaign) {
+      await supabase
+        .from('campaigns')
+        .update({
+          status: 'concluida',
+          completed_at: completedAt,
+        })
+        .eq('id', newCampaign.id);
       
       // Add recipients to campaign_recipients table
       const recipientRecords = validLeads.map(lead => ({
         campaign_id: newCampaign.id,
         lead_id: lead.id,
         status: 'enviado',
-        sent_at: sentAt,
+        sent_at: completedAt,
       }));
 
       // Insert in batches to avoid payload limits

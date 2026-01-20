@@ -104,14 +104,37 @@ export function useCampaigns(campaignType?: 'email' | 'whatsapp') {
             .from('campaign_recipients')
             .select('*', { count: 'exact', head: true })
             .eq('campaign_id', campaign.id)
-            .eq('status', 'aberto');
+            .not('opened_at', 'is', null);
 
-          const stats = {
+          let stats = {
             total_recipients: totalCount || 0,
             sent_count: sentCount || 0,
             failed_count: failedCount || 0,
             opened_count: openedCount || 0,
           };
+
+          // If no recipients in campaign_recipients, try to get from scheduled_campaign_emails
+          if (stats.total_recipients === 0 && campaign.name.includes('Campanha IDEA')) {
+            // Extract email number from campaign name
+            const emailMatch = campaign.name.match(/Email (\d+)/);
+            if (emailMatch) {
+              const emailNumber = parseInt(emailMatch[1]);
+              const { data: scheduledEmail } = await supabase
+                .from('scheduled_campaign_emails')
+                .select('success_count, failed_count, recipients_count')
+                .eq('email_number', emailNumber)
+                .single();
+
+              if (scheduledEmail) {
+                stats = {
+                  total_recipients: scheduledEmail.recipients_count || scheduledEmail.success_count || 0,
+                  sent_count: scheduledEmail.success_count || 0,
+                  failed_count: scheduledEmail.failed_count || 0,
+                  opened_count: 0, // We don't track opens yet
+                };
+              }
+            }
+          }
 
           return { ...campaign, ...stats } as CampaignWithStats;
         })

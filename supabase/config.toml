@@ -131,3 +131,6 @@ verify_jwt = false
 
 [functions.send-simple-whatsapp]
 verify_jwt = false
+
+[functions.track-email-open]
+verify_jwt = false

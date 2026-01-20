@@ -2044,6 +2044,41 @@ export type Database = {
           },
         ]
       }
+      email_opens: {
+        Row: {
+          campaign_id: string | null
+          id: string
+          ip_address: string | null
+          lead_email: string
+          opened_at: string
+          user_agent: string | null
+        }
+        Insert: {
+          campaign_id?: string | null
+          id?: string
+          ip_address?: string | null
+          lead_email: string
+          opened_at?: string
+          user_agent?: string | null
+        }
+        Update: {
+          campaign_id?: string | null
+          id?: string
+          ip_address?: string | null
+          lead_email?: string
+          opened_at?: string
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_opens_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_unsubscribes: {
         Row: {
           campaign_id: string | null
