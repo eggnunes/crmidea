@@ -181,27 +181,59 @@ Amigável, profissional, compreensivo. Como um colega que quer genuinamente ajud
     console.log('Recovery message sent via Z-API:', zapiResult);
 
     // Create/update conversation and save message
-    const { data: conversation } = await supabase
+    // First, try to find existing conversation
+    const { data: existingConversation } = await supabase
       .from('whatsapp_conversations')
-      .upsert({
-        user_id: userId,
-        contact_phone: formattedPhone,
-        contact_name: leadName,
-        channel: 'whatsapp',
-        last_message_at: new Date().toISOString(),
-        lead_id: leadId,
-      }, {
-        onConflict: 'user_id,contact_phone,channel',
-      })
-      .select()
-      .single();
+      .select('id')
+      .eq('user_id', userId)
+      .eq('contact_phone', formattedPhone)
+      .eq('channel', 'whatsapp')
+      .maybeSingle();
 
-    if (conversation) {
+    let conversationId = existingConversation?.id;
+
+    if (existingConversation) {
+      // Update existing conversation
+      console.log('Updating existing conversation:', existingConversation.id);
       await supabase
+        .from('whatsapp_conversations')
+        .update({
+          contact_name: leadName,
+          last_message_at: new Date().toISOString(),
+          lead_id: leadId,
+        })
+        .eq('id', existingConversation.id);
+    } else {
+      // Create new conversation
+      console.log('Creating new conversation for:', formattedPhone);
+      const { data: newConversation, error: convError } = await supabase
+        .from('whatsapp_conversations')
+        .insert({
+          user_id: userId,
+          contact_phone: formattedPhone,
+          contact_name: leadName,
+          channel: 'whatsapp',
+          last_message_at: new Date().toISOString(),
+          lead_id: leadId,
+          unread_count: 0,
+        })
+        .select('id')
+        .single();
+
+      if (convError) {
+        console.error('Error creating conversation:', convError);
+      } else {
+        conversationId = newConversation?.id;
+        console.log('Created conversation:', conversationId);
+      }
+    }
+
+    if (conversationId) {
+      const { error: msgError } = await supabase
         .from('whatsapp_messages')
         .insert({
           user_id: userId,
-          conversation_id: conversation.id,
+          conversation_id: conversationId,
           content: recoveryMessage,
           is_from_contact: false,
           is_ai_response: true,
@@ -210,6 +242,14 @@ Amigável, profissional, compreensivo. Como um colega que quer genuinamente ajud
           channel: 'whatsapp',
           zapi_message_id: zapiResult.messageId || null,
         });
+      
+      if (msgError) {
+        console.error('Error saving message:', msgError);
+      } else {
+        console.log('Message saved to conversation:', conversationId);
+      }
+    } else {
+      console.error('No conversation ID available to save message');
     }
 
     // Log the recovery attempt
@@ -217,7 +257,7 @@ Amigável, profissional, compreensivo. Como um colega que quer genuinamente ajud
       user_id: userId,
       lead_id: leadId,
       notification_type: 'ai_sales_recovery',
-      status: zapiResult.zapiMessageId ? 'sent' : 'failed',
+      status: zapiResult.messageId ? 'sent' : 'failed',
       error_message: zapiResult.error || null,
     });
 
