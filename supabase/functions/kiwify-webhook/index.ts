@@ -726,32 +726,30 @@ Deno.serve(async (req) => {
           const alertResult = await alertResponse.json();
           console.log('Abandoned cart alert result:', alertResult);
           
-          // Second, trigger AI sales recovery for curso_idea product
-          if (productType === 'curso_idea') {
-            console.log('Triggering AI sales recovery for curso IDEA...');
+          // Trigger AI sales recovery for ALL products (not just curso_idea)
+          console.log('Triggering AI sales recovery for:', productName, '(type:', productType, ')');
+          
+          try {
+            const recoveryResponse = await fetch(`${supabaseUrl}/functions/v1/ai-sales-recovery`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${supabaseServiceKey}`,
+              },
+              body: JSON.stringify({
+                leadId: leadId,
+                leadName: customer.full_name,
+                firstName: customer.first_name || customer.full_name.split(' ')[0],
+                productName: productName,
+                phone: customer.mobile,
+                userId: userId,
+              }),
+            });
             
-            try {
-              const recoveryResponse = await fetch(`${supabaseUrl}/functions/v1/ai-sales-recovery`, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${supabaseServiceKey}`,
-                },
-                body: JSON.stringify({
-                  leadId: leadId,
-                  leadName: customer.full_name,
-                  firstName: customer.first_name || customer.full_name.split(' ')[0],
-                  productName: productName,
-                  phone: customer.mobile,
-                  userId: userId,
-                }),
-              });
-              
-              const recoveryResult = await recoveryResponse.json();
-              console.log('AI sales recovery result:', recoveryResult);
-            } catch (recoveryError) {
-              console.error('Error triggering AI sales recovery:', recoveryError);
-            }
+            const recoveryResult = await recoveryResponse.json();
+            console.log('AI sales recovery result:', recoveryResult);
+          } catch (recoveryError) {
+            console.error('Error triggering AI sales recovery:', recoveryError);
           }
         } catch (alertError) {
           console.error('Error sending abandoned cart alert:', alertError);
