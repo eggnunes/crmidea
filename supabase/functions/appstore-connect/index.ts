@@ -76,17 +76,41 @@ async function fetchFromAPI(endpoint: string, jwt: string): Promise<Response> {
   })
 }
 
-// Fetch sales reports from App Store Connect
-async function fetchSalesReports(jwt: string, vendorId: string): Promise<any> {
-  const today = new Date()
-  const yesterday = new Date(today)
-  yesterday.setDate(yesterday.getDate() - 1)
+// Parse gzip compressed response
+async function decompressGzip(response: Response): Promise<string> {
+  const arrayBuffer = await response.arrayBuffer()
+  const decompressedStream = new DecompressionStream('gzip')
+  const writer = decompressedStream.writable.getWriter()
+  writer.write(new Uint8Array(arrayBuffer))
+  writer.close()
   
-  const reportDate = yesterday.toISOString().split('T')[0].replace(/-/g, '')
+  const reader = decompressedStream.readable.getReader()
+  const chunks: Uint8Array[] = []
   
-  const url = `https://api.appstoreconnect.apple.com/v1/salesReports?filter[reportType]=SALES&filter[reportSubType]=SUMMARY&filter[frequency]=DAILY&filter[vendorNumber]=${vendorId}&filter[reportDate]=${reportDate}`
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    chunks.push(value)
+  }
   
-  console.log(`Fetching sales report: ${url}`)
+  const totalLength = chunks.reduce((acc, chunk) => acc + chunk.length, 0)
+  const result = new Uint8Array(totalLength)
+  let offset = 0
+  for (const chunk of chunks) {
+    result.set(chunk, offset)
+    offset += chunk.length
+  }
+  
+  return new TextDecoder().decode(result)
+}
+
+// Fetch sales reports from App Store Connect with gzip decompression
+async function fetchAndParseSalesReport(jwt: string, vendorId: string, reportDate: string): Promise<any[]> {
+  const formattedDate = reportDate.replace(/-/g, '')
+  
+  const url = `https://api.appstoreconnect.apple.com/v1/salesReports?filter[reportType]=SALES&filter[reportSubType]=SUMMARY&filter[frequency]=DAILY&filter[vendorNumber]=${vendorId}&filter[reportDate]=${formattedDate}`
+  
+  console.log(`Fetching sales report for ${reportDate}: ${url}`)
   
   const response = await fetch(url, {
     headers: {
@@ -97,11 +121,39 @@ async function fetchSalesReports(jwt: string, vendorId: string): Promise<any> {
   
   if (!response.ok) {
     const errorText = await response.text()
-    console.error('Sales report error:', errorText)
-    throw new Error(`Failed to fetch sales report: ${response.status} - ${errorText}`)
+    console.error(`Sales report error for ${reportDate}:`, errorText)
+    return []
   }
   
-  return response
+  try {
+    const csvText = await decompressGzip(response)
+    console.log(`Sales report CSV (first 500 chars): ${csvText.substring(0, 500)}`)
+    
+    const lines = csvText.split('\n').filter(l => l.trim())
+    if (lines.length < 2) {
+      console.log('No data in sales report')
+      return []
+    }
+    
+    const headers = lines[0].split('\t')
+    console.log(`Sales report headers: ${headers.join(', ')}`)
+    
+    const results: any[] = []
+    for (let i = 1; i < lines.length; i++) {
+      const values = lines[i].split('\t')
+      const row: Record<string, string> = {}
+      headers.forEach((h, idx) => {
+        row[h.trim()] = values[idx]?.trim() || ''
+      })
+      results.push(row)
+    }
+    
+    console.log(`Parsed ${results.length} sales records`)
+    return results
+  } catch (err) {
+    console.error('Error parsing sales report:', err)
+    return []
+  }
 }
 
 // Fetch app analytics
@@ -116,6 +168,173 @@ async function fetchApps(jwt: string): Promise<any[]> {
   
   const data = await response.json()
   return data.data || []
+}
+
+// Create an analytics report request
+async function createAnalyticsReportRequest(jwt: string, appId: string): Promise<string | null> {
+  const today = new Date()
+  const endDate = today.toISOString().split('T')[0]
+  const startDate = new Date(today.setDate(today.getDate() - 30)).toISOString().split('T')[0]
+  
+  const body = {
+    data: {
+      type: 'analyticsReportRequests',
+      attributes: {
+        accessType: 'ONGOING'
+      },
+      relationships: {
+        app: {
+          data: {
+            type: 'apps',
+            id: appId
+          }
+        }
+      }
+    }
+  }
+  
+  console.log(`Creating analytics report request for app ${appId}`)
+  
+  const response = await fetch('https://api.appstoreconnect.apple.com/v1/analyticsReportRequests', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${jwt}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(body)
+  })
+  
+  if (!response.ok) {
+    const errorText = await response.text()
+    console.error('Analytics report request error:', errorText)
+    return null
+  }
+  
+  const data = await response.json()
+  return data.data?.id || null
+}
+
+// Fetch available analytics reports
+async function fetchAnalyticsReports(jwt: string, appId: string): Promise<any[]> {
+  console.log(`Fetching analytics reports for app ${appId}`)
+  
+  const response = await fetch(`https://api.appstoreconnect.apple.com/v1/apps/${appId}/analyticsReportRequests?filter[accessType]=ONGOING`, {
+    headers: {
+      'Authorization': `Bearer ${jwt}`,
+      'Content-Type': 'application/json'
+    }
+  })
+  
+  if (!response.ok) {
+    const errorText = await response.text()
+    console.error('Analytics reports fetch error:', errorText)
+    return []
+  }
+  
+  const data = await response.json()
+  return data.data || []
+}
+
+// Fetch report instances (actual data)
+async function fetchReportInstances(jwt: string, reportRequestId: string): Promise<any[]> {
+  console.log(`Fetching report instances for request ${reportRequestId}`)
+  
+  const response = await fetch(`https://api.appstoreconnect.apple.com/v1/analyticsReportRequests/${reportRequestId}/reports`, {
+    headers: {
+      'Authorization': `Bearer ${jwt}`,
+      'Content-Type': 'application/json'
+    }
+  })
+  
+  if (!response.ok) {
+    const errorText = await response.text()
+    console.error('Report instances fetch error:', errorText)
+    return []
+  }
+  
+  const data = await response.json()
+  return data.data || []
+}
+
+// Fetch report segments (detailed data)
+async function fetchReportSegments(jwt: string, reportId: string): Promise<any[]> {
+  console.log(`Fetching segments for report ${reportId}`)
+  
+  const response = await fetch(`https://api.appstoreconnect.apple.com/v1/analyticsReports/${reportId}/instances?limit=30`, {
+    headers: {
+      'Authorization': `Bearer ${jwt}`,
+      'Content-Type': 'application/json'
+    }
+  })
+  
+  if (!response.ok) {
+    const errorText = await response.text()
+    console.error('Report segments fetch error:', errorText)
+    return []
+  }
+  
+  const data = await response.json()
+  return data.data || []
+}
+
+// Download and parse a report segment
+async function downloadReportData(jwt: string, instanceId: string): Promise<any[]> {
+  console.log(`Downloading report data for instance ${instanceId}`)
+  
+  // First get the download URL
+  const segmentsResponse = await fetch(`https://api.appstoreconnect.apple.com/v1/analyticsReportInstances/${instanceId}/segments`, {
+    headers: {
+      'Authorization': `Bearer ${jwt}`,
+      'Content-Type': 'application/json'
+    }
+  })
+  
+  if (!segmentsResponse.ok) {
+    console.error('Segments fetch error:', await segmentsResponse.text())
+    return []
+  }
+  
+  const segmentsData = await segmentsResponse.json()
+  const segments = segmentsData.data || []
+  
+  const results: any[] = []
+  
+  for (const segment of segments) {
+    const downloadUrl = segment.attributes?.url
+    if (!downloadUrl) continue
+    
+    console.log(`Downloading from URL: ${downloadUrl.substring(0, 100)}...`)
+    
+    const dataResponse = await fetch(downloadUrl, {
+      headers: {
+        'Accept': 'application/a-gzip, text/csv'
+      }
+    })
+    
+    if (!dataResponse.ok) {
+      console.error('Data download error:', dataResponse.status)
+      continue
+    }
+    
+    const csvText = await dataResponse.text()
+    const lines = csvText.split('\n').filter(l => l.trim())
+    
+    if (lines.length < 2) continue
+    
+    const headers = lines[0].split('\t')
+    console.log(`Report headers: ${headers.join(', ')}`)
+    
+    for (let i = 1; i < lines.length; i++) {
+      const values = lines[i].split('\t')
+      const row: Record<string, string> = {}
+      headers.forEach((h, idx) => {
+        row[h.trim()] = values[idx]?.trim() || ''
+      })
+      results.push(row)
+    }
+  }
+  
+  return results
 }
 
 // Fetch customer reviews
@@ -214,42 +433,155 @@ Deno.serve(async (req) => {
 
     try {
       if (action === 'sync-all' || action === 'sync-sales') {
-        console.log('Syncing sales data...')
-        const apps = await fetchApps(jwt)
-        console.log(`Found ${apps.length} apps`)
+        console.log('Syncing sales data using Sales Reports API...')
         
-        for (const app of apps) {
-          const appName = app.attributes?.name || 'Unknown App'
-          const today = new Date().toISOString().split('T')[0]
+        if (!vendorId) {
+          console.error('Vendor ID not configured, cannot fetch sales reports')
+        } else {
+          // Fetch sales reports for the last 30 days
+          const today = new Date()
           
-          // Check if record exists first
-          const { data: existing } = await supabase
-            .from('appstore_sales')
-            .select('id')
-            .eq('date', today)
-            .eq('product_name', appName)
-            .eq('country_code', 'ALL')
-            .maybeSingle()
-          
-          if (!existing) {
-            const { error: insertError } = await supabase.from('appstore_sales').insert({
-              date: today,
-              product_name: appName,
-              product_type: 'App',
-              units: 0,
-              proceeds: 0,
-              country_code: 'ALL',
-              currency: 'USD'
-            })
+          for (let i = 1; i <= 30; i++) {
+            const reportDate = new Date(today)
+            reportDate.setDate(reportDate.getDate() - i)
+            const dateStr = reportDate.toISOString().split('T')[0]
             
-            if (insertError) {
-              console.error('Error inserting sales record:', insertError)
-            } else {
-              console.log(`Inserted sales record for ${appName}`)
-              recordsSynced++
+            try {
+              const salesData = await fetchAndParseSalesReport(jwt, vendorId, dateStr)
+              
+              if (salesData.length === 0) {
+                console.log(`No sales data for ${dateStr}`)
+                continue
+              }
+              
+              // Process each sales record
+              for (const row of salesData) {
+                // Sales report columns: Provider, Provider Country, SKU, Developer, Title, Version, 
+                // Product Type Identifier, Units, Developer Proceeds, Begin Date, End Date, 
+                // Customer Currency, Country Code, Currency of Proceeds, Apple Identifier, 
+                // Customer Price, Promo Code, Parent Identifier, Subscription, Period, Category, CMB
+                
+                const productName = row['Title'] || row['SKU'] || 'Unknown'
+                const units = parseInt(row['Units'] || '0') || 0
+                const proceeds = parseFloat(row['Developer Proceeds'] || '0') || 0
+                const countryCode = row['Country Code'] || 'ALL'
+                const currency = row['Currency of Proceeds'] || 'USD'
+                const productType = row['Product Type Identifier'] || 'App'
+                
+                console.log(`Processing: ${productName}, Units: ${units}, Country: ${countryCode}`)
+                
+                // Check if record exists
+                const { data: existing } = await supabase
+                  .from('appstore_sales')
+                  .select('id, units, proceeds')
+                  .eq('date', dateStr)
+                  .eq('product_name', productName)
+                  .eq('country_code', countryCode)
+                  .maybeSingle()
+                
+                if (existing) {
+                  // Update if values changed
+                  if (existing.units !== units || parseFloat(existing.proceeds) !== proceeds) {
+                    const { error: updateError } = await supabase
+                      .from('appstore_sales')
+                      .update({
+                        units,
+                        proceeds,
+                        updated_at: new Date().toISOString()
+                      })
+                      .eq('id', existing.id)
+                    
+                    if (!updateError) {
+                      console.log(`Updated sales for ${productName} on ${dateStr}`)
+                      recordsSynced++
+                    }
+                  }
+                } else {
+                  const { error: insertError } = await supabase.from('appstore_sales').insert({
+                    date: dateStr,
+                    product_name: productName,
+                    product_type: productType,
+                    units,
+                    proceeds,
+                    country_code: countryCode,
+                    currency
+                  })
+                  
+                  if (!insertError) {
+                    console.log(`Inserted sales for ${productName} on ${dateStr}`)
+                    recordsSynced++
+                  } else {
+                    console.error('Error inserting sales:', insertError)
+                  }
+                }
+              }
+              
+              // Also update metrics from sales data - aggregate downloads by date
+              const totalUnits = salesData.reduce((sum, row) => {
+                const productType = row['Product Type Identifier'] || ''
+                // Count downloads (initial installs) - type codes starting with 1 are downloads
+                if (productType.startsWith('1') || productType === 'App' || productType === '1F' || productType === '1T') {
+                  return sum + (parseInt(row['Units'] || '0') || 0)
+                }
+                return sum
+              }, 0)
+              
+              const totalRedownloads = salesData.reduce((sum, row) => {
+                const productType = row['Product Type Identifier'] || ''
+                // Type 7 = redownloads
+                if (productType.startsWith('7')) {
+                  return sum + (parseInt(row['Units'] || '0') || 0)
+                }
+                return sum
+              }, 0)
+              
+              if (totalUnits > 0 || totalRedownloads > 0) {
+                // Check if metrics exist for this date
+                const { data: existingMetrics } = await supabase
+                  .from('appstore_metrics')
+                  .select('id, downloads, redownloads')
+                  .eq('date', dateStr)
+                  .maybeSingle()
+                
+                if (existingMetrics) {
+                  // Only update if we have new data
+                  if (existingMetrics.downloads !== totalUnits || existingMetrics.redownloads !== totalRedownloads) {
+                    const { error: updateError } = await supabase
+                      .from('appstore_metrics')
+                      .update({
+                        downloads: totalUnits,
+                        redownloads: totalRedownloads,
+                        updated_at: new Date().toISOString()
+                      })
+                      .eq('id', existingMetrics.id)
+                    
+                    if (!updateError) {
+                      console.log(`Updated metrics for ${dateStr}: downloads=${totalUnits}, redownloads=${totalRedownloads}`)
+                    }
+                  }
+                } else {
+                  const { error: insertError } = await supabase
+                    .from('appstore_metrics')
+                    .insert({
+                      date: dateStr,
+                      downloads: totalUnits,
+                      redownloads: totalRedownloads,
+                      impressions: 0,
+                      page_views: 0,
+                      sessions: 0,
+                      active_devices: 0,
+                      crashes: 0
+                    })
+                  
+                  if (!insertError) {
+                    console.log(`Inserted metrics for ${dateStr}: downloads=${totalUnits}, redownloads=${totalRedownloads}`)
+                  }
+                }
+              }
+              
+            } catch (salesError) {
+              console.error(`Error fetching sales for ${dateStr}:`, salesError)
             }
-          } else {
-            console.log(`Sales record already exists for ${appName} on ${today}`)
           }
         }
       }
@@ -311,36 +643,142 @@ Deno.serve(async (req) => {
       }
 
       if (action === 'sync-all' || action === 'sync-metrics') {
-        console.log('Syncing metrics data...')
-        const today = new Date().toISOString().split('T')[0]
+        console.log('Syncing metrics data from Analytics API...')
+        const apps = await fetchApps(jwt)
         
-        // Check if metrics for today exist
-        const { data: existing } = await supabase
-          .from('appstore_metrics')
-          .select('id')
-          .eq('date', today)
-          .maybeSingle()
-        
-        if (!existing) {
-          const { error: insertError } = await supabase.from('appstore_metrics').insert({
-            date: today,
-            downloads: 0,
-            redownloads: 0,
-            impressions: 0,
-            page_views: 0,
-            active_devices: 0,
-            sessions: 0,
-            crashes: 0,
-          })
+        for (const app of apps) {
+          const appId = app.id
+          console.log(`Processing metrics for app ${appId}`)
           
-          if (insertError) {
-            console.error('Error inserting metrics:', insertError)
-          } else {
-            console.log(`Inserted metrics for ${today}`)
-            recordsSynced++
+          // First, check if we have an ongoing analytics report request
+          let reportRequests = await fetchAnalyticsReports(jwt, appId)
+          
+          if (reportRequests.length === 0) {
+            console.log('No existing report request, creating one...')
+            const requestId = await createAnalyticsReportRequest(jwt, appId)
+            if (requestId) {
+              console.log(`Created report request: ${requestId}`)
+              // Reports need time to generate, return early
+              recordsSynced++
+            }
+            continue
           }
-        } else {
-          console.log(`Metrics for ${today} already exist`)
+          
+          // Process each report request
+          for (const reportRequest of reportRequests) {
+            const requestId = reportRequest.id
+            console.log(`Processing report request: ${requestId}`)
+            
+            // Get the reports for this request
+            const reports = await fetchReportInstances(jwt, requestId)
+            console.log(`Found ${reports.length} reports`)
+            
+            for (const report of reports) {
+              const reportId = report.id
+              const reportName = report.attributes?.name || 'Unknown'
+              const category = report.attributes?.category || ''
+              
+              console.log(`Report: ${reportName} (${category})`)
+              
+              // We're interested in APP_USAGE and APP_STORE_DISCOVERY reports
+              if (!['APP_USAGE', 'APP_STORE_DISCOVERY', 'APP_STORE_ENGAGEMENT'].includes(category)) {
+                continue
+              }
+              
+              // Get report instances (daily data)
+              const instances = await fetchReportSegments(jwt, reportId)
+              console.log(`Found ${instances.length} instances for ${reportName}`)
+              
+              // Download data from recent instances
+              for (const instance of instances.slice(0, 30)) {
+                const instanceId = instance.id
+                const processingDate = instance.attributes?.processingDate
+                
+                if (!processingDate) continue
+                
+                const date = processingDate.split('T')[0]
+                console.log(`Processing data for date: ${date}`)
+                
+                const reportData = await downloadReportData(jwt, instanceId)
+                
+                // Aggregate the data by date
+                let totalDownloads = 0
+                let totalRedownloads = 0
+                let totalImpressions = 0
+                let totalPageViews = 0
+                let totalSessions = 0
+                let totalActiveDevices = 0
+                let totalCrashes = 0
+                
+                for (const row of reportData) {
+                  // Different reports have different column names
+                  totalDownloads += parseInt(row['First Time Downloads'] || row['Total Downloads'] || '0') || 0
+                  totalRedownloads += parseInt(row['Redownloads'] || '0') || 0
+                  totalImpressions += parseInt(row['Impressions'] || row['Total Impressions'] || '0') || 0
+                  totalPageViews += parseInt(row['Product Page Views'] || row['Page Views'] || '0') || 0
+                  totalSessions += parseInt(row['Sessions'] || '0') || 0
+                  totalActiveDevices += parseInt(row['Active Devices'] || row['Active In Last 30 Days'] || '0') || 0
+                  totalCrashes += parseInt(row['Crashes'] || '0') || 0
+                }
+                
+                console.log(`Aggregated for ${date}: downloads=${totalDownloads}, impressions=${totalImpressions}, sessions=${totalSessions}`)
+                
+                if (totalDownloads > 0 || totalImpressions > 0 || totalSessions > 0) {
+                  // Check if metrics for this date exist
+                  const { data: existing } = await supabase
+                    .from('appstore_metrics')
+                    .select('id')
+                    .eq('date', date)
+                    .maybeSingle()
+                  
+                  if (existing) {
+                    // Update existing record
+                    const { error: updateError } = await supabase
+                      .from('appstore_metrics')
+                      .update({
+                        downloads: totalDownloads,
+                        redownloads: totalRedownloads,
+                        impressions: totalImpressions,
+                        page_views: totalPageViews,
+                        sessions: totalSessions,
+                        active_devices: totalActiveDevices,
+                        crashes: totalCrashes,
+                        updated_at: new Date().toISOString()
+                      })
+                      .eq('id', existing.id)
+                    
+                    if (updateError) {
+                      console.error('Error updating metrics:', updateError)
+                    } else {
+                      console.log(`Updated metrics for ${date}`)
+                      recordsSynced++
+                    }
+                  } else {
+                    // Insert new record
+                    const { error: insertError } = await supabase
+                      .from('appstore_metrics')
+                      .insert({
+                        date: date,
+                        downloads: totalDownloads,
+                        redownloads: totalRedownloads,
+                        impressions: totalImpressions,
+                        page_views: totalPageViews,
+                        sessions: totalSessions,
+                        active_devices: totalActiveDevices,
+                        crashes: totalCrashes,
+                      })
+                    
+                    if (insertError) {
+                      console.error('Error inserting metrics:', insertError)
+                    } else {
+                      console.log(`Inserted metrics for ${date}`)
+                      recordsSynced++
+                    }
+                  }
+                }
+              }
+            }
+          }
         }
       }
 
