@@ -31,11 +31,15 @@ async function generateJWT(): Promise<string> {
   const encodedHeader = base64UrlEncode(new TextEncoder().encode(JSON.stringify(header)))
   const encodedPayload = base64UrlEncode(new TextEncoder().encode(JSON.stringify(payload)))
 
-  // Parse PEM private key
-  const pemContents = privateKeyPem
+  // Parse PEM private key - handle different formats
+  let pemContents = privateKeyPem
     .replace('-----BEGIN PRIVATE KEY-----', '')
     .replace('-----END PRIVATE KEY-----', '')
+    .replace(/\\n/g, '')  // Handle escaped newlines
+    .replace(/\r?\n/g, '')  // Handle actual newlines
     .replace(/\s/g, '')
+  
+  console.log('Private key parsed, length:', pemContents.length)
   
   const binaryKey = Uint8Array.from(atob(pemContents), c => c.charCodeAt(0))
 
@@ -87,7 +91,7 @@ async function fetchSalesReports(jwt: string, vendorId: string): Promise<any> {
   const response = await fetch(url, {
     headers: {
       'Authorization': `Bearer ${jwt}`,
-      'Accept': 'application/a]gzip'
+      'Accept': 'application/a-gzip'
     }
   })
   
@@ -211,26 +215,42 @@ Deno.serve(async (req) => {
     try {
       if (action === 'sync-all' || action === 'sync-sales') {
         console.log('Syncing sales data...')
-        // For now, insert sample data to test the flow
-        // Real implementation would parse the gzipped sales report
         const apps = await fetchApps(jwt)
         console.log(`Found ${apps.length} apps`)
         
         for (const app of apps) {
           const appName = app.attributes?.name || 'Unknown App'
+          const today = new Date().toISOString().split('T')[0]
           
-          // Insert a record for each app
-          await supabase.from('appstore_sales').upsert({
-            date: new Date().toISOString().split('T')[0],
-            product_name: appName,
-            product_type: 'App',
-            units: 0,
-            proceeds: 0,
-            country_code: 'ALL',
-            currency: 'USD'
-          }, { onConflict: 'date,product_name,country_code' })
+          // Check if record exists first
+          const { data: existing } = await supabase
+            .from('appstore_sales')
+            .select('id')
+            .eq('date', today)
+            .eq('product_name', appName)
+            .eq('country_code', 'ALL')
+            .maybeSingle()
           
-          recordsSynced++
+          if (!existing) {
+            const { error: insertError } = await supabase.from('appstore_sales').insert({
+              date: today,
+              product_name: appName,
+              product_type: 'App',
+              units: 0,
+              proceeds: 0,
+              country_code: 'ALL',
+              currency: 'USD'
+            })
+            
+            if (insertError) {
+              console.error('Error inserting sales record:', insertError)
+            } else {
+              console.log(`Inserted sales record for ${appName}`)
+              recordsSynced++
+            }
+          } else {
+            console.log(`Sales record already exists for ${appName} on ${today}`)
+          }
         }
       }
 
@@ -246,18 +266,43 @@ Deno.serve(async (req) => {
             
             for (const review of reviews) {
               const attrs = review.attributes || {}
+              const appleId = review.id
               
-              await supabase.from('appstore_reviews').upsert({
-                apple_id: review.id,
-                author_name: attrs.reviewerNickname || 'Anonymous',
-                title: attrs.title || '',
-                body: attrs.body || '',
-                rating: attrs.rating || 0,
-                review_date: attrs.createdDate || new Date().toISOString(),
-                country_code: attrs.territory || 'US',
-              }, { onConflict: 'apple_id' })
+              console.log('Processing review:', appleId, 'Title:', attrs.title)
               
-              recordsSynced++
+              // Check if review already exists
+              const { data: existing } = await supabase
+                .from('appstore_reviews')
+                .select('id')
+                .eq('apple_id', appleId)
+                .maybeSingle()
+              
+              if (!existing) {
+                const reviewData = {
+                  apple_id: appleId,
+                  author_name: attrs.reviewerNickname || 'Anonymous',
+                  title: attrs.title || '',
+                  body: attrs.body || '',
+                  rating: attrs.rating || 0,
+                  review_date: attrs.createdDate || new Date().toISOString(),
+                  country_code: attrs.territory || 'US',
+                }
+                
+                console.log('Inserting review:', JSON.stringify(reviewData))
+                
+                const { error: insertError } = await supabase
+                  .from('appstore_reviews')
+                  .insert(reviewData)
+                
+                if (insertError) {
+                  console.error('Error inserting review:', insertError)
+                } else {
+                  console.log(`Inserted review ${appleId}`)
+                  recordsSynced++
+                }
+              } else {
+                console.log(`Review ${appleId} already exists`)
+              }
             }
           } catch (reviewError) {
             console.error(`Error fetching reviews for app ${appId}:`, reviewError)
@@ -267,22 +312,36 @@ Deno.serve(async (req) => {
 
       if (action === 'sync-all' || action === 'sync-metrics') {
         console.log('Syncing metrics data...')
-        // App Store Connect Analytics API requires special permissions
-        // For now, we'll create a placeholder entry
         const today = new Date().toISOString().split('T')[0]
         
-        await supabase.from('appstore_metrics').upsert({
-          date: today,
-          downloads: 0,
-          redownloads: 0,
-          impressions: 0,
-          page_views: 0,
-          active_devices: 0,
-          sessions: 0,
-          crashes: 0,
-        }, { onConflict: 'date' })
+        // Check if metrics for today exist
+        const { data: existing } = await supabase
+          .from('appstore_metrics')
+          .select('id')
+          .eq('date', today)
+          .maybeSingle()
         
-        recordsSynced++
+        if (!existing) {
+          const { error: insertError } = await supabase.from('appstore_metrics').insert({
+            date: today,
+            downloads: 0,
+            redownloads: 0,
+            impressions: 0,
+            page_views: 0,
+            active_devices: 0,
+            sessions: 0,
+            crashes: 0,
+          })
+          
+          if (insertError) {
+            console.error('Error inserting metrics:', insertError)
+          } else {
+            console.log(`Inserted metrics for ${today}`)
+            recordsSynced++
+          }
+        } else {
+          console.log(`Metrics for ${today} already exist`)
+        }
       }
 
     } catch (apiError: unknown) {
@@ -297,6 +356,8 @@ Deno.serve(async (req) => {
       records_synced: recordsSynced,
       error_message: errorMessage,
     })
+
+    console.log(`Sync completed. Records synced: ${recordsSynced}, Error: ${errorMessage}`)
 
     return new Response(JSON.stringify({ 
       success: !errorMessage,
