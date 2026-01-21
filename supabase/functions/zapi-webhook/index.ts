@@ -23,19 +23,13 @@ serve(async (req) => {
     // Common events: ReceivedCallback, MessageStatusCallback, etc.
     const eventType = payload.event || payload.type;
     
-    // Handle incoming message
-    if (eventType === 'ReceivedCallback' || payload.isNewsletter === false) {
-      // CRITICAL: Check if message was sent BY the business (fromMe = true)
-      // If fromMe is true, this is an outgoing message we sent, NOT an incoming message from contact
-      // Skip processing to avoid AI responding to its own messages
+    // Handle incoming message OR outgoing message (fromMe)
+    // We want to save ALL messages to the conversation history, but only trigger AI for incoming ones
+    if (eventType === 'ReceivedCallback' || payload.isNewsletter === false || payload.fromMe !== undefined) {
+      // Check if message was sent BY the business (fromMe = true)
+      // If fromMe is true, this is an outgoing message we sent via WhatsApp app
+      // We still SAVE these messages, but skip AI response to avoid loops
       const fromMe = payload.fromMe === true;
-      
-      if (fromMe) {
-        console.log('Message sent by business (fromMe: true), skipping to avoid loop');
-        return new Response(JSON.stringify({ status: 'skipped', reason: 'fromMe' }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
       
       // === LID SUPPORT ===
       // Z-API agora pode enviar LID ao invés do número de telefone
@@ -222,14 +216,15 @@ serve(async (req) => {
             contact_name: senderName,
             profile_picture_url: profilePicUrl,
             last_message_at: new Date().toISOString(),
-            unread_count: 1,
+            // Only set unread_count to 1 for incoming messages
+            unread_count: fromMe ? 0 : 1,
           })
           .select()
           .single();
 
         if (convError) throw convError;
         conversation = newConv;
-        console.log('Created new conversation:', conversation.id, 'with name:', senderName, 'LID:', contactLid);
+        console.log(`Created new conversation:`, conversation.id, 'with name:', senderName, 'LID:', contactLid, 'fromMe:', fromMe);
       } else {
         // Update existing conversation
         // Update contact_name if:
@@ -253,7 +248,8 @@ serve(async (req) => {
         
         const updateData: Record<string, unknown> = {
           last_message_at: new Date().toISOString(),
-          unread_count: (conversation.unread_count || 0) + 1,
+          // Only increment unread_count for incoming messages (not fromMe)
+          unread_count: fromMe ? (conversation.unread_count || 0) : (conversation.unread_count || 0) + 1,
         };
         
         if (shouldUpdateName) {
@@ -330,6 +326,7 @@ serve(async (req) => {
       }
 
       // Save the message
+      // For messages sent by business (fromMe), mark is_from_contact as false
       const contentToSave = isAudioMessage ? (audioUrl ? `[Áudio: ${audioUrl}]` : '[Áudio recebido]') : messageContent;
       const { data: savedMessage, error: msgError } = await supabase
         .from('whatsapp_messages')
@@ -338,18 +335,32 @@ serve(async (req) => {
           user_id: userId,
           message_type: messageType,
           content: contentToSave,
-          is_from_contact: true,
+          is_from_contact: !fromMe, // If fromMe, it's from the business, not the contact
           is_ai_response: false,
           zapi_message_id: zapiMessageId,
-          status: 'delivered',
+          status: fromMe ? 'sent' : 'delivered', // Outgoing messages start as 'sent'
         })
         .select()
         .single();
 
       if (msgError) throw msgError;
-      console.log('Saved message:', savedMessage.id);
+      console.log(`Saved ${fromMe ? 'outgoing' : 'incoming'} message:`, savedMessage.id);
 
-      // Handle human transfer request
+      // Skip all the transfer/AI logic if this is OUR message (fromMe)
+      // We already saved it above, so just return success
+      if (fromMe) {
+        console.log('Message from business saved, skipping AI/transfer logic');
+        return new Response(JSON.stringify({ 
+          status: 'success',
+          conversationId: conversation.id,
+          messageId: savedMessage.id,
+          fromMe: true,
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      // Handle human transfer request (only for incoming messages)
       if (isTransferRequest) {
         console.log('Human transfer requested by:', phone, senderName);
         
