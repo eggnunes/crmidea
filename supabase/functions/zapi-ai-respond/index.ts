@@ -202,11 +202,15 @@ serve(async (req) => {
       }
     }
 
-    // Get AI configuration
+    // Get AI configuration (pick MOST RECENT row)
+    // Some users ended up with multiple rows; without ordering we may fetch an older
+    // config (e.g., voice disabled), causing wrong behavior.
     const { data: aiConfig } = await supabase
       .from('ai_assistant_config')
       .select('*')
       .eq('user_id', userId)
+      .order('updated_at', { ascending: false })
+      .limit(1)
       .maybeSingle();
 
     if (!aiConfig || !aiConfig.is_active) {
@@ -382,6 +386,34 @@ serve(async (req) => {
       
       return cleaned;
     };
+
+    // Helpers to keep answers cohesive and avoid accidental repetition
+    const normalizeWhitespace = (t: string) =>
+      (t || '')
+        .replace(/\r\n/g, '\n')
+        .replace(/[ \t]+/g, ' ')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+
+    const removeDuplicateParagraphs = (t: string) => {
+      const parts = normalizeWhitespace(t)
+        .split(/\n\n+/)
+        .map((p) => p.trim())
+        .filter(Boolean);
+
+      const seen = new Set<string>();
+      const out: string[] = [];
+      for (const p of parts) {
+        const key = p.toLowerCase().replace(/\s+/g, ' ').trim();
+        if (seen.has(key)) continue;
+        if (out.length > 0 && /^ol[áa][!.,\s]/i.test(p) && /^ol[áa][!.,\s]/i.test(out[0])) {
+          continue;
+        }
+        seen.add(key);
+        out.push(p);
+      }
+      return out.join('\n\n');
+    };
     
     const conversationHistory = (recentMessages || [])
       .reverse()
@@ -391,8 +423,31 @@ serve(async (req) => {
       }))
       .filter(msg => msg.content.length > 0); // Remove empty messages after cleaning
 
+    // Extra anti-duplicate guard:
+    // If we've already sent an AI response AFTER the latest inbound message and the
+    // current payload matches that inbound content, it's likely a delayed/duplicate webhook.
+    try {
+      const lastInbound = (recentMessages || []).find((m) => m.is_from_contact);
+      const lastOutbound = (recentMessages || []).find((m) => !m.is_from_contact);
+      if (lastInbound && lastOutbound) {
+        const inboundTs = new Date(lastInbound.created_at).getTime();
+        const outboundTs = new Date(lastOutbound.created_at).getTime();
+        const inboundClean = normalizeWhitespace(cleanMessageContent(lastInbound.content || '')).toLowerCase();
+        const payloadClean = normalizeWhitespace(processedContent || '').toLowerCase();
+        if (outboundTs > inboundTs && inboundClean && inboundClean === payloadClean) {
+          console.log('Duplicate inbound detected (already responded). Skipping.');
+          return new Response(JSON.stringify({ status: 'skipped', reason: 'already_responded' }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+      }
+    } catch (e) {
+      console.log('Duplicate guard check failed (non-fatal):', e);
+    }
+
     // Check if this is a NEW conversation (no prior messages) or ONGOING
-    const isNewConversation = conversationHistory.length === 0;
+    // IMPORTANT: don't rely on cleaned history length (cleaning can strip content).
+    const isNewConversation = (recentMessages?.length ?? 0) === 0;
     console.log(`Conversation status: ${isNewConversation ? 'NEW' : 'ONGOING'} (${conversationHistory.length} previous messages)`);
 
     // Build system prompt
@@ -662,7 +717,9 @@ NUNCA repita apresentações como "Olá, sou [nome]" ou "Prazer em conhecê-lo" 
           ...conversationHistory,
           { role: 'user', content: processedContent },
         ],
-        max_tokens: 150, // Limitar para respostas bem mais curtas
+        // 150 tokens estava truncando mensagens ("ficou cortada").
+        // Mantemos o prompt exigindo respostas curtas, mas damos folga para não cortar.
+        max_tokens: 450,
         temperature: 0.7, // Reduzir criatividade para respostas mais focadas
       }),
     });
@@ -681,11 +738,14 @@ NUNCA repita apresentações como "Olá, sou [nome]" ou "Prazer em conhecê-lo" 
     }
 
     const aiData = await aiResponse.json();
-    const aiMessage = aiData.choices?.[0]?.message?.content;
+    let aiMessage = aiData.choices?.[0]?.message?.content;
 
     if (!aiMessage) {
       throw new Error('No response from AI');
     }
+
+    // Post-processing to reduce occasional repetition and keep content cohesive
+    aiMessage = removeDuplicateParagraphs(aiMessage);
 
     console.log(`AI response: ${aiMessage.substring(0, 100)}...`);
 
@@ -763,8 +823,18 @@ NUNCA repita apresentações como "Olá, sou [nome]" ou "Prazer em conhecê-lo" 
           }),
         });
 
-        const sendData = await sendResponse.json();
-        console.log('Z-API audio send response:', sendData);
+        const sendDataRaw = await sendResponse.text();
+        console.log('Z-API audio send response (raw):', sendDataRaw);
+        let sendData: any = {};
+        try {
+          sendData = JSON.parse(sendDataRaw);
+        } catch {
+          // ignore parse errors, we'll use status code
+        }
+
+        if (!sendResponse.ok || (typeof sendDataRaw === 'string' && sendDataRaw.toLowerCase().includes('error'))) {
+          throw new Error(`Z-API send-audio failed (${sendResponse.status})`);
+        }
 
         // Save AI message to database - store text and audio URL separately for CRM playback
         // The content field stores ONLY the text message (no URLs) for clean history
@@ -814,10 +884,34 @@ NUNCA repita apresentações como "Olá, sou [nome]" ou "Prazer em conhecê-lo" 
       await sendPresenceStatus('composing');
     }
 
-    // ALWAYS send ONE complete message - never split to avoid incomplete responses
-    // The AI is already instructed to keep responses short and complete
-    const messagesToSend = [aiMessage];
-    console.log(`Sending 1 complete message (${aiMessage.length} chars)`);
+    // Send text. If enabled, split long messages to avoid delivery/UI truncation.
+    const splitIfNeeded = (text: string) => {
+      const maxChunk = 900; // conservative for WhatsApp/Z-API delivery
+      const normalized = normalizeWhitespace(text);
+      if (!aiConfig.split_long_messages || normalized.length <= maxChunk) return [normalized];
+
+      const chunks: string[] = [];
+      let rest = normalized;
+      while (rest.length > maxChunk) {
+        const slice = rest.slice(0, maxChunk + 1);
+        const breakAt = Math.max(
+          slice.lastIndexOf('. '),
+          slice.lastIndexOf('! '),
+          slice.lastIndexOf('? '),
+          slice.lastIndexOf('\n')
+        );
+        const cut = breakAt > 200 ? breakAt + 1 : maxChunk;
+        chunks.push(rest.slice(0, cut).trim());
+        rest = rest.slice(cut).trim();
+      }
+      if (rest) chunks.push(rest);
+      return chunks;
+    };
+
+    const messagesToSend = splitIfNeeded(aiMessage);
+    console.log(
+      `Sending ${messagesToSend.length} text message(s) (total ${aiMessage.length} chars). split_long_messages=${aiConfig.split_long_messages}`
+    );
 
     // Send messages via Z-API
     for (let i = 0; i < messagesToSend.length; i++) {
