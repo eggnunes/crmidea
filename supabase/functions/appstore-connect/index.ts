@@ -105,7 +105,7 @@ async function decompressGzip(response: Response): Promise<string> {
 }
 
 // Fetch sales reports from App Store Connect with gzip decompression
-async function fetchAndParseSalesReport(jwt: string, vendorId: string, reportDate: string): Promise<any[]> {
+async function fetchAndParseSalesReport(jwt: string, vendorId: string, reportDate: string): Promise<{ data: any[], status: string, message: string }> {
   const formattedDate = reportDate.replace(/-/g, '')
   
   const url = `https://api.appstoreconnect.apple.com/v1/salesReports?filter[reportType]=SALES&filter[reportSubType]=SUMMARY&filter[frequency]=DAILY&filter[vendorNumber]=${vendorId}&filter[reportDate]=${formattedDate}`
@@ -121,18 +121,32 @@ async function fetchAndParseSalesReport(jwt: string, vendorId: string, reportDat
   
   if (!response.ok) {
     const errorText = await response.text()
-    console.error(`Sales report error for ${reportDate}:`, errorText)
-    return []
+    console.error(`Sales report error for ${reportDate} (${response.status}):`, errorText)
+    
+    // Parse error to give meaningful feedback
+    try {
+      const errorJson = JSON.parse(errorText)
+      const errorCode = errorJson?.errors?.[0]?.code || 'UNKNOWN'
+      const errorDetail = errorJson?.errors?.[0]?.detail || 'No details available'
+      
+      if (response.status === 404 || errorCode === 'NOT_FOUND') {
+        return { data: [], status: 'not_available', message: `Relatório de ${reportDate} ainda não disponível na Apple` }
+      }
+      
+      return { data: [], status: 'error', message: `${errorCode}: ${errorDetail}` }
+    } catch {
+      return { data: [], status: 'error', message: `HTTP ${response.status}: ${errorText.substring(0, 200)}` }
+    }
   }
   
   try {
     const csvText = await decompressGzip(response)
-    console.log(`Sales report CSV (first 500 chars): ${csvText.substring(0, 500)}`)
+    console.log(`Sales report CSV for ${reportDate} (first 500 chars): ${csvText.substring(0, 500)}`)
     
     const lines = csvText.split('\n').filter(l => l.trim())
     if (lines.length < 2) {
-      console.log('No data in sales report')
-      return []
+      console.log(`No data rows in sales report for ${reportDate}`)
+      return { data: [], status: 'empty', message: 'Relatório vazio - sem vendas/downloads nesta data' }
     }
     
     const headers = lines[0].split('\t')
@@ -148,11 +162,11 @@ async function fetchAndParseSalesReport(jwt: string, vendorId: string, reportDat
       results.push(row)
     }
     
-    console.log(`Parsed ${results.length} sales records`)
-    return results
+    console.log(`Parsed ${results.length} sales records for ${reportDate}`)
+    return { data: results, status: 'success', message: `${results.length} registros encontrados` }
   } catch (err) {
     console.error('Error parsing sales report:', err)
-    return []
+    return { data: [], status: 'parse_error', message: `Erro ao processar relatório: ${err}` }
   }
 }
 
@@ -430,6 +444,12 @@ Deno.serve(async (req) => {
 
     let recordsSynced = 0
     let errorMessage: string | null = null
+    let salesReportStatus: { available: number; notAvailable: number; errors: number; messages: string[] } = {
+      available: 0,
+      notAvailable: 0,
+      errors: 0,
+      messages: []
+    }
 
     try {
       if (action === 'sync-all' || action === 'sync-sales') {
@@ -437,6 +457,7 @@ Deno.serve(async (req) => {
         
         if (!vendorId) {
           console.error('Vendor ID not configured, cannot fetch sales reports')
+          salesReportStatus.messages.push('Vendor ID não configurado')
         } else {
           // Fetch sales reports for the last 30 days
           const today = new Date()
@@ -447,15 +468,29 @@ Deno.serve(async (req) => {
             const dateStr = reportDate.toISOString().split('T')[0]
             
             try {
-              const salesData = await fetchAndParseSalesReport(jwt, vendorId, dateStr)
+              const salesResult = await fetchAndParseSalesReport(jwt, vendorId, dateStr)
               
-              if (salesData.length === 0) {
-                console.log(`No sales data for ${dateStr}`)
+              console.log(`Sales report ${dateStr}: status=${salesResult.status}, message=${salesResult.message}`)
+              
+              // Track status
+              if (salesResult.status === 'success') {
+                salesReportStatus.available++
+              } else if (salesResult.status === 'not_available' || salesResult.status === 'empty') {
+                salesReportStatus.notAvailable++
+              } else {
+                salesReportStatus.errors++
+                // Only log first few errors to avoid overwhelming
+                if (salesReportStatus.messages.length < 3) {
+                  salesReportStatus.messages.push(`${dateStr}: ${salesResult.message}`)
+                }
+              }
+              
+              if (salesResult.data.length === 0) {
                 continue
               }
               
               // Process each sales record
-              for (const row of salesData) {
+              for (const row of salesResult.data) {
                 // Sales report columns: Provider, Provider Country, SKU, Developer, Title, Version, 
                 // Product Type Identifier, Units, Developer Proceeds, Begin Date, End Date, 
                 // Customer Currency, Country Code, Currency of Proceeds, Apple Identifier, 
@@ -517,7 +552,7 @@ Deno.serve(async (req) => {
               }
               
               // Also update metrics from sales data - aggregate downloads by date
-              const totalUnits = salesData.reduce((sum, row) => {
+              const totalUnits = salesResult.data.reduce((sum: number, row: Record<string, string>) => {
                 const productType = row['Product Type Identifier'] || ''
                 // Count downloads (initial installs) - type codes starting with 1 are downloads
                 if (productType.startsWith('1') || productType === 'App' || productType === '1F' || productType === '1T') {
@@ -526,7 +561,7 @@ Deno.serve(async (req) => {
                 return sum
               }, 0)
               
-              const totalRedownloads = salesData.reduce((sum, row) => {
+              const totalRedownloads = salesResult.data.reduce((sum: number, row: Record<string, string>) => {
                 const productType = row['Product Type Identifier'] || ''
                 // Type 7 = redownloads
                 if (productType.startsWith('7')) {
@@ -796,11 +831,23 @@ Deno.serve(async (req) => {
     })
 
     console.log(`Sync completed. Records synced: ${recordsSynced}, Error: ${errorMessage}`)
+    console.log(`Sales report status: available=${salesReportStatus.available}, notAvailable=${salesReportStatus.notAvailable}, errors=${salesReportStatus.errors}`)
+
+    // Build detailed message
+    let detailedMessage = errorMessage || `Sincronizados ${recordsSynced} registros com sucesso`
+    if (action === 'sync-all' || action === 'sync-sales') {
+      if (salesReportStatus.errors === 30 && salesReportStatus.available === 0) {
+        detailedMessage = 'Nenhum relatório de vendas disponível. A Apple pode demorar 24-72h para processar os dados de um app novo, ou o app ainda não teve downloads suficientes para gerar relatórios.'
+      } else if (salesReportStatus.notAvailable > 0 && salesReportStatus.available === 0) {
+        detailedMessage = `Nenhum dado de vendas encontrado nos últimos 30 dias. Isso pode indicar que não houve downloads ou a Apple ainda está processando.`
+      }
+    }
 
     return new Response(JSON.stringify({ 
       success: !errorMessage,
-      message: errorMessage || `Synced ${recordsSynced} records successfully`,
+      message: detailedMessage,
       records_synced: recordsSynced,
+      sales_status: action === 'sync-all' || action === 'sync-sales' ? salesReportStatus : undefined,
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
