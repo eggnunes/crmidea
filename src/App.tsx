@@ -37,18 +37,12 @@ import { EbookCapturePage } from "./pages/EbookCapturePage";
 import { AITeleprompterAdminPage } from "./pages/AITeleprompterAdminPage";
 import { EmailCenterPage } from "./pages/EmailCenterPage";
 import CampaignsPage from "./pages/CampaignsPage";
-import RobotsTxtPage from "./pages/RobotsTxtPage";
-import SitemapXmlPage from "./pages/SitemapXmlPage";
 
 const queryClient = new QueryClient();
 
 function AppRoutes() {
   return (
     <Routes>
-      {/* SEO - robots.txt e sitemap.xml via React para garantir acesso do Google */}
-      <Route path="/robots.txt" element={<RobotsTxtPage />} />
-      <Route path="/sitemap.xml" element={<SitemapXmlPage />} />
-      
       {/* Página pública inicial - rafaelegg.com */}
       <Route path="/" element={<HomePage />} />
       <Route path="/bio" element={<BioLinkPage />} />
