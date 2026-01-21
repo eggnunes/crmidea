@@ -41,7 +41,18 @@ export function useAppStoreSync() {
 
       if (error) throw error;
 
-      toast.success('Dados sincronizados com sucesso!');
+      // Show appropriate message based on response
+      if (data?.sales_status?.errors === 30 && data?.sales_status?.available === 0) {
+        toast.info(data.message || 'Nenhum relatório de vendas disponível ainda. A Apple pode demorar 24-72h para processar dados de apps novos.', {
+          duration: 8000,
+        });
+      } else if (data?.records_synced > 0) {
+        toast.success(`Sincronizados ${data.records_synced} registros com sucesso!`);
+      } else {
+        toast.info(data?.message || 'Sincronização concluída. Nenhum dado novo encontrado.', {
+          duration: 6000,
+        });
+      }
       
       // Invalidate all queries to refresh data
       queryClient.invalidateQueries({ queryKey: ['appstore-sales'] });
