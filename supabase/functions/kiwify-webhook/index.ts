@@ -104,23 +104,28 @@ function mapEventToStatus(eventType: string): string {
     
     // Compra aprovada - ganhou!
     case 'compra_aprovada':
+    case 'order_approved':  // Kiwify also sends this event name
       return 'fechado_ganho';
     
     // Compra recusada - ainda em negociação
     case 'compra_recusada':
+    case 'order_refused':
       return 'negociacao';
     
     // Reembolso e chargeback - perdeu
     case 'reembolso':
     case 'compra_reembolsada':
+    case 'order_refunded':
     case 'chargeback':
       return 'fechado_perdido';
     
     // Assinaturas
     case 'assinatura_renovada':
+    case 'subscription_renewed':
       return 'fechado_ganho';
     case 'assinatura_cancelada':
     case 'assinatura_atrasada':
+    case 'subscription_canceled':
       return 'fechado_perdido';
     
     default:
@@ -134,7 +139,9 @@ function mapEventToInteractionType(eventType: string): string {
   
   switch (event) {
     case 'compra_aprovada':
+    case 'order_approved':
     case 'assinatura_renovada':
+    case 'subscription_renewed':
       return 'venda';
     case 'pix_gerado':
     case 'boleto_gerado':
@@ -143,12 +150,15 @@ function mapEventToInteractionType(eventType: string): string {
       return 'carrinho';
     case 'reembolso':
     case 'compra_reembolsada':
+    case 'order_refunded':
       return 'reembolso';
     case 'chargeback':
       return 'chargeback';
     case 'compra_recusada':
+    case 'order_refused':
       return 'recusado';
     case 'assinatura_cancelada':
+    case 'subscription_canceled':
       return 'cancelamento';
     case 'assinatura_atrasada':
       return 'atraso';
@@ -428,22 +438,34 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Check for duplicate webhook by order_id - avoid processing same order multiple times
+    // Check for duplicate webhook by order_id AND event type - avoid processing same event twice
+    // But allow different events for the same order (e.g., pix_gerado -> compra_aprovada)
+    const eventLowerForDupe = eventType.toLowerCase();
     if (orderId) {
       const { data: existingInteraction } = await supabase
         .from('interactions')
-        .select('id')
+        .select('id, description')
         .ilike('description', `%${orderId}%`)
-        .limit(1)
-        .maybeSingle();
+        .limit(10);
       
-      if (existingInteraction) {
-        console.log('Duplicate webhook detected for order_id:', orderId, '- skipping');
+      // Check if this specific event type was already processed for this order
+      const eventAlreadyProcessed = existingInteraction?.some(interaction => {
+        const desc = interaction.description?.toLowerCase() || '';
+        // Check if this exact event type is already recorded
+        return desc.includes(eventLowerForDupe) || 
+               (eventLowerForDupe === 'order_approved' && desc.includes('compra_aprovada')) ||
+               (eventLowerForDupe === 'compra_aprovada' && desc.includes('order_approved'));
+      });
+      
+      if (eventAlreadyProcessed) {
+        console.log('Duplicate event detected for order_id:', orderId, 'event:', eventType, '- skipping');
         return new Response(
-          JSON.stringify({ success: true, message: 'Duplicate webhook ignored', order_id: orderId }),
+          JSON.stringify({ success: true, message: 'Duplicate event ignored', order_id: orderId, event: eventType }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
         );
       }
+      
+      console.log('New event for existing order:', orderId, 'event:', eventType, '- processing');
     }
 
     // Get the admin user (owner of the CRM) to associate leads
