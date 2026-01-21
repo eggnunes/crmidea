@@ -134,3 +134,6 @@ verify_jwt = false
 
 [functions.track-email-open]
 verify_jwt = false
+
+[functions.zapi-sync-history]
+verify_jwt = true

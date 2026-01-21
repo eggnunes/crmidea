@@ -23,6 +23,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ChatDetailsSidebar } from "./ChatDetailsSidebar";
 import { NewConversationDialog } from "./NewConversationDialog";
 import { SyncLeadsToContacts } from "./SyncLeadsToContacts";
+import { SyncHistoryButton } from "./SyncHistoryButton";
 
 const CHANNEL_OPTIONS = [
   { value: 'all', label: 'Todos os canais', icon: MessageSquare },
@@ -403,13 +404,14 @@ export function WhatsAppConversations({ initialConversationId, onConversationSel
               </Button>
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <NewConversationDialog onConversationCreated={(convId) => {
               refetch();
               const conv = allConversations.find(c => c.id === convId);
               if (conv) setSelectedConversation(conv);
             }} />
             <SyncLeadsToContacts />
+            <SyncHistoryButton />
           </div>
           {/* Only show channel selector when no fixed channel filter is set */}
           {!channelFilterProp && (
@@ -680,10 +682,23 @@ export function WhatsAppConversations({ initialConversationId, onConversationSel
                                     : "bg-primary text-primary-foreground"
                                 )}
                               >
-                                {msg.is_ai_response && (
-                                  <div className="flex items-center gap-1 text-xs opacity-70 mb-1">
-                                    <Bot className="w-3 h-3" />
-                                    <span>IA</span>
+                                {/* Indicador visual de mensagem - IA vs Manual */}
+                                {!msg.is_from_contact && (
+                                  <div className={cn(
+                                    "flex items-center gap-1 text-xs mb-1",
+                                    msg.is_ai_response ? "text-primary-foreground/70" : "text-primary-foreground/80"
+                                  )}>
+                                    {msg.is_ai_response ? (
+                                      <>
+                                        <Bot className="w-3 h-3" />
+                                        <span>Resposta da IA</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <User className="w-3 h-3" />
+                                        <span>Enviado por você</span>
+                                      </>
+                                    )}
                                   </div>
                                 )}
                                 {msg.message_type === "audio" && (
