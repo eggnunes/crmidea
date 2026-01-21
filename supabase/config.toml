@@ -137,3 +137,6 @@ verify_jwt = false
 
 [functions.zapi-sync-history]
 verify_jwt = true
+
+[functions.schedule-evento-followups]
+verify_jwt = false
