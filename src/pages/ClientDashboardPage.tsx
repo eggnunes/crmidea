@@ -881,78 +881,105 @@ export function ClientDashboardPage() {
 
           {/* Prompt Tab */}
           <TabsContent value="prompt">
-            <div className="space-y-4">
-              {/* Aviso para criar conta no Lovable */}
-              <Card className="border-blue-200 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950/30 dark:to-purple-950/30 dark:border-blue-800">
-                <CardContent className="pt-6">
-                  <div className="flex flex-col md:flex-row md:items-center gap-4">
-                    <div className="w-14 h-14 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center flex-shrink-0">
-                      <Rocket className="w-7 h-7 text-white" />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="font-bold text-lg text-blue-800 dark:text-blue-300">
-                        🚀 Primeiro, crie sua conta no Lovable!
-                      </h3>
-                      <p className="text-blue-700 dark:text-blue-400 text-sm mt-1">
-                        Antes de usar o prompt abaixo, você precisa criar sua conta gratuita no Lovable.dev. 
-                        O Lovable é a plataforma de IA que vai construir sua intranet automaticamente com base no prompt gerado.
-                      </p>
-                    </div>
-                    <Button asChild size="lg" className="gap-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0">
-                      <a href="https://lovable.dev/invite/IX8ILR2" target="_blank" rel="noopener noreferrer">
-                        Criar Conta no Lovable
-                        <ArrowRight className="w-4 h-4" />
-                      </a>
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+            {consultingClient ? (
+              <Tabs defaultValue="fragmented" className="space-y-4">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="fragmented" className="gap-2">
+                    <Layers className="w-4 h-4" />
+                    Prompts por Etapas (Recomendado)
+                  </TabsTrigger>
+                  <TabsTrigger value="single" className="gap-2">
+                    <FileText className="w-4 h-4" />
+                    Prompt Único
+                  </TabsTrigger>
+                </TabsList>
 
+                <TabsContent value="fragmented">
+                  <ImplementationStepsManager clientId={consultingClient.id} clientName={profile.full_name} />
+                </TabsContent>
+
+                <TabsContent value="single">
+                  <div className="space-y-4">
+                    {/* Aviso para criar conta no Lovable */}
+                    <Card className="border-blue-200 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950/30 dark:to-purple-950/30 dark:border-blue-800">
+                      <CardContent className="pt-6">
+                        <div className="flex flex-col md:flex-row md:items-center gap-4">
+                          <div className="w-14 h-14 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center flex-shrink-0">
+                            <Rocket className="w-7 h-7 text-white" />
+                          </div>
+                          <div className="flex-1">
+                            <h3 className="font-bold text-lg text-blue-800 dark:text-blue-300">
+                              🚀 Primeiro, crie sua conta no Lovable!
+                            </h3>
+                            <p className="text-blue-700 dark:text-blue-400 text-sm mt-1">
+                              Antes de usar o prompt abaixo, você precisa criar sua conta gratuita no Lovable.dev.
+                              O Lovable é a plataforma de IA que vai construir sua intranet automaticamente com base no prompt gerado.
+                            </p>
+                          </div>
+                          <Button asChild size="lg" className="gap-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0">
+                            <a href="https://lovable.dev/invite/IX8ILR2" target="_blank" rel="noopener noreferrer">
+                              Criar Conta no Lovable
+                              <ArrowRight className="w-4 h-4" />
+                            </a>
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                          <Sparkles className="w-5 h-5" />
+                          Prompt Único para o Lovable
+                        </CardTitle>
+                        <CardDescription>
+                          Use este prompt no Lovable para criar sua intranet personalizada
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        {consultingClient?.generated_prompt ? (
+                          <div className="space-y-4">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-sm text-muted-foreground">Clique no ícone para copiar o prompt</span>
+                              <Button
+                                size="icon"
+                                variant="outline"
+                                className="h-8 w-8"
+                                onClick={handleCopyPrompt}
+                                title={copied ? "Copiado!" : "Copiar prompt"}
+                              >
+                                {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+                              </Button>
+                            </div>
+                            <div>
+                              <pre className="bg-muted p-4 rounded-lg text-sm whitespace-pre-wrap overflow-x-auto max-h-[400px]">
+                                {consultingClient.generated_prompt}
+                              </pre>
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                              Cole este prompt no Lovable para iniciar a criação da sua intranet.
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="text-center py-8">
+                            <Sparkles className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                            <p className="text-muted-foreground">
+                              O prompt será gerado após a conclusão do diagnóstico e análise pela equipe.
+                            </p>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </div>
+                </TabsContent>
+              </Tabs>
+            ) : (
               <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Sparkles className="w-5 h-5" />
-                    Prompt para o Lovable
-                  </CardTitle>
-                  <CardDescription>
-                    Use este prompt no Lovable para criar sua intranet personalizada
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {consultingClient?.generated_prompt ? (
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm text-muted-foreground">Clique no ícone para copiar o prompt</span>
-                        <Button 
-                          size="icon"
-                          variant="outline"
-                          className="h-8 w-8"
-                          onClick={handleCopyPrompt}
-                          title={copied ? "Copiado!" : "Copiar prompt"}
-                        >
-                          {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
-                        </Button>
-                      </div>
-                      <div>
-                        <pre className="bg-muted p-4 rounded-lg text-sm whitespace-pre-wrap overflow-x-auto max-h-[400px]">
-                          {consultingClient.generated_prompt}
-                        </pre>
-                      </div>
-                      <p className="text-sm text-muted-foreground">
-                        Cole este prompt no Lovable para iniciar a criação da sua intranet.
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="text-center py-8">
-                      <Sparkles className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                      <p className="text-muted-foreground">
-                        O prompt será gerado após a conclusão do diagnóstico e análise pela equipe.
-                      </p>
-                    </div>
-                  )}
+                <CardContent className="py-8 text-center">
+                  <p className="text-muted-foreground">Os prompts ainda não foram disponibilizados para você.</p>
                 </CardContent>
               </Card>
-            </div>
+            )}
           </TabsContent>
         </Tabs>
       </main>
