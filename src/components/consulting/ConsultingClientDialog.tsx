@@ -47,7 +47,14 @@ export function ConsultingClientDialog({ open, onOpenChange, onSuccess }: Consul
           user_id: user.id,
         });
 
-      if (error) throw error;
+      if (error) {
+        const code = (error as any)?.code;
+        if (code === '23505') {
+          toast.error('Já existe um cliente cadastrado com esse e-mail');
+          return;
+        }
+        throw error;
+      }
 
       toast.success('Cliente adicionado com sucesso!');
       onSuccess();

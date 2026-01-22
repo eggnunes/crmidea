@@ -214,57 +214,90 @@ export function PublicDiagnosticForm() {
     setIsSubmitting(true);
     
     try {
-      const { data, error } = await supabase
+      const payload = {
+        user_id: consultantId,
+        full_name: formData.full_name,
+        email: formData.email,
+        phone: formData.phone,
+        cpf_cnpj: formData.cpf_cnpj || null,
+        oab_number: formData.oab_number || null,
+        office_name: formData.office_name,
+        office_address: formData.office_address,
+        address_number: formData.address_number || null,
+        address_complement: formData.address_complement || null,
+        bairro: formData.bairro || null,
+        cidade: formData.cidade || null,
+        estado: formData.estado || null,
+        website: formData.website || null,
+        foundation_year: formData.foundation_year,
+        num_lawyers: formData.num_lawyers,
+        num_employees: formData.num_employees,
+        practice_areas: formData.practice_areas || null,
+        logo_url: formData.logo_url,
+        has_used_ai: formData.has_used_ai,
+        has_used_chatgpt: formData.has_used_chatgpt,
+        has_chatgpt_paid: formData.has_chatgpt_paid,
+        has_chatgpt_app: formData.has_chatgpt_app,
+        ai_familiarity_level: formData.ai_familiarity_level || null,
+        ai_usage_frequency: formData.ai_usage_frequency || null,
+        ai_tools_used: formData.ai_tools_used || null,
+        ai_tasks_used: formData.ai_tasks_used || null,
+        ai_difficulties: formData.ai_difficulties || null,
+        other_ai_tools: formData.other_ai_tools || null,
+        comfortable_with_tech: formData.comfortable_with_tech,
+        case_management_system: formData.case_management_system || null,
+        case_management_other: formData.case_management_other || null,
+        case_management_flow: formData.case_management_flow || null,
+        client_service_flow: formData.client_service_flow || null,
+        selected_features: formData.selected_features,
+        feature_priorities: formData.feature_priorities,
+        custom_features: formData.custom_features || null,
+        motivations: formData.motivations,
+        motivations_other: formData.motivations_other || null,
+        expected_results: formData.expected_results,
+        expected_results_other: formData.expected_results_other || null,
+        tasks_to_automate: formData.tasks_to_automate || null,
+        status: "pending" as const,
+      };
+
+      // We prefer INSERT for new diagnostics, but if the client already exists (same consultant+email),
+      // we UPDATE the same record instead of creating duplicates.
+      let data: any = null;
+      const insertRes = await supabase
         .from("consulting_clients")
-        .insert({
-          user_id: consultantId,
-          full_name: formData.full_name,
-          email: formData.email,
-          phone: formData.phone,
-          cpf_cnpj: formData.cpf_cnpj || null,
-          oab_number: formData.oab_number || null,
-          office_name: formData.office_name,
-          office_address: formData.office_address,
-          address_number: formData.address_number || null,
-          address_complement: formData.address_complement || null,
-          bairro: formData.bairro || null,
-          cidade: formData.cidade || null,
-          estado: formData.estado || null,
-          website: formData.website || null,
-          foundation_year: formData.foundation_year,
-          num_lawyers: formData.num_lawyers,
-          num_employees: formData.num_employees,
-          practice_areas: formData.practice_areas || null,
-          logo_url: formData.logo_url,
-          has_used_ai: formData.has_used_ai,
-          has_used_chatgpt: formData.has_used_chatgpt,
-          has_chatgpt_paid: formData.has_chatgpt_paid,
-          has_chatgpt_app: formData.has_chatgpt_app,
-          ai_familiarity_level: formData.ai_familiarity_level || null,
-          ai_usage_frequency: formData.ai_usage_frequency || null,
-          ai_tools_used: formData.ai_tools_used || null,
-          ai_tasks_used: formData.ai_tasks_used || null,
-          ai_difficulties: formData.ai_difficulties || null,
-          other_ai_tools: formData.other_ai_tools || null,
-          comfortable_with_tech: formData.comfortable_with_tech,
-          case_management_system: formData.case_management_system || null,
-          case_management_other: formData.case_management_other || null,
-          case_management_flow: formData.case_management_flow || null,
-          client_service_flow: formData.client_service_flow || null,
-          selected_features: formData.selected_features,
-          feature_priorities: formData.feature_priorities,
-          custom_features: formData.custom_features || null,
-          motivations: formData.motivations,
-          motivations_other: formData.motivations_other || null,
-          expected_results: formData.expected_results,
-          expected_results_other: formData.expected_results_other || null,
-          tasks_to_automate: formData.tasks_to_automate || null,
-          status: "pending",
-        })
+        .insert(payload)
         .select()
         .single();
-      
-      if (error) throw error;
+
+      if (insertRes.error) {
+        // Unique violation (consultant+email) => update existing record
+        const code = (insertRes.error as any)?.code;
+        if (code !== "23505") throw insertRes.error;
+
+        const { data: existing, error: findError } = await supabase
+          .from("consulting_clients")
+          .select("id")
+          .eq("user_id", consultantId)
+          .eq("email", formData.email)
+          .order("updated_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (findError) throw findError;
+        if (!existing?.id) throw insertRes.error;
+
+        const updateRes = await supabase
+          .from("consulting_clients")
+          .update(payload)
+          .eq("id", existing.id)
+          .select()
+          .single();
+
+        if (updateRes.error) throw updateRes.error;
+        data = updateRes.data;
+      } else {
+        data = insertRes.data;
+      }
       
       setCreatedClientId(data.id);
       setIsCompleted(true);
