@@ -20,6 +20,7 @@ import {
   Loader2,
   Mic,
   Paperclip,
+  Sparkles,
   Send,
   Square,
 } from "lucide-react";
@@ -48,6 +49,9 @@ export function ClientWhatsAppComposer({ clientName, clientPhone }: ClientWhatsA
   } = useAudioRecorder();
 
   const [message, setMessage] = useState("");
+  const [aiOpen, setAiOpen] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [aiGenerating, setAiGenerating] = useState(false);
   const [sendingText, setSendingText] = useState(false);
   const [sendingAudio, setSendingAudio] = useState(false);
   const [sendingFile, setSendingFile] = useState(false);
@@ -129,6 +133,35 @@ export function ClientWhatsAppComposer({ clientName, clientPhone }: ClientWhatsA
       toast.error("Erro ao enviar mensagem. Verifique se o WhatsApp está conectado.");
     } finally {
       setSendingText(false);
+    }
+  };
+
+  const generateWithAI = async () => {
+    if (!aiPrompt.trim()) {
+      toast.error("Descreva a mensagem que você quer enviar");
+      return;
+    }
+
+    setAiGenerating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-whatsapp-draft", {
+        body: {
+          clientName,
+          clientPhone: normalizedPhone,
+          description: aiPrompt,
+        },
+      });
+      if (error) throw error;
+      if (!data?.message) throw new Error(data?.error || "Não foi possível gerar a mensagem");
+
+      setMessage(String(data.message));
+      toast.success("Mensagem gerada! Revise e clique em Enviar.");
+      setAiOpen(false);
+    } catch (error) {
+      console.error("Error generating WhatsApp draft:", error);
+      toast.error("Erro ao gerar mensagem com IA");
+    } finally {
+      setAiGenerating(false);
     }
   };
 
@@ -273,6 +306,38 @@ export function ClientWhatsAppComposer({ clientName, clientPhone }: ClientWhatsA
       />
 
       <div className="flex flex-wrap items-center gap-2">
+        <Dialog open={aiOpen} onOpenChange={setAiOpen}>
+          <DialogTrigger asChild>
+            <Button variant="outline" className="gap-2" title="Gerar mensagem com IA">
+              <Sparkles className="w-4 h-4" />
+              Gerar com IA
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Gerar mensagem com IA</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3">
+              <div className="space-y-2">
+                <Label>Descreva o que você quer enviar</Label>
+                <Textarea
+                  value={aiPrompt}
+                  onChange={(e) => setAiPrompt(e.target.value)}
+                  placeholder="Ex.: lembrar da reunião de amanhã às 10h e pedir para confirmar presença."
+                  rows={5}
+                />
+              </div>
+              <Button className="w-full gap-2" onClick={generateWithAI} disabled={aiGenerating}>
+                {aiGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                Gerar mensagem
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                A IA vai gerar um rascunho curto e acolhedor. Você revisa e envia manualmente.
+              </p>
+            </div>
+          </DialogContent>
+        </Dialog>
+
         <Button
           onClick={sendText}
           disabled={sendingText || !message.trim()}

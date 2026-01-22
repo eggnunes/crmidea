@@ -140,3 +140,6 @@ verify_jwt = true
 
 [functions.schedule-evento-followups]
 verify_jwt = false
+
+[functions.generate-whatsapp-draft]
+verify_jwt = false
