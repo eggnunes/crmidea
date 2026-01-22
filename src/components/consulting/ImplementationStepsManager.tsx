@@ -484,12 +484,12 @@ export function ImplementationStepsManager({ clientId, clientName }: Implementat
               <AccordionItem 
                 key={etapa.id} 
                 value={`etapa-${etapa.id}`}
-                className={`border rounded-lg overflow-hidden ${
-                  isCompleted 
-                    ? 'bg-success/10 border-success/30' 
-                    : isNextStep 
-                      ? 'bg-info/10 border-info/30 ring-2 ring-info/30' 
-                      : 'bg-card'
+                className={`rounded-lg overflow-hidden bg-card border ${
+                  isCompleted
+                    ? 'border-success/35'
+                    : isNextStep
+                      ? 'border-info/35 ring-2 ring-info/25'
+                      : 'border-border'
                 }`}
               >
                 <AccordionTrigger className="px-4 py-3 hover:no-underline">
@@ -545,7 +545,7 @@ export function ImplementationStepsManager({ clientId, clientName }: Implementat
                     {/* Prompt */}
                     <div>
                       <h4 className="text-sm font-medium mb-2">📋 PROMPT PARA COPIAR:</h4>
-                      <div className="bg-muted/50 border rounded-lg p-3 max-h-[200px] overflow-y-auto">
+                        <div className="bg-secondary/40 border border-border rounded-lg p-3 max-h-[200px] overflow-y-auto">
                         <pre className="text-xs whitespace-pre-wrap font-mono">
                           {etapa.prompt}
                         </pre>
