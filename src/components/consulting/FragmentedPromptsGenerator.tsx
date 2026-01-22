@@ -202,14 +202,101 @@ export function FragmentedPromptsGenerator({ client, onUpdate }: FragmentedPromp
     }
   };
 
+  const fetchLatestDiagnosticFormDataByEmail = async (email: string) => {
+    // Diagnostic answers are persisted in diagnostic_form_progress.form_data.
+    // We use this as a source of truth when consulting_clients isn't fully synced.
+    try {
+      const { data: profile } = await supabase
+        .from("client_profiles")
+        .select("user_id")
+        .eq("email", email)
+        .maybeSingle();
+
+      const clientUserId = profile?.user_id;
+      if (!clientUserId) return null;
+
+      const { data: progress } = await supabase
+        .from("diagnostic_form_progress")
+        .select("form_data, updated_at, is_completed")
+        .eq("client_user_id", clientUserId)
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      return progress || null;
+    } catch (e) {
+      console.warn("[FragmentedPromptsGenerator] Failed to load diagnostic_form_progress fallback", e);
+      return null;
+    }
+  };
+
+  const trySyncClientFromDiagnostic = async () => {
+    // Best-effort sync so the admin view + generators have consistent data.
+    // We avoid overwriting existing values.
+    if (!client?.email) return null;
+
+    const diagnostic = await fetchLatestDiagnosticFormDataByEmail(client.email);
+    const formData = (diagnostic?.form_data ?? null) as any;
+    if (!formData || typeof formData !== "object") return null;
+
+    const selected_features = Array.isArray(formData.selected_features) ? formData.selected_features : [];
+    const feature_priorities = formData.feature_priorities && typeof formData.feature_priorities === "object"
+      ? formData.feature_priorities
+      : null;
+
+    // Nothing useful to sync
+    if (!selected_features.length && !feature_priorities) return { selected_features, feature_priorities, formData };
+
+    try {
+      // Only fill missing fields; do not clobber data already present on consulting_clients.
+      const patch: Record<string, unknown> = {};
+      if (!client.selected_features || client.selected_features.length === 0) patch.selected_features = selected_features;
+      if (!client.feature_priorities || Object.keys(client.feature_priorities).length === 0) patch.feature_priorities = feature_priorities;
+
+      if (Object.keys(patch).length > 0) {
+        const { error } = await supabase
+          .from("consulting_clients")
+          .update(patch)
+          .eq("id", client.id);
+        if (error) {
+          console.warn("[FragmentedPromptsGenerator] Failed syncing consulting_clients from diagnostic", error);
+        }
+      }
+    } catch (e) {
+      console.warn("[FragmentedPromptsGenerator] Failed syncing consulting_clients from diagnostic (exception)", e);
+    }
+
+    return { selected_features, feature_priorities, formData };
+  };
+
   const generateFragmentedPrompts = async () => {
     setGenerating(true);
     try {
-      const selectedFeatures = (client.selected_features || [])
-        .map(id => CONSULTING_FEATURES.find(f => f.id === id))
+      // Prefer consulting_clients data, but if it isn't populated, fall back to diagnostic_form_progress.
+      // This fixes cases where the user sees “form already completed” but the admin doesn't see the answers.
+      let effectiveSelectedFeatureIds = client.selected_features || [];
+      let effectiveFeaturePriorities = (client.feature_priorities || {}) as Record<string, Priority>;
+
+      if (effectiveSelectedFeatureIds.length === 0) {
+        const synced = await trySyncClientFromDiagnostic();
+        const fromFormSelected = Array.isArray(synced?.formData?.selected_features) ? synced?.formData?.selected_features : [];
+        const fromFormPriorities = synced?.formData?.feature_priorities && typeof synced?.formData?.feature_priorities === "object"
+          ? synced?.formData?.feature_priorities
+          : null;
+
+        if (fromFormSelected.length > 0) {
+          effectiveSelectedFeatureIds = fromFormSelected;
+        }
+        if (fromFormPriorities) {
+          effectiveFeaturePriorities = fromFormPriorities as Record<string, Priority>;
+        }
+      }
+
+      const selectedFeatures = (effectiveSelectedFeatureIds || [])
+        .map((id: number) => CONSULTING_FEATURES.find(f => f.id === id))
         .filter(Boolean) as ConsultingFeature[];
 
-      const featurePriorities = (client.feature_priorities || {}) as Record<string, Priority>;
+      const featurePriorities = (effectiveFeaturePriorities || {}) as Record<string, Priority>;
 
       // Group features by category and priority
       const featuresByCategory: Record<string, Record<Priority, ConsultingFeature[]>> = {};

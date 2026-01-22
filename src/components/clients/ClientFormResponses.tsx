@@ -113,6 +113,34 @@ export function ClientFormResponses({ clientId }: ClientFormResponsesProps) {
     fetchClientData();
   }, [clientId]);
 
+  const fetchLatestDiagnosticFormDataByEmail = async (email: string) => {
+    // The diagnostic answers are persisted in diagnostic_form_progress.form_data.
+    // In some cases, consulting_clients columns are not fully synced.
+    try {
+      const { data: profile } = await supabase
+        .from("client_profiles")
+        .select("user_id")
+        .eq("email", email)
+        .maybeSingle();
+
+      const clientUserId = profile?.user_id;
+      if (!clientUserId) return null;
+
+      const { data: progress } = await supabase
+        .from("diagnostic_form_progress")
+        .select("form_data, updated_at, is_completed")
+        .eq("client_user_id", clientUserId)
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      return progress || null;
+    } catch (e) {
+      console.warn("[ClientFormResponses] Failed to load diagnostic_form_progress fallback", e);
+      return null;
+    }
+  };
+
   const fetchClientData = async () => {
     try {
       const { data, error } = await supabase
@@ -122,11 +150,27 @@ export function ClientFormResponses({ clientId }: ClientFormResponsesProps) {
         .maybeSingle();
 
       if (error) throw error;
+
       if (data) {
-        setClientData({
+        // Fallback/merge from diagnostic_form_progress (source of truth for the form answers)
+        const diagnostic = await fetchLatestDiagnosticFormDataByEmail(data.email);
+        const formData = (diagnostic?.form_data ?? null) as Record<string, unknown> | null;
+
+        // Merge strategy: keep consulting_clients identifiers, but enrich missing fields from form_data
+        const merged: any = {
+          ...formData,
           ...data,
-          feature_priorities: data.feature_priorities as Record<number, Priority> | null
-        });
+          id: data.id,
+          created_at: data.created_at,
+        };
+
+        // Normalize priorities typing
+        merged.feature_priorities = (merged.feature_priorities ?? data.feature_priorities ?? null) as Record<
+          number,
+          Priority
+        > | null;
+
+        setClientData(merged as ConsultingClientData);
       } else {
         setClientData(null);
       }
