@@ -119,7 +119,7 @@ export function ClientFormResponses({ clientId }: ClientFormResponsesProps) {
         .from("consulting_clients")
         .select("*")
         .eq("id", clientId)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
       if (data) {
@@ -127,6 +127,8 @@ export function ClientFormResponses({ clientId }: ClientFormResponsesProps) {
           ...data,
           feature_priorities: data.feature_priorities as Record<number, Priority> | null
         });
+      } else {
+        setClientData(null);
       }
     } catch (error) {
       console.error("Error fetching client data:", error);

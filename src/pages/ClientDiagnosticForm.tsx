@@ -93,13 +93,20 @@ export function ClientDiagnosticForm() {
       }
       
       setUser(session.user);
-      await loadProgress(session.user.id);
+      const consultantIdFromMetadata = (session.user.user_metadata as any)?.consultant_id as string | undefined;
+      const fullNameFromMetadata = (session.user.user_metadata as any)?.full_name as string | undefined;
+      await loadProgress(session.user.id, consultantIdFromMetadata, session.user.email ?? undefined, fullNameFromMetadata);
     };
 
     checkAuth();
   }, [navigate]);
 
-  const loadProgress = async (userId: string) => {
+  const loadProgress = async (
+    userId: string,
+    consultantIdFromMetadata?: string,
+    userEmail?: string,
+    userFullName?: string
+  ) => {
     try {
       // Get client profile for consultant_id
       const { data: profile } = await supabase
@@ -119,6 +126,23 @@ export function ClientDiagnosticForm() {
           phone: profile.phone || prev.phone,
           office_name: profile.office_name || prev.office_name,
         }));
+      } else if (consultantIdFromMetadata) {
+        // Fallback for older accounts that might not have client_profiles yet
+        setConsultantId(consultantIdFromMetadata);
+
+        // Best-effort: create missing profile so next loads work normally
+        const { error: profileInsertError } = await supabase
+          .from("client_profiles")
+          .insert({
+            user_id: userId,
+            consultant_id: consultantIdFromMetadata,
+            full_name: userFullName || formData.full_name || "",
+            email: userEmail || formData.email || "",
+          });
+
+        if (profileInsertError) {
+          console.warn("[ClientDiagnosticForm] Could not create missing client_profile:", profileInsertError);
+        }
       }
 
       // Get saved progress
@@ -135,6 +159,23 @@ export function ClientDiagnosticForm() {
           setCurrentStep(progress.current_step || 1);
           if (progress.form_data && typeof progress.form_data === 'object') {
             setFormData(prev => ({ ...prev, ...(progress.form_data as Partial<DiagnosticFormData>) }));
+          }
+        }
+      } else {
+        // Best-effort: create missing progress so autosave works
+        const effectiveConsultantId = profile?.consultant_id || consultantIdFromMetadata;
+        if (effectiveConsultantId) {
+          const { error: progressInsertError } = await supabase
+            .from("diagnostic_form_progress")
+            .insert({
+              client_user_id: userId,
+              consultant_id: effectiveConsultantId,
+              current_step: 1,
+              form_data: {},
+              is_completed: false,
+            });
+          if (progressInsertError) {
+            console.warn("[ClientDiagnosticForm] Could not create missing progress:", progressInsertError);
           }
         }
       }
@@ -162,7 +203,11 @@ export function ClientDiagnosticForm() {
   }, [formData]);
 
   const saveProgress = useCallback(async (step?: number) => {
-    if (!user?.id || !consultantId) return;
+    if (!user?.id) return;
+    if (!consultantId) {
+      console.warn("[ClientDiagnosticForm] Missing consultantId - progress not saved.");
+      return;
+    }
     
     setIsSaving(true);
     
@@ -177,7 +222,7 @@ export function ClientDiagnosticForm() {
       const cleanData = getCleanFormData();
 
       if (existing) {
-        await supabase
+        const { error } = await supabase
           .from("diagnostic_form_progress")
           .update({
             current_step: step || currentStep,
@@ -185,8 +230,10 @@ export function ClientDiagnosticForm() {
             is_completed: false,
           })
           .eq("client_user_id", user.id);
+
+        if (error) throw error;
       } else {
-        await supabase
+        const { error } = await supabase
           .from("diagnostic_form_progress")
           .insert([{
             client_user_id: user.id,
@@ -195,11 +242,15 @@ export function ClientDiagnosticForm() {
             form_data: JSON.parse(JSON.stringify(cleanData)),
             is_completed: false,
           }]);
+
+        if (error) throw error;
       }
       
       setLastSaved(new Date());
     } catch (error) {
       console.error("Error saving progress:", error);
+      const message = (error as any)?.message || "Erro ao salvar progresso";
+      toast.error(message);
     } finally {
       setIsSaving(false);
     }
@@ -287,14 +338,18 @@ export function ClientDiagnosticForm() {
   };
   
   const handleSubmit = async () => {
-    if (!user?.id || !consultantId) return;
+    if (!user?.id) return;
+    if (!consultantId) {
+      toast.error("Não foi possível identificar o consultor responsável. Faça logout e login novamente pelo link de cadastro do consultor.");
+      return;
+    }
     
     setIsSubmitting(true);
     
     try {
       // Update progress as completed
       const cleanData = getCleanFormData();
-      await supabase
+      const { error: completeError } = await supabase
         .from("diagnostic_form_progress")
         .update({
           is_completed: true,
@@ -302,6 +357,8 @@ export function ClientDiagnosticForm() {
           form_data: JSON.parse(JSON.stringify(cleanData)),
         })
         .eq("client_user_id", user.id);
+
+      if (completeError) throw completeError;
 
       // Check if consulting_client already exists for this email
       const { data: existingClient } = await supabase
@@ -521,7 +578,8 @@ export function ClientDiagnosticForm() {
       toast.success("Diagnóstico enviado com sucesso!");
     } catch (error) {
       console.error("Error submitting:", error);
-      toast.error("Erro ao enviar. Tente novamente.");
+      const message = (error as any)?.message || "Erro ao enviar. Tente novamente.";
+      toast.error(message);
     } finally {
       setIsSubmitting(false);
     }
