@@ -69,7 +69,7 @@ ${content.split('\n').map((line: string) => `          <p style="margin: 0 0 10p
 
     console.log("Email sent successfully:", emailResponse);
 
-    // Log the sent email
+    // Log the sent email (store full content for later viewing in the app)
     if (userId) {
       await supabase.from("sent_emails_log").insert({
         user_id: userId,
@@ -78,7 +78,10 @@ ${content.split('\n').map((line: string) => `          <p style="margin: 0 0 10p
         subject: subject,
         email_type: "client_communication",
         status: "sent",
-        metadata: { content_length: content.length }
+        metadata: {
+          content,
+          content_length: content.length,
+        }
       });
     }
 
