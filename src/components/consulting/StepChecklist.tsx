@@ -207,7 +207,7 @@ export function StepChecklist({
       </div>
 
       {/* Checklist Items */}
-      <div className="space-y-3 bg-muted/30 p-3 rounded-lg">
+      <div className="space-y-3 bg-secondary/40 p-3 rounded-lg border border-border">
         {CHECKLIST_ITEMS.map(({ key, label }) => (
           <div key={key} className="flex items-center gap-3">
             <Checkbox
@@ -292,7 +292,7 @@ export function StepChecklist({
 
       {/* Encouragement message when all checked */}
       {allChecked && (
-        <div className="p-3 bg-success/10 rounded-lg border border-success/25">
+        <div className="p-3 bg-card rounded-lg border border-success/25">
           <p className="text-sm text-success flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4" />
             Ótimo trabalho! Pronto para marcar como concluída? 🎉
