@@ -6,10 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Mail, MessageSquare, Send, Loader2, CheckCircle2, FileText } from "lucide-react";
+import { Mail, MessageSquare, Send, Loader2, CheckCircle2, FileText, History } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ClientMessageTemplates } from "./ClientMessageTemplates";
+import { ClientCommunicationHistory } from "./ClientCommunicationHistory";
+import { ClientWhatsAppComposer } from "./ClientWhatsAppComposer";
 
 interface ClientCommunicationProps {
   clientId: string;
@@ -28,12 +30,9 @@ interface MessageTemplate {
 }
 
 export function ClientCommunication({ clientId, clientName, clientEmail, clientPhone }: ClientCommunicationProps) {
-  const [whatsappMessage, setWhatsappMessage] = useState("");
   const [emailSubject, setEmailSubject] = useState("");
   const [emailContent, setEmailContent] = useState("");
-  const [sendingWhatsapp, setSendingWhatsapp] = useState(false);
   const [sendingEmail, setSendingEmail] = useState(false);
-  const [whatsappSent, setWhatsappSent] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
   const [activeTab, setActiveTab] = useState("whatsapp");
@@ -50,7 +49,8 @@ export function ClientCommunication({ clientId, clientName, clientEmail, clientP
     const processedContent = replaceVariables(template.content);
     
     if (template.template_type === "whatsapp") {
-      setWhatsappMessage(processedContent);
+      // The WhatsApp composer owns the message input now; we keep template usage focused on email here.
+      // For WhatsApp templates, we switch to WhatsApp tab and let the user paste if desired.
       setActiveTab("whatsapp");
     } else {
       setEmailContent(processedContent);
@@ -61,39 +61,6 @@ export function ClientCommunication({ clientId, clientName, clientEmail, clientP
     }
     setShowTemplates(false);
     toast.success("Template aplicado!");
-  };
-
-  const sendWhatsApp = async () => {
-    if (!whatsappMessage.trim()) {
-      toast.error("Digite uma mensagem");
-      return;
-    }
-
-    setSendingWhatsapp(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("zapi-send-message", {
-        body: {
-          phone: clientPhone,
-          content: whatsappMessage
-        }
-      });
-
-      if (error) throw error;
-      
-      if (data?.success) {
-        toast.success("Mensagem enviada via WhatsApp!");
-        setWhatsappSent(true);
-        setWhatsappMessage("");
-        setTimeout(() => setWhatsappSent(false), 3000);
-      } else {
-        throw new Error(data?.error || "Erro ao enviar mensagem");
-      }
-    } catch (error) {
-      console.error("Error sending WhatsApp:", error);
-      toast.error("Erro ao enviar mensagem. Verifique se o WhatsApp está conectado.");
-    } finally {
-      setSendingWhatsapp(false);
-    }
   };
 
   const sendEmail = async () => {
@@ -162,7 +129,7 @@ export function ClientCommunication({ clientId, clientName, clientEmail, clientP
       </CardHeader>
       <CardContent>
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="whatsapp" className="flex items-center gap-2">
               <MessageSquare className="w-4 h-4" />
               WhatsApp
@@ -171,39 +138,14 @@ export function ClientCommunication({ clientId, clientName, clientEmail, clientP
               <Mail className="w-4 h-4" />
               E-mail
             </TabsTrigger>
+            <TabsTrigger value="history" className="flex items-center gap-2">
+              <History className="w-4 h-4" />
+              Histórico
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="whatsapp" className="space-y-4 mt-4">
-            <div className="bg-muted/50 rounded-lg p-3">
-              <p className="text-sm text-muted-foreground">
-                <strong>Enviando para:</strong> {clientPhone}
-              </p>
-            </div>
-            
-            <div className="space-y-2">
-              <Label>Mensagem</Label>
-              <Textarea
-                value={whatsappMessage}
-                onChange={(e) => setWhatsappMessage(e.target.value)}
-                placeholder="Digite sua mensagem para o cliente..."
-                rows={6}
-              />
-            </div>
-
-            <Button
-              onClick={sendWhatsApp}
-              disabled={sendingWhatsapp || !whatsappMessage.trim()}
-              className="w-full bg-green-600 hover:bg-green-700"
-            >
-              {sendingWhatsapp ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : whatsappSent ? (
-                <CheckCircle2 className="w-4 h-4 mr-2" />
-              ) : (
-                <MessageSquare className="w-4 h-4 mr-2" />
-              )}
-              {whatsappSent ? "Enviado!" : "Enviar via WhatsApp"}
-            </Button>
+            <ClientWhatsAppComposer clientName={clientName} clientPhone={clientPhone} />
           </TabsContent>
 
           <TabsContent value="email" className="space-y-4 mt-4">
@@ -247,8 +189,18 @@ export function ClientCommunication({ clientId, clientName, clientEmail, clientP
               {emailSent ? "Enviado!" : "Enviar E-mail"}
             </Button>
           </TabsContent>
+
+          <TabsContent value="history" className="space-y-4 mt-4">
+            <ClientCommunicationHistory
+              clientEmail={clientEmail}
+              clientPhone={clientPhone}
+              clientId={clientId}
+              isAdminView
+            />
+          </TabsContent>
         </Tabs>
       </CardContent>
     </Card>
   );
 }
+
