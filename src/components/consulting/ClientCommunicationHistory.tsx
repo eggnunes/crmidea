@@ -7,6 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import DOMPurify from "dompurify";
 import { 
   Mail, 
   MessageCircle, 
@@ -78,6 +80,8 @@ export function ClientCommunicationHistory({
   const [openWhatsAppMessageId, setOpenWhatsAppMessageId] = useState<string | null>(null);
   const [openEmailId, setOpenEmailId] = useState<string | null>(null);
   const [syncingWhatsApp, setSyncingWhatsApp] = useState(false);
+  const [autoSyncPrompted, setAutoSyncPrompted] = useState(false);
+  const [emailViewMode, setEmailViewMode] = useState<"text" | "html">("text");
 
   useEffect(() => {
     if (user || clientEmail || clientPhone) {
@@ -211,6 +215,34 @@ export function ClientCommunicationHistory({
       toast.error('Erro ao sincronizar histórico do WhatsApp');
     } finally {
       setSyncingWhatsApp(false);
+    }
+  };
+
+  // Auto-sync WhatsApp if we detect too few messages for a client (with confirmation)
+  useEffect(() => {
+    if (loading) return;
+    if (autoSyncPrompted) return;
+    if (!clientPhone) return;
+
+    // If there are 0-1 messages, it's likely we haven't synced history yet.
+    if (whatsappMessages.length >= 2) return;
+
+    setAutoSyncPrompted(true);
+    const ok = window.confirm(
+      "Detectei poucas mensagens de WhatsApp para este cliente. Deseja sincronizar automaticamente o histórico agora?"
+    );
+    if (ok) {
+      syncWhatsAppForClient();
+    }
+  }, [loading, autoSyncPrompted, clientPhone, whatsappMessages.length]);
+
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success("Conteúdo copiado!");
+    } catch (e) {
+      console.error('Clipboard error:', e);
+      toast.error("Não foi possível copiar");
     }
   };
 
@@ -352,7 +384,44 @@ export function ClientCommunicationHistory({
                       </span>
                     </div>
 
-                    {openEmail.metadata?.content ? (
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant={emailViewMode === "text" ? "default" : "outline"}
+                          onClick={() => setEmailViewMode("text")}
+                        >
+                          Texto
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant={emailViewMode === "html" ? "default" : "outline"}
+                          onClick={() => setEmailViewMode("html")}
+                          disabled={!openEmail.metadata?.html}
+                        >
+                          HTML
+                        </Button>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          copyToClipboard(
+                            String(openEmail.metadata?.content || openEmail.metadata?.html || "") ||
+                              JSON.stringify(openEmail.metadata || {}, null, 2)
+                          )
+                        }
+                      >
+                        Copiar conteúdo completo
+                      </Button>
+                    </div>
+
+                    {emailViewMode === "html" && openEmail.metadata?.html ? (
+                      <div
+                        className="border rounded-lg p-3 bg-muted/30 prose prose-sm max-w-none"
+                        dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(String(openEmail.metadata.html)) }}
+                      />
+                    ) : openEmail.metadata?.content ? (
                       <div className="border rounded-lg p-3 bg-muted/30">
                         <p className="text-sm whitespace-pre-wrap">{String(openEmail.metadata.content)}</p>
                       </div>
@@ -468,6 +537,12 @@ export function ClientCommunicationHistory({
                       <span className="text-xs text-muted-foreground">
                         {format(new Date(openMessage.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
                       </span>
+                    </div>
+
+                    <div className="flex items-center justify-end">
+                      <Button size="sm" variant="outline" onClick={() => copyToClipboard(openMessage.content)}>
+                        Copiar conteúdo completo
+                      </Button>
                     </div>
                     {openMessage.contact_name && (
                       <p className="text-sm text-muted-foreground">

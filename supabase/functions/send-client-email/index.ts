@@ -80,6 +80,7 @@ ${content.split('\n').map((line: string) => `          <p style="margin: 0 0 10p
         status: "sent",
         metadata: {
           content,
+          html: htmlContent,
           content_length: content.length,
         }
       });
