@@ -83,6 +83,38 @@ export function ClientDiagnosticForm() {
   const [loading, setLoading] = useState(true);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
+  const resolveConsultantId = useCallback(async () => {
+    // If we already have it, nothing to do.
+    if (consultantId) return consultantId;
+    if (!user?.id) return null;
+
+    // Try from client_profiles first (source of truth)
+    try {
+      const { data: profile } = await supabase
+        .from("client_profiles")
+        .select("consultant_id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      const fromProfile = profile?.consultant_id || null;
+      if (fromProfile) {
+        setConsultantId(fromProfile);
+        return fromProfile;
+      }
+    } catch (e) {
+      console.warn("[ClientDiagnosticForm] resolveConsultantId: failed reading client_profiles", e);
+    }
+
+    // Fallback: user metadata (older accounts)
+    const fromMetadata = (user.user_metadata as any)?.consultant_id as string | undefined;
+    if (fromMetadata) {
+      setConsultantId(fromMetadata);
+      return fromMetadata;
+    }
+
+    return null;
+  }, [consultantId, user?.id, user?.user_metadata]);
+
   useEffect(() => {
     const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -204,8 +236,18 @@ export function ClientDiagnosticForm() {
 
   const saveProgress = useCallback(async (step?: number) => {
     if (!user?.id) return;
-    if (!consultantId) {
+
+    // IMPORTANT: do not silently skip saving when consultantId isn't loaded yet.
+    // This was causing users to lose progress.
+    const effectiveConsultantId = consultantId || (await resolveConsultantId());
+    if (!effectiveConsultantId) {
       console.warn("[ClientDiagnosticForm] Missing consultantId - progress not saved.");
+      // Avoid spamming toasts on autosave; show toast only for manual save/step transitions.
+      if (step !== undefined) {
+        toast.error(
+          'Não foi possível vincular seu cadastro ao consultor. Saia e entre novamente pelo link de cadastro enviado pelo consultor.'
+        );
+      }
       return;
     }
     
@@ -237,7 +279,7 @@ export function ClientDiagnosticForm() {
           .from("diagnostic_form_progress")
           .insert([{
             client_user_id: user.id,
-            consultant_id: consultantId,
+            consultant_id: effectiveConsultantId,
             current_step: step || currentStep,
             form_data: JSON.parse(JSON.stringify(cleanData)),
             is_completed: false,
@@ -254,7 +296,7 @@ export function ClientDiagnosticForm() {
     } finally {
       setIsSaving(false);
     }
-  }, [user?.id, consultantId, currentStep, getCleanFormData]);
+  }, [user?.id, consultantId, currentStep, getCleanFormData, resolveConsultantId]);
 
   // Auto-save every 30 seconds
   useEffect(() => {
