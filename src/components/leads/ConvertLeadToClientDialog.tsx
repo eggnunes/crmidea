@@ -47,6 +47,7 @@ export function ConvertLeadToClientDialog({ lead, open, onOpenChange, onSuccess 
         .from("consulting_clients")
         .select("id")
         .eq("email", lead.email)
+        .eq("user_id", user.id)
         .maybeSingle();
 
       if (existingClient) {
@@ -73,7 +74,15 @@ export function ConvertLeadToClientDialog({ lead, open, onOpenChange, onSuccess 
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        const code = (error as any)?.code;
+        if (code === "23505") {
+          toast.error("Já existe um cliente cadastrado com este email");
+          setLoading(false);
+          return;
+        }
+        throw error;
+      }
 
       // Send welcome email with form link
       try {

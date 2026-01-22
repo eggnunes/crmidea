@@ -125,7 +125,8 @@ export function PendingClientApprovals() {
 
       if (updateError) throw updateError;
 
-      // 2. Create entry in consulting_clients so client appears in "Clientes" tab
+      // 2. Ensure an entry exists in consulting_clients (1 per consultant+email)
+      // IMPORTANT: do not overwrite richer data with placeholders.
       const { error: insertError } = await supabase
         .from('consulting_clients')
         .insert({
@@ -142,8 +143,11 @@ export function PendingClientApprovals() {
         });
 
       if (insertError) {
-        console.error('Error creating consulting_client:', insertError);
-        // Don't fail the whole operation if this fails
+        const code = (insertError as any)?.code;
+        // 23505 = unique_violation (already exists) -> ok
+        if (code !== '23505') {
+          console.error('Error creating consulting_client:', insertError);
+        }
       }
 
       // 3. Create timeline event
@@ -296,17 +300,29 @@ export function PendingClientApprovals() {
 
       if (profileError) throw profileError;
 
-      // Update consulting_clients if exists
-      await supabase
+      // Update consulting_clients (pick latest record for that email)
+      const { data: existing, error: existingError } = await supabase
         .from('consulting_clients')
-        .update({
-          full_name: editForm.full_name,
-          email: editForm.email,
-          phone: editForm.phone,
-          office_name: editForm.office_name || 'Não informado',
-        })
+        .select('id')
+        .eq('user_id', user?.id)
         .eq('email', editing.email)
-        .eq('user_id', user?.id);
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (existingError) throw existingError;
+      if (existing?.id) {
+        const { error: updateClientError } = await supabase
+          .from('consulting_clients')
+          .update({
+            full_name: editForm.full_name,
+            email: editForm.email,
+            phone: editForm.phone,
+            office_name: editForm.office_name || 'Não informado',
+          })
+          .eq('id', existing.id);
+        if (updateClientError) throw updateClientError;
+      }
 
       toast.success('Cliente atualizado com sucesso');
       setEditing(null);
@@ -355,8 +371,29 @@ export function PendingClientApprovals() {
         .single();
 
       if (insertError) {
-        console.error('Error creating consulting_client:', insertError);
-        toast.error('Erro ao criar registro do cliente');
+        const code = (insertError as any)?.code;
+        if (code !== '23505') {
+          console.error('Error creating consulting_client:', insertError);
+          toast.error('Erro ao criar registro do cliente');
+          return;
+        }
+
+        // If it already exists (unique), fetch and navigate
+        const { data: existing, error: existingError } = await supabase
+          .from('consulting_clients')
+          .select('id')
+          .eq('email', client.email)
+          .eq('user_id', user?.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (existingError || !existing?.id) {
+          toast.error('Erro ao buscar registro do cliente');
+          return;
+        }
+
+        navigate(`/metodo-idea/consultoria/cliente/${existing.id}`);
         return;
       }
 

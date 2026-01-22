@@ -1630,6 +1630,7 @@ export type Database = {
           created_at: string
           custom_features: string | null
           email: string
+          email_lc: string | null
           estado: string | null
           expected_results: string[] | null
           expected_results_other: string | null
@@ -1685,6 +1686,7 @@ export type Database = {
           created_at?: string
           custom_features?: string | null
           email: string
+          email_lc?: string | null
           estado?: string | null
           expected_results?: string[] | null
           expected_results_other?: string | null
@@ -1740,6 +1742,7 @@ export type Database = {
           created_at?: string
           custom_features?: string | null
           email?: string
+          email_lc?: string | null
           estado?: string | null
           expected_results?: string[] | null
           expected_results_other?: string | null
