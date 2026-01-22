@@ -26,22 +26,31 @@ serve(async (req) => {
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    
-    // Get admin user
-    const { data: adminRole } = await supabase
-      .from('user_roles')
-      .select('user_id')
-      .eq('role', 'admin')
-      .single();
 
-    if (!adminRole) {
-      return new Response(JSON.stringify({ error: 'No admin user found' }), {
-        status: 500,
+    // Resolve caller user from JWT (preferred). Fallback to admin role if needed.
+    const authHeader = req.headers.get('authorization');
+    let userId: string | null = null;
+    if (authHeader) {
+      const token = authHeader.replace('Bearer ', '');
+      const { data: userData } = await supabase.auth.getUser(token);
+      userId = userData.user?.id || null;
+    }
+
+    if (!userId) {
+      const { data: adminRole } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('role', 'admin')
+        .single();
+      userId = adminRole?.user_id || null;
+    }
+
+    if (!userId) {
+      return new Response(JSON.stringify({ error: 'No user resolved' }), {
+        status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-
-    const userId = adminRole.user_id;
     const body = await req.json().catch(() => ({}));
     const { phone, limit = 50 } = body;
 

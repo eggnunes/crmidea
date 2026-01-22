@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { toast } from "sonner";
 
 interface SentEmail {
   id: string;
@@ -28,6 +29,7 @@ interface SentEmail {
   email_type: string;
   status: string;
   error_message: string | null;
+  metadata: any;
   created_at: string;
 }
 
@@ -74,6 +76,8 @@ export function ClientCommunicationHistory({
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [openWhatsAppMessageId, setOpenWhatsAppMessageId] = useState<string | null>(null);
+  const [openEmailId, setOpenEmailId] = useState<string | null>(null);
+  const [syncingWhatsApp, setSyncingWhatsApp] = useState(false);
 
   useEffect(() => {
     if (user || clientEmail || clientPhone) {
@@ -108,19 +112,24 @@ export function ClientCommunicationHistory({
       if (clientPhone || isAdminView) {
         const normalizedPhone = clientPhone?.replace(/\D/g, "");
 
+        const phoneE164 = normalizedPhone
+          ? (normalizedPhone.startsWith('55') ? normalizedPhone : `55${normalizedPhone}`)
+          : "";
+
         // 1) Find conversation(s) for this phone to avoid flaky joins/filters
         let convQuery = supabase
           .from("whatsapp_conversations")
           .select("id, contact_phone, contact_name")
           .order("last_message_at", { ascending: false });
 
-        if (normalizedPhone) {
-          convQuery = convQuery.ilike("contact_phone", `%${normalizedPhone}%`);
+        if (phoneE164) {
+          // Prefer exact match, then fallback to suffix/contains.
+          convQuery = convQuery.or(`contact_phone.eq.${phoneE164},contact_phone.ilike.%25${phoneE164}%25,contact_phone.ilike.%25${normalizedPhone}%25`);
         } else if (user && isAdminView) {
           convQuery = convQuery.eq("user_id", user.id);
         }
 
-        const { data: convs, error: convErr } = await convQuery.limit(20);
+        const { data: convs, error: convErr } = await convQuery.limit(100);
         if (convErr) {
           console.error("Error fetching WhatsApp conversations:", convErr);
         }
@@ -179,6 +188,31 @@ export function ClientCommunicationHistory({
     () => filteredMessages.find((m) => m.id === openWhatsAppMessageId) || null,
     [filteredMessages, openWhatsAppMessageId]
   );
+
+  const openEmail = useMemo(
+    () => filteredEmails.find((e) => e.id === openEmailId) || null,
+    [filteredEmails, openEmailId]
+  );
+
+  const syncWhatsAppForClient = async () => {
+    if (!clientPhone) return;
+    const digits = clientPhone.replace(/\D/g, "");
+    const phone = digits.startsWith("55") ? digits : `55${digits}`;
+    setSyncingWhatsApp(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('zapi-sync-history', {
+        body: { phone, limit: 50 },
+      });
+      if (error) throw error;
+      toast.success(`Sincronizado: ${data?.syncedMessages || 0} mensagens`);
+      await fetchCommunications();
+    } catch (e) {
+      console.error('Sync WhatsApp error:', e);
+      toast.error('Erro ao sincronizar histórico do WhatsApp');
+    } finally {
+      setSyncingWhatsApp(false);
+    }
+  };
 
   const emailStats = {
     total: emails.length,
@@ -264,7 +298,12 @@ export function ClientCommunicationHistory({
               ) : (
                 <div className="space-y-3">
                   {filteredEmails.map((email) => (
-                    <div key={email.id} className="p-3 border rounded-lg">
+                    <button
+                      key={email.id}
+                      type="button"
+                      onClick={() => setOpenEmailId(email.id)}
+                      className="w-full text-left p-3 border rounded-lg hover:bg-muted/30 transition-colors"
+                    >
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
@@ -288,15 +327,72 @@ export function ClientCommunicationHistory({
                           {format(new Date(email.created_at), "dd/MM/yy HH:mm", { locale: ptBR })}
                         </span>
                       </div>
-                    </div>
+                    </button>
                   ))}
                 </div>
               )}
             </ScrollArea>
+
+            <Dialog open={!!openEmailId} onOpenChange={(open) => !open && setOpenEmailId(null)}>
+              <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Conteúdo do e-mail</DialogTitle>
+                </DialogHeader>
+                {openEmail ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="space-y-1">
+                        <p className="text-sm"><strong>Assunto:</strong> {openEmail.subject}</p>
+                        <p className="text-sm text-muted-foreground">
+                          <strong>Para:</strong> {openEmail.recipient_name || openEmail.recipient_email}
+                        </p>
+                      </div>
+                      <span className="text-xs text-muted-foreground whitespace-nowrap">
+                        {format(new Date(openEmail.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                      </span>
+                    </div>
+
+                    {openEmail.metadata?.content ? (
+                      <div className="border rounded-lg p-3 bg-muted/30">
+                        <p className="text-sm whitespace-pre-wrap">{String(openEmail.metadata.content)}</p>
+                      </div>
+                    ) : (
+                      <div className="border rounded-lg p-3 bg-muted/30">
+                        <p className="text-sm text-muted-foreground">
+                          Este e-mail foi enviado antes do sistema começar a armazenar o conteúdo completo.\n
+                          Abaixo estão os metadados disponíveis desse envio.
+                        </p>
+                      </div>
+                    )}
+
+                    {openEmail.metadata && (
+                      <div className="border rounded-lg p-3">
+                        <p className="text-xs text-muted-foreground mb-2">Metadados</p>
+                        <pre className="text-xs whitespace-pre-wrap break-words">{JSON.stringify(openEmail.metadata, null, 2)}</pre>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">E-mail não encontrado.</p>
+                )}
+              </DialogContent>
+            </Dialog>
           </TabsContent>
 
           {/* WhatsApp Tab */}
           <TabsContent value="whatsapp">
+            {clientPhone && (
+              <div className="flex items-center justify-end mb-3">
+                <button
+                  type="button"
+                  onClick={syncWhatsAppForClient}
+                  disabled={syncingWhatsApp}
+                  className="text-sm text-primary hover:underline disabled:opacity-50"
+                >
+                  {syncingWhatsApp ? "Sincronizando..." : "Sincronizar histórico do WhatsApp"}
+                </button>
+              </div>
+            )}
             {/* WhatsApp Stats */}
             <div className="grid grid-cols-3 gap-2 mb-4">
               <div className="p-3 bg-muted/50 rounded-lg text-center">
