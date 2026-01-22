@@ -867,10 +867,10 @@ export function HomePage() {
               className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-semibold transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-amber-500/30" 
               asChild
             >
-              <a href="https://mentoriarafaelegg.com.br/consultoria-idea/" target="_blank" rel="noopener noreferrer">
+              <Link to="/consultoria" onClick={handleConsultoriaClick}>
                 Agendar Consultoria
                 <ExternalLink className="ml-2 h-4 w-4" />
-              </a>
+              </Link>
             </Button>
             <Button 
               size="lg" 
