@@ -168,7 +168,7 @@ export function StepChecklist({
   if (isCompleted) {
     return (
       <div className="space-y-4 pt-4 border-t">
-        <div className="flex items-center gap-2 text-green-600">
+        <div className="flex items-center gap-2 text-success">
           <CheckCircle2 className="w-5 h-5" />
           <span className="font-medium">Etapa concluída!</span>
         </div>
@@ -220,7 +220,7 @@ export function StepChecklist({
             <label 
               htmlFor={`check-${etapaId}-${key}`}
               className={`text-sm cursor-pointer ${
-                checklist[key] ? 'text-green-700 dark:text-green-400 line-through' : ''
+                checklist[key] ? 'text-success line-through' : ''
               }`}
             >
               {label}
@@ -292,8 +292,8 @@ export function StepChecklist({
 
       {/* Encouragement message when all checked */}
       {allChecked && (
-        <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
-          <p className="text-sm text-green-700 dark:text-green-300 flex items-center gap-2">
+        <div className="p-3 bg-success/10 rounded-lg border border-success/25">
+          <p className="text-sm text-success flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4" />
             Ótimo trabalho! Pronto para marcar como concluída? 🎉
           </p>
@@ -306,7 +306,7 @@ export function StepChecklist({
         disabled={!allChecked}
         className={`w-full gap-2 transition-all ${
           allChecked 
-            ? 'bg-green-600 hover:bg-green-700 animate-pulse' 
+            ? 'bg-success text-success-foreground hover:bg-success/90 animate-pulse' 
             : ''
         }`}
       >
