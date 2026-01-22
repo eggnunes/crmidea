@@ -30,7 +30,8 @@ import {
   BarChart3,
   FolderOpen,
   Rocket,
-  Edit
+  Edit,
+  Layers
 } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -43,6 +44,7 @@ import { ClientProgressCharts } from "@/components/clients/ClientProgressCharts"
 import { ClientFormResponses } from "@/components/clients/ClientFormResponses";
 import { ClientDocumentsManagerReadOnly } from "@/components/consulting/ClientDocumentsManagerReadOnly";
 import { ClientCommunicationHistory } from "@/components/consulting/ClientCommunicationHistory";
+import { ClientStepsViewer, type ClientStep } from "@/components/consulting/ClientStepsViewer";
 
 
 interface ClientProfile {
@@ -99,6 +101,7 @@ interface ConsultingClient {
   status: string | null;
   created_at: string;
   implementation_plan: unknown | null;
+  fragmented_prompts?: unknown | null;
 }
 
 export function ClientDashboardPage() {
@@ -188,7 +191,7 @@ export function ClientDashboardPage() {
         // Fetch consulting client data (generated prompt)
         const { data: clientData, error: clientError } = await supabase
           .from("consulting_clients")
-          .select("id, generated_prompt, status, created_at, implementation_plan")
+          .select("id, generated_prompt, status, created_at, implementation_plan, fragmented_prompts")
           .eq("email", profileData.email)
           .maybeSingle();
 
@@ -200,7 +203,8 @@ export function ClientDashboardPage() {
           console.log("Consulting client data loaded:", { 
             id: clientData.id, 
             hasPlan: !!clientData.implementation_plan,
-            hasPrompt: !!clientData.generated_prompt 
+            hasPrompt: !!clientData.generated_prompt,
+            hasFragmented: Array.isArray((clientData as any).fragmented_prompts) && (clientData as any).fragmented_prompts.length > 0
           });
           setConsultingClient(clientData);
         } else {
@@ -573,8 +577,27 @@ export function ClientDashboardPage() {
               Evolução
             </TabsTrigger>
             <TabsTrigger value="timeline">Timeline</TabsTrigger>
+            <TabsTrigger value="steps" className="gap-2">
+              <Layers className="w-4 h-4" />
+              Etapas
+            </TabsTrigger>
             <TabsTrigger value="prompt">Prompt Gerado</TabsTrigger>
           </TabsList>
+
+          {/* Steps Tab */}
+          <TabsContent value="steps">
+            {consultingClient && Array.isArray(consultingClient.fragmented_prompts) ? (
+              <ClientStepsViewer steps={consultingClient.fragmented_prompts as ClientStep[]} />
+            ) : (
+              <Card>
+                <CardContent className="py-8 text-center">
+                  <p className="text-muted-foreground">
+                    As etapas ainda não foram disponibilizadas para você.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
 
           {/* Documents Tab */}
           <TabsContent value="documents">
