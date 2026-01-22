@@ -113,14 +113,17 @@ export function ClientFormResponses({ clientId }: ClientFormResponsesProps) {
     fetchClientData();
   }, [clientId]);
 
-  const fetchLatestDiagnosticFormDataByEmail = async (email: string) => {
+  const fetchLatestDiagnosticFormData = async (params: { email: string; consultantId: string }) => {
     // The diagnostic answers are persisted in diagnostic_form_progress.form_data.
     // In some cases, consulting_clients columns are not fully synced.
     try {
       const { data: profile } = await supabase
         .from("client_profiles")
         .select("user_id")
-        .eq("email", email)
+        .eq("email", params.email)
+        // Disambiguate in case there are multiple client_profiles with same email
+        // (e.g., duplicates across consultants).
+        .eq("consultant_id", params.consultantId)
         .maybeSingle();
 
       const clientUserId = profile?.user_id;
@@ -130,6 +133,7 @@ export function ClientFormResponses({ clientId }: ClientFormResponsesProps) {
         .from("diagnostic_form_progress")
         .select("form_data, updated_at, is_completed")
         .eq("client_user_id", clientUserId)
+        .eq("consultant_id", params.consultantId)
         .order("updated_at", { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -153,7 +157,7 @@ export function ClientFormResponses({ clientId }: ClientFormResponsesProps) {
 
       if (data) {
         // Fallback/merge from diagnostic_form_progress (source of truth for the form answers)
-        const diagnostic = await fetchLatestDiagnosticFormDataByEmail(data.email);
+        const diagnostic = await fetchLatestDiagnosticFormData({ email: data.email, consultantId: data.user_id });
         const formData = (diagnostic?.form_data ?? null) as Record<string, unknown> | null;
 
         // Merge strategy:
