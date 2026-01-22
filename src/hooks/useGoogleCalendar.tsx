@@ -45,10 +45,13 @@ export function useGoogleCalendar() {
     checkConnection();
   }, [checkConnection]);
 
-  // Always use the published domain for Google OAuth to avoid redirect_uri mismatch
+  // Always use the published domain for Google OAuth to avoid redirect_uri mismatch.
+  // If the app is running on a preview URL, we still force the published URL.
   const getRedirectUri = () => {
-    const publishedDomain = 'https://advocate-ai-crm.lovable.app';
-    return `${publishedDomain}/configuracoes?google_callback=true`;
+    const publishedDomain = 'https://crmidea.lovable.app';
+    const origin = typeof window !== 'undefined' ? window.location.origin : publishedDomain;
+    const base = origin === publishedDomain ? origin : publishedDomain;
+    return `${base}/configuracoes?google_callback=true`;
   };
 
   const getAuthUrl = async () => {
