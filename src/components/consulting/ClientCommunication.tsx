@@ -145,7 +145,7 @@ export function ClientCommunication({ clientId, clientName, clientEmail, clientP
           </TabsList>
 
           <TabsContent value="whatsapp" className="space-y-4 mt-4">
-            <ClientWhatsAppComposer clientName={clientName} clientPhone={clientPhone} />
+            <ClientWhatsAppComposer clientId={clientId} clientName={clientName} clientPhone={clientPhone} />
           </TabsContent>
 
           <TabsContent value="email" className="space-y-4 mt-4">
