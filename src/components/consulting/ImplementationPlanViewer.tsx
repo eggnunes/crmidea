@@ -45,6 +45,16 @@ export function ImplementationPlanViewer({
   const [generating, setGenerating] = useState(false);
   const [copiedStep, setCopiedStep] = useState<number | null>(null);
 
+  const getReadableError = (err: unknown) => {
+    if (err instanceof Error) return err.message;
+    if (typeof err === "string") return err;
+    try {
+      return JSON.stringify(err);
+    } catch {
+      return "Erro desconhecido";
+    }
+  };
+
   useEffect(() => {
     if (existingPlan) {
       setPlan(existingPlan);
@@ -67,8 +77,7 @@ export function ImplementationPlanViewer({
       }
     } catch (error: unknown) {
       console.error("Error generating plan:", error);
-      const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
-      toast.error(`Erro ao gerar plano: ${errorMessage}`);
+      toast.error(`Erro ao gerar plano: ${getReadableError(error)}`);
     } finally {
       setGenerating(false);
     }
