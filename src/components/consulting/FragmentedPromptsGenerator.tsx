@@ -75,6 +75,76 @@ type AIGenericStep = {
   funcionalidades: string[];
 };
 
+const getDeterministicFallbackSteps = (client: ConsultingClient): AIGenericStep[] => {
+  const office = client.office_name || "o escritório";
+  return [
+    {
+      titulo: "GESTÃO DE DOCUMENTOS (BÁSICO)",
+      descricao: "Criar um módulo simples para organizar documentos e modelos do escritório.",
+      categoria: "Documentos",
+      prioridade: "alta",
+      funcionalidades: ["Biblioteca de documentos", "Upload e categorização", "Busca"],
+      prompt: `Adicione ao projeto existente da intranet do ${office} um módulo de **Documentos** (sem recriar autenticação):
+
+1) Crie uma nova rota/página "/documentos" e um item no menu lateral "Documentos".
+2) Na página, crie duas abas: "Modelos" e "Arquivos".
+3) Implemente um CRUD simples em memória (state) inicialmente para:
+   - categoria (string)
+   - título (string)
+   - descrição (string)
+   - link/arquivo (string)
+4) UI:
+   - tabela listando documentos
+   - botão "Novo documento" abrindo modal com formulário
+   - busca por texto e filtro por categoria
+5) Garanta layout responsivo e consistente com o dashboard atual.
+
+Entregue componentes reutilizáveis e deixe pronto para evoluir para persistência no backend depois.`,
+    },
+    {
+      titulo: "ATENDIMENTO E CONTATOS (BÁSICO)",
+      descricao: "Criar uma área para registrar contatos e atendimentos do escritório.",
+      categoria: "Comunicação",
+      prioridade: "media",
+      funcionalidades: ["Agenda de contatos", "Registro de atendimentos", "Status"],
+      prompt: `Adicione ao projeto existente um módulo de **Contatos & Atendimento**:
+
+1) Crie rotas/páginas:
+   - "/contatos" (lista + cadastro)
+   - "/atendimentos" (lista + registro)
+2) Estrutura inicial em state (sem backend) com:
+   - Contato: nome, email, telefone, observações
+   - Atendimento: contato vinculado, data, assunto, status (novo/em andamento/concluído), notas
+3) UI:
+   - cards/resumo no topo (quantos atendimentos por status)
+   - tabela com filtros por status e busca
+   - modal para criar/editar
+4) Garanta que o menu lateral tenha links para as novas páginas e a navegação funcione.
+
+Mantenha o design e componentes consistentes com o restante da intranet.`,
+    },
+    {
+      titulo: "ROTINAS E CHECKLISTS (BÁSICO)",
+      descricao: "Criar checklists simples para padronizar rotinas internas.",
+      categoria: "Gestão",
+      prioridade: "baixa",
+      funcionalidades: ["Checklists", "Itens concluídos", "Templates"],
+      prompt: `Adicione ao projeto existente um módulo de **Checklists** para rotinas internas:
+
+1) Crie a rota/página "/checklists".
+2) Permita criar templates de checklist (nome + lista de itens).
+3) Permita instanciar um checklist a partir de um template e marcar itens como concluídos.
+4) UI:
+   - lista de templates à esquerda e detalhes à direita (ou abas em mobile)
+   - botão "Novo template" (modal)
+   - progress bar de conclusão por checklist
+5) Persistência inicial pode ser em state/localStorage (se já existir padrão no projeto). Não altere autenticação.
+
+Deixe pronto para futura persistência no backend.`,
+    },
+  ];
+};
+
 // Category mapping for grouping
 const CATEGORY_ORDER = [
   { id: 'base', name: 'Estrutura Base', icon: '🏗️' },
@@ -174,7 +244,11 @@ export function FragmentedPromptsGenerator({ client, onUpdate }: FragmentedPromp
       // If the client didn't select any features yet, still generate a complete multi-step roadmap.
       // This avoids producing only the base prompt (common when the diagnostic was submitted with no feature selection).
       if (selectedFeatures.length === 0) {
-        const genericSteps = await generateGenericRoadmapSteps(client);
+        let genericSteps = await generateGenericRoadmapSteps(client);
+        // If AI didn't return valid JSON steps, fall back to deterministic steps so we always generate multiple etapas.
+        if (!genericSteps || genericSteps.length < 2) {
+          genericSteps = getDeterministicFallbackSteps(client);
+        }
         for (const step of genericSteps) {
           generatedEtapas.push({
             id: etapaId++,
