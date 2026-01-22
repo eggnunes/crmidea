@@ -534,9 +534,9 @@ export function AdminClientViewPage() {
         </TabsContent>
 
         {/* Form Responses Tab */}
-        <TabsContent value="responses">
-          <ClientFormResponses clientEmail={client.email} />
-        </TabsContent>
+          <TabsContent value="responses">
+            <ClientFormResponses clientId={client.id} />
+          </TabsContent>
 
         {/* Progress Tab */}
         <TabsContent value="progress">

@@ -610,8 +610,8 @@ export function ClientDashboardPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {formProgress?.is_completed ? (
-                  <ClientFormResponses clientEmail={profile.email} />
+                {formProgress?.is_completed && consultingClient ? (
+                  <ClientFormResponses clientId={consultingClient.id} />
                 ) : (
                   <div className="text-center py-8">
                     <ClipboardList className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
