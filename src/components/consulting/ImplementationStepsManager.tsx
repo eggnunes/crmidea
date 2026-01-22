@@ -69,9 +69,10 @@ const getPriorityLabel = (priority: Priority) => {
 
 const getPriorityBadgeClass = (priority: Priority) => {
   switch (priority) {
-    case 'alta': return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300';
-    case 'media': return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300';
-    case 'baixa': return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300';
+    // Use semantic tokens so the client/admin views stay readable regardless of theme.
+    case 'alta': return 'bg-destructive/15 text-destructive border border-destructive/25';
+    case 'media': return 'bg-warning/15 text-warning border border-warning/25';
+    case 'baixa': return 'bg-success/15 text-success border border-success/25';
   }
 };
 
@@ -485,16 +486,16 @@ export function ImplementationStepsManager({ clientId, clientName }: Implementat
                 value={`etapa-${etapa.id}`}
                 className={`border rounded-lg overflow-hidden ${
                   isCompleted 
-                    ? 'bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800' 
+                    ? 'bg-success/10 border-success/30' 
                     : isNextStep 
-                      ? 'bg-blue-50 dark:bg-blue-950/20 border-blue-300 dark:border-blue-700 ring-2 ring-blue-300 dark:ring-blue-600' 
+                      ? 'bg-info/10 border-info/30 ring-2 ring-info/30' 
                       : 'bg-card'
                 }`}
               >
                 <AccordionTrigger className="px-4 py-3 hover:no-underline">
                   <div className="flex items-center gap-3 flex-1 text-left">
                     {isCompleted ? (
-                      <CheckCircle2 className="w-5 h-5 text-green-600 shrink-0" />
+                      <CheckCircle2 className="w-5 h-5 text-success shrink-0" />
                     ) : (
                       <Circle className="w-5 h-5 text-muted-foreground shrink-0" />
                     )}
@@ -504,7 +505,7 @@ export function ImplementationStepsManager({ clientId, clientName }: Implementat
                           ETAPA {etapa.ordem}: {etapa.titulo}
                         </span>
                         {isNextStep && !isCompleted && (
-                          <Badge className="bg-blue-500 text-white text-xs">Próxima</Badge>
+                          <Badge className="bg-info text-info-foreground text-xs">Próxima</Badge>
                         )}
                       </div>
                       <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
@@ -585,8 +586,8 @@ export function ImplementationStepsManager({ clientId, clientName }: Implementat
 
                     {/* Alert to save project URL after step 1 */}
                     {etapa.ordem === 1 && !projectUrl && !isCompleted && (
-                      <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
-                        <p className="text-sm text-yellow-800 dark:text-yellow-200 flex items-start gap-2">
+                      <div className="p-3 bg-warning/10 rounded-lg border border-warning/25">
+                        <p className="text-sm text-warning flex items-start gap-2">
                           <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
                           <span>
                             <strong>Importante:</strong> Após concluir esta etapa, copie a URL do seu projeto 
