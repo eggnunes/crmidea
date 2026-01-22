@@ -156,19 +156,20 @@ export function ClientFormResponses({ clientId }: ClientFormResponsesProps) {
         const diagnostic = await fetchLatestDiagnosticFormDataByEmail(data.email);
         const formData = (diagnostic?.form_data ?? null) as Record<string, unknown> | null;
 
-        // Merge strategy: keep consulting_clients identifiers, but enrich missing fields from form_data
+        // Merge strategy:
+        // - Base comes from consulting_clients (identifiers & CRM fields)
+        // - Source of truth for questionnaire answers is diagnostic_form_progress.form_data
+        //   so it must overwrite overlapping keys from consulting_clients.
         const merged: any = {
-          ...formData,
           ...data,
+          ...(formData ?? {}),
+          // Always preserve identifiers/timestamps from the main record
           id: data.id,
           created_at: data.created_at,
         };
 
         // Normalize priorities typing
-        merged.feature_priorities = (merged.feature_priorities ?? data.feature_priorities ?? null) as Record<
-          number,
-          Priority
-        > | null;
+        merged.feature_priorities = (merged.feature_priorities ?? null) as Record<number, Priority> | null;
 
         setClientData(merged as ConsultingClientData);
       } else {
