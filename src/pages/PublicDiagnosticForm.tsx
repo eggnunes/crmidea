@@ -257,7 +257,9 @@ export function PublicDiagnosticForm() {
         expected_results: formData.expected_results,
         expected_results_other: formData.expected_results_other || null,
         tasks_to_automate: formData.tasks_to_automate || null,
-        status: "pending" as const,
+        // When the diagnostic is submitted (step 6), consulting has effectively started.
+        // Using in_progress avoids inconsistency where the form is completed but the client stays as pending.
+        status: "in_progress" as const,
       };
 
       // We prefer INSERT for new diagnostics, but if the client already exists (same consultant+email),

@@ -113,6 +113,20 @@ export function PendingClientApprovals() {
   const approveClient = async (client: PendingClient) => {
     setApproving(client.id);
     try {
+      // Determine consulting status based on diagnostic completion
+      let desiredConsultingStatus: 'pending' | 'in_progress' = 'pending';
+      try {
+        const { data: progress } = await supabase
+          .from('diagnostic_form_progress')
+          .select('is_completed')
+          .eq('client_user_id', client.user_id)
+          .maybeSingle();
+        if (progress?.is_completed) desiredConsultingStatus = 'in_progress';
+      } catch (e) {
+        // Non-blocking
+        console.warn('Could not fetch diagnostic progress to set status:', e);
+      }
+
       // 1. Update client_profiles to mark as approved
       const { error: updateError } = await supabase
         .from('client_profiles')
@@ -139,13 +153,30 @@ export function PendingClientApprovals() {
           office_address: 'A preencher',
           num_lawyers: 1,
           num_employees: 1,
-          status: 'pending',
+          status: desiredConsultingStatus,
         });
 
       if (insertError) {
         const code = (insertError as any)?.code;
         // 23505 = unique_violation (already exists) -> ok
-        if (code !== '23505') {
+        if (code === '23505') {
+          // If the record already exists, update status to keep it consistent with diagnostic completion
+          const { data: existingClient } = await supabase
+            .from('consulting_clients')
+            .select('id, status')
+            .eq('user_id', user?.id)
+            .eq('email', client.email)
+            .order('updated_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (existingClient?.id && existingClient.status !== desiredConsultingStatus) {
+            await supabase
+              .from('consulting_clients')
+              .update({ status: desiredConsultingStatus, updated_at: new Date().toISOString() })
+              .eq('id', existingClient.id);
+          }
+        } else {
           console.error('Error creating consulting_client:', insertError);
         }
       }
