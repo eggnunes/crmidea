@@ -336,7 +336,7 @@ serve(async (req) => {
         null // No tracking for copy
       );
 
-      await resend.emails.send({
+      const copyResp = await resend.emails.send({
         from: "Rafael Egg <contato@rafaelegg.com>",
         to: [COPY_EMAIL],
         subject: `[CÓPIA] ${scheduledEmail.subject}`,
@@ -344,8 +344,43 @@ serve(async (req) => {
       });
 
       console.log(`Copy sent to ${COPY_EMAIL}`);
+
+      // Log copy send so we can verify delivery attempts in-app
+      await supabase.from('sent_emails_log').insert({
+        user_id: userId,
+        recipient_email: COPY_EMAIL,
+        recipient_name: 'Rafael (CÓPIA)',
+        subject: `[CÓPIA] ${scheduledEmail.subject}`,
+        email_type: 'campaign_copy',
+        status: 'sent',
+        metadata: {
+          campaign_email_number: scheduledEmail.email_number,
+          scheduled_date: today,
+          html: copyHtml,
+          content: scheduledEmail.content,
+          resend: copyResp,
+        },
+      });
     } catch (copyError) {
       console.error(`Error sending copy to ${COPY_EMAIL}:`, copyError);
+
+      try {
+        await supabase.from('sent_emails_log').insert({
+          user_id: userId,
+          recipient_email: COPY_EMAIL,
+          recipient_name: 'Rafael (CÓPIA)',
+          subject: `[CÓPIA] ${scheduledEmail.subject}`,
+          email_type: 'campaign_copy',
+          status: 'failed',
+          error_message: String(copyError),
+          metadata: {
+            campaign_email_number: scheduledEmail.email_number,
+            scheduled_date: today,
+          },
+        });
+      } catch (logErr) {
+        console.error('Failed to log campaign copy failure:', logErr);
+      }
     }
 
     // Update scheduled email status
