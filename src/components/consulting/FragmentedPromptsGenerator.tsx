@@ -113,6 +113,16 @@ export function FragmentedPromptsGenerator({ client, onUpdate }: FragmentedPromp
     }
   }, [client.fragmented_prompts]);
 
+  const getReadableError = (err: unknown) => {
+    if (err instanceof Error) return err.message;
+    if (typeof err === "string") return err;
+    try {
+      return JSON.stringify(err);
+    } catch {
+      return "Erro desconhecido";
+    }
+  };
+
   const generateFragmentedPrompts = async () => {
     setGenerating(true);
     try {
@@ -200,7 +210,8 @@ export function FragmentedPromptsGenerator({ client, onUpdate }: FragmentedPromp
       onUpdate();
     } catch (error) {
       console.error("Error generating prompts:", error);
-      toast.error("Erro ao gerar etapas de implementação");
+      const message = getReadableError(error);
+      toast.error(`Erro ao gerar etapas: ${message}`);
     } finally {
       setGenerating(false);
     }
