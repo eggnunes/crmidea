@@ -229,21 +229,19 @@ Tecnologias: React, TypeScript, Tailwind CSS, shadcn/ui
 
 O prompt deve ser COMPLETO e prático, pronto para colar no Lovable.dev.`;
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt }
-        ]
-      })
+    // IMPORTANT: never call the AI gateway directly from the browser.
+    // Always go through the backend function so secrets stay server-side and CORS/auth works.
+    const { data, error } = await supabase.functions.invoke("generate-consulting-prompt", {
+      body: { systemPrompt, userPrompt },
     });
 
-    if (!response.ok) throw new Error("Erro ao gerar prompt base");
-    const data = await response.json();
-    return data.choices?.[0]?.message?.content || "";
+    if (error) {
+      // Surface backend error details for debugging.
+      const message = (error as any)?.message || "Erro ao gerar prompt base";
+      throw new Error(message);
+    }
+
+    return data?.prompt || "";
   };
 
   const generateFeaturePrompt = async (
@@ -271,21 +269,16 @@ INSTRUÇÕES:
 
 O prompt deve ser COMPLETO, prático e pronto para colar no Lovable.dev.`;
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt }
-        ]
-      })
+    const { data, error } = await supabase.functions.invoke("generate-consulting-prompt", {
+      body: { systemPrompt, userPrompt },
     });
 
-    if (!response.ok) throw new Error(`Erro ao gerar prompt para ${categoryName}`);
-    const data = await response.json();
-    return data.choices?.[0]?.message?.content || "";
+    if (error) {
+      const message = (error as any)?.message || `Erro ao gerar prompt para ${categoryName}`;
+      throw new Error(message);
+    }
+
+    return data?.prompt || "";
   };
 
   const chunkArray = <T,>(arr: T[], size: number): T[][] => {
