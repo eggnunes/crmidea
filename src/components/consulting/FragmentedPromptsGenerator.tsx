@@ -66,6 +66,15 @@ interface FragmentedPromptsGeneratorProps {
   onUpdate: () => void;
 }
 
+type AIGenericStep = {
+  titulo: string;
+  descricao: string;
+  prompt: string;
+  categoria: string;
+  prioridade: Priority;
+  funcionalidades: string[];
+};
+
 // Category mapping for grouping
 const CATEGORY_ORDER = [
   { id: 'base', name: 'Estrutura Base', icon: '🏗️' },
@@ -162,6 +171,25 @@ export function FragmentedPromptsGenerator({ client, onUpdate }: FragmentedPromp
         concluida: false
       });
 
+      // If the client didn't select any features yet, still generate a complete multi-step roadmap.
+      // This avoids producing only the base prompt (common when the diagnostic was submitted with no feature selection).
+      if (selectedFeatures.length === 0) {
+        const genericSteps = await generateGenericRoadmapSteps(client);
+        for (const step of genericSteps) {
+          generatedEtapas.push({
+            id: etapaId++,
+            titulo: step.titulo,
+            descricao: step.descricao,
+            prompt: step.prompt,
+            categoria: step.categoria,
+            prioridade: step.prioridade,
+            funcionalidades: step.funcionalidades,
+            ordem: etapaId - 1,
+            concluida: false,
+          });
+        }
+      }
+
       // Generate etapas for each priority level
       for (const priority of PRIORITY_ORDER) {
         for (const categoryInfo of CATEGORY_ORDER) {
@@ -214,6 +242,70 @@ export function FragmentedPromptsGenerator({ client, onUpdate }: FragmentedPromp
       toast.error(`Erro ao gerar etapas: ${message}`);
     } finally {
       setGenerating(false);
+    }
+  };
+
+  const generateGenericRoadmapSteps = async (client: ConsultingClient): Promise<AIGenericStep[]> => {
+    const systemPrompt = `Você é um especialista em criar prompts para o Lovable.dev.
+
+Sua tarefa: gerar um ROADMAP de implementação em ETAPAS para uma intranet de escritório de advocacia, mesmo quando o cliente ainda não escolheu funcionalidades.
+
+REGRAS:
+- Gere de 2 a 4 etapas (além da Estrutura Base, que já existe).
+- Cada etapa deve ter: titulo, descricao e um prompt completo pronto para colar no Lovable.
+- Os prompts devem assumir que a Estrutura Base já existe (não recriar autenticação).
+- Seja prático e específico (páginas, rotas, menus, componentes, estados e permissões).
+- Responda APENAS com um JSON válido no formato:
+{
+  "steps": [
+    {
+      "titulo": "...",
+      "descricao": "...",
+      "prompt": "...",
+      "categoria": "Documentos|Jurídico|Comunicação|Gestão|Segurança|Integrações|IA|Utilidades",
+      "prioridade": "alta|media|baixa",
+      "funcionalidades": ["...", "..."]
+    }
+  ]
+}`;
+
+    const userPrompt = `Contexto do cliente:
+- Escritório: ${client.office_name}
+- Advogados: ${client.num_lawyers}
+- Funcionários: ${client.num_employees}
+- Áreas de atuação: ${client.practice_areas || 'Não informado'}
+- Nível de IA: ${client.ai_familiarity_level || 'Não informado'}
+- Sistema de gestão atual: ${client.case_management_system || 'Não informado'}
+- Tarefas para automatizar: ${client.tasks_to_automate || 'Não informado'}
+- Funcionalidades personalizadas (se houver): ${client.custom_features || 'Nenhuma'}
+
+Gere as etapas sugeridas.`;
+
+    const { data, error } = await supabase.functions.invoke("generate-consulting-prompt", {
+      body: { systemPrompt, userPrompt },
+    });
+    if (error) throw error;
+
+    const text = data?.prompt || "";
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return [];
+
+    try {
+      const parsed = JSON.parse(jsonMatch[0]) as { steps?: AIGenericStep[] };
+      const steps = Array.isArray(parsed.steps) ? parsed.steps : [];
+      return steps
+        .filter(s => s?.titulo && s?.descricao && s?.prompt)
+        .slice(0, 4)
+        .map(s => ({
+          titulo: String(s.titulo),
+          descricao: String(s.descricao),
+          prompt: String(s.prompt),
+          categoria: String(s.categoria || "Utilidades"),
+          prioridade: (s.prioridade as Priority) || "media",
+          funcionalidades: Array.isArray(s.funcionalidades) ? s.funcionalidades.map(String) : [],
+        }));
+    } catch {
+      return [];
     }
   };
 

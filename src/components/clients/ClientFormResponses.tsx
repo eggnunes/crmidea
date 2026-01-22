@@ -77,7 +77,7 @@ const PRIORITY_CONFIG: Record<Priority, { label: string; emoji: string; classNam
 };
 
 interface ClientFormResponsesProps {
-  clientEmail: string;
+  clientId: string;
 }
 
 const MOTIVATIONS_MAP: Record<string, string> = {
@@ -105,21 +105,21 @@ const EXPECTED_RESULTS_MAP: Record<string, string> = {
   "organized_processes": "Processos mais organizados",
 };
 
-export function ClientFormResponses({ clientEmail }: ClientFormResponsesProps) {
+export function ClientFormResponses({ clientId }: ClientFormResponsesProps) {
   const [clientData, setClientData] = useState<ConsultingClientData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchClientData();
-  }, [clientEmail]);
+  }, [clientId]);
 
   const fetchClientData = async () => {
     try {
       const { data, error } = await supabase
         .from("consulting_clients")
         .select("*")
-        .eq("email", clientEmail)
-        .maybeSingle();
+        .eq("id", clientId)
+        .single();
 
       if (error) throw error;
       if (data) {
