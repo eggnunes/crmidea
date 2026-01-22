@@ -193,6 +193,7 @@ export function ClientDashboardPage() {
           .from("consulting_clients")
           .select("id, generated_prompt, status, created_at, implementation_plan, fragmented_prompts")
           .eq("email", profileData.email)
+          .eq("user_id", profileData.consultant_id)
           .maybeSingle();
 
         if (clientError) {
