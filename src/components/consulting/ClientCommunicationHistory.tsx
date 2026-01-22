@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { 
   Mail, 
   MessageCircle, 
@@ -72,6 +73,7 @@ export function ClientCommunicationHistory({
   const [whatsappMessages, setWhatsappMessages] = useState<WhatsAppMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [openWhatsAppMessageId, setOpenWhatsAppMessageId] = useState<string | null>(null);
 
   useEffect(() => {
     if (user || clientEmail || clientPhone) {
@@ -104,45 +106,54 @@ export function ClientCommunicationHistory({
 
       // Fetch WhatsApp messages
       if (clientPhone || isAdminView) {
-        // Normalize phone for searching
-        const normalizedPhone = clientPhone?.replace(/\D/g, '');
-        
-        let messagesQuery = supabase
-          .from("whatsapp_messages")
-          .select(`
-            id,
-            content,
-            is_from_contact,
-            status,
-            created_at,
-            conversation:whatsapp_conversations!inner(
-              contact_phone,
-              contact_name
-            )
-          `)
-          .order("created_at", { ascending: false });
+        const normalizedPhone = clientPhone?.replace(/\D/g, "");
+
+        // 1) Find conversation(s) for this phone to avoid flaky joins/filters
+        let convQuery = supabase
+          .from("whatsapp_conversations")
+          .select("id, contact_phone, contact_name")
+          .order("last_message_at", { ascending: false });
 
         if (normalizedPhone) {
-          messagesQuery = messagesQuery.ilike("whatsapp_conversations.contact_phone", `%${normalizedPhone}%`);
+          convQuery = convQuery.ilike("contact_phone", `%${normalizedPhone}%`);
         } else if (user && isAdminView) {
-          messagesQuery = messagesQuery.eq("user_id", user.id);
+          convQuery = convQuery.eq("user_id", user.id);
         }
 
-        const { data: messagesData, error: messagesError } = await messagesQuery.limit(100);
+        const { data: convs, error: convErr } = await convQuery.limit(20);
+        if (convErr) {
+          console.error("Error fetching WhatsApp conversations:", convErr);
+        }
 
-        if (messagesError) {
-          console.error("Error fetching WhatsApp messages:", messagesError);
+        const convIds = (convs || []).map((c) => c.id);
+        if (!convIds.length) {
+          setWhatsappMessages([]);
         } else {
-          const formattedMessages = (messagesData || []).map((msg: any) => ({
-            id: msg.id,
-            content: msg.content,
-            is_from_contact: msg.is_from_contact,
-            status: msg.status,
-            created_at: msg.created_at,
-            contact_phone: msg.conversation?.contact_phone || "",
-            contact_name: msg.conversation?.contact_name || null,
-          }));
-          setWhatsappMessages(formattedMessages);
+          const { data: messagesData, error: messagesError } = await supabase
+            .from("whatsapp_messages")
+            .select("id, content, is_from_contact, status, created_at, conversation_id")
+            .in("conversation_id", convIds)
+            .order("created_at", { ascending: false })
+            .limit(300);
+
+          if (messagesError) {
+            console.error("Error fetching WhatsApp messages:", messagesError);
+          } else {
+            const convById = new Map((convs || []).map((c) => [c.id, c]));
+            const formattedMessages = (messagesData || []).map((msg: any) => {
+              const conv = convById.get(msg.conversation_id);
+              return {
+                id: msg.id,
+                content: msg.content,
+                is_from_contact: msg.is_from_contact,
+                status: msg.status,
+                created_at: msg.created_at,
+                contact_phone: conv?.contact_phone || "",
+                contact_name: conv?.contact_name || null,
+              } as WhatsAppMessage;
+            });
+            setWhatsappMessages(formattedMessages);
+          }
         }
       }
     } catch (error) {
@@ -162,6 +173,11 @@ export function ClientCommunicationHistory({
     msg.content?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     msg.contact_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     msg.contact_phone?.includes(searchTerm)
+  );
+
+  const openMessage = useMemo(
+    () => filteredMessages.find((m) => m.id === openWhatsAppMessageId) || null,
+    [filteredMessages, openWhatsAppMessageId]
   );
 
   const emailStats = {
@@ -306,12 +322,14 @@ export function ClientCommunicationHistory({
               ) : (
                 <div className="space-y-3">
                   {filteredMessages.map((msg) => (
-                    <div 
-                      key={msg.id} 
-                      className={`p-3 border rounded-lg ${
-                        msg.is_from_contact 
-                          ? "bg-muted/30 border-l-4 border-l-blue-400" 
-                          : "border-l-4 border-l-green-400"
+                    <button
+                      key={msg.id}
+                      type="button"
+                      onClick={() => setOpenWhatsAppMessageId(msg.id)}
+                      className={`w-full text-left p-3 border rounded-lg hover:bg-muted/30 transition-colors ${
+                        msg.is_from_contact
+                          ? "bg-muted/30 border-l-4 border-l-primary"
+                          : "border-l-4 border-l-primary"
                       }`}
                     >
                       <div className="flex items-start justify-between gap-2">
@@ -334,11 +352,41 @@ export function ClientCommunicationHistory({
                           {format(new Date(msg.created_at), "dd/MM/yy HH:mm", { locale: ptBR })}
                         </span>
                       </div>
-                    </div>
+                    </button>
                   ))}
                 </div>
               )}
             </ScrollArea>
+
+            <Dialog open={!!openWhatsAppMessageId} onOpenChange={(open) => !open && setOpenWhatsAppMessageId(null)}>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>Mensagem do WhatsApp</DialogTitle>
+                </DialogHeader>
+                {openMessage ? (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <Badge variant="outline">
+                        {openMessage.is_from_contact ? "Recebida" : "Enviada"}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">
+                        {format(new Date(openMessage.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                      </span>
+                    </div>
+                    {openMessage.contact_name && (
+                      <p className="text-sm text-muted-foreground">
+                        <strong>Contato:</strong> {openMessage.contact_name}
+                      </p>
+                    )}
+                    <div className="border rounded-lg p-3 bg-muted/30">
+                      <p className="text-sm whitespace-pre-wrap">{openMessage.content}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Mensagem não encontrada.</p>
+                )}
+              </DialogContent>
+            </Dialog>
           </TabsContent>
         </Tabs>
       </CardContent>

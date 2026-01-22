@@ -23,9 +23,12 @@ import {
   Sparkles,
   Send,
   Square,
+  FileText,
 } from "lucide-react";
+import { ClientMessageTemplates } from "@/components/consulting/ClientMessageTemplates";
 
 interface ClientWhatsAppComposerProps {
+  clientId?: string;
   clientName: string;
   clientPhone: string;
 }
@@ -36,7 +39,20 @@ function normalizePhoneToBrazilE164(phone: string) {
   return digits.startsWith("55") ? digits : `55${digits}`;
 }
 
-export function ClientWhatsAppComposer({ clientName, clientPhone }: ClientWhatsAppComposerProps) {
+function replaceVariables(text: string, vars: { nome: string; email?: string; telefone?: string; escritorio?: string }) {
+  return (text || "")
+    .replace(/\{\{nome\}\}/g, vars.nome)
+    .replace(/\{\{email\}\}/g, vars.email || "")
+    .replace(/\{\{telefone\}\}/g, vars.telefone || "")
+    .replace(/\{\{escritorio\}\}/g, vars.escritorio || vars.nome);
+}
+
+function toDateTimeLocalValue(d: Date) {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+export function ClientWhatsAppComposer({ clientId, clientName, clientPhone }: ClientWhatsAppComposerProps) {
   const { user } = useAuth();
   const { scheduleMessage } = useScheduledMessages();
   const {
@@ -49,6 +65,7 @@ export function ClientWhatsAppComposer({ clientName, clientPhone }: ClientWhatsA
   } = useAudioRecorder();
 
   const [message, setMessage] = useState("");
+  const [templatesOpen, setTemplatesOpen] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiGenerating, setAiGenerating] = useState(false);
@@ -146,6 +163,7 @@ export function ClientWhatsAppComposer({ clientName, clientPhone }: ClientWhatsA
     try {
       const { data, error } = await supabase.functions.invoke("generate-whatsapp-draft", {
         body: {
+          clientId,
           clientName,
           clientPhone: normalizedPhone,
           description: aiPrompt,
@@ -157,6 +175,14 @@ export function ClientWhatsAppComposer({ clientName, clientPhone }: ClientWhatsA
       setMessage(String(data.message));
       toast.success("Mensagem gerada! Revise e clique em Enviar.");
       setAiOpen(false);
+
+      if (data?.suggested_at) {
+        const d = new Date(String(data.suggested_at));
+        if (!Number.isNaN(d.getTime())) {
+          setScheduleAt(toDateTimeLocalValue(d));
+          setScheduleOpen(true);
+        }
+      }
     } catch (error) {
       console.error("Error generating WhatsApp draft:", error);
       toast.error("Erro ao gerar mensagem com IA");
@@ -306,6 +332,32 @@ export function ClientWhatsAppComposer({ clientName, clientPhone }: ClientWhatsA
       />
 
       <div className="flex flex-wrap items-center gap-2">
+        <Dialog open={templatesOpen} onOpenChange={setTemplatesOpen}>
+          <DialogTrigger asChild>
+            <Button variant="outline" className="gap-2" title="Templates de WhatsApp">
+              <FileText className="w-4 h-4" />
+              Templates
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Selecionar template (WhatsApp)</DialogTitle>
+            </DialogHeader>
+            <ClientMessageTemplates
+              filterType="whatsapp"
+              onSelectTemplate={(t) => {
+                const filled = replaceVariables(t.content, {
+                  nome: clientName,
+                  telefone: clientPhone,
+                });
+                setMessage(filled);
+                setTemplatesOpen(false);
+                toast.success("Template aplicado! Agora é só clicar em Enviar.");
+              }}
+            />
+          </DialogContent>
+        </Dialog>
+
         <Dialog open={aiOpen} onOpenChange={setAiOpen}>
           <DialogTrigger asChild>
             <Button variant="outline" className="gap-2" title="Gerar mensagem com IA">
@@ -332,7 +384,7 @@ export function ClientWhatsAppComposer({ clientName, clientPhone }: ClientWhatsA
                 Gerar mensagem
               </Button>
               <p className="text-xs text-muted-foreground">
-                A IA vai gerar um rascunho curto e acolhedor. Você revisa e envia manualmente.
+                A IA gera um rascunho curto e acolhedor e pode sugerir um horário; você revisa e aprova.
               </p>
             </div>
           </DialogContent>
