@@ -802,11 +802,15 @@ O prompt deve ser COMPLETO, prático e pronto para colar no Lovable.dev.`;
                         <AccordionItem 
                           key={etapa.id} 
                           value={`etapa-${etapa.id}`}
-                          className={`border rounded-lg px-4 ${etapa.concluida ? 'bg-green-50 dark:bg-green-900/10 border-green-200 dark:border-green-800' : ''}`}
+                          className={`rounded-lg px-4 bg-card border ${
+                            etapa.concluida ? 'border-success/35' : 'border-border'
+                          }`}
                         >
                           <AccordionTrigger className="hover:no-underline py-3">
                             <div className="flex items-center gap-3 flex-1 text-left">
-                              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${etapa.concluida ? 'bg-green-500 text-white' : 'bg-primary/10 text-primary'}`}>
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                                etapa.concluida ? 'bg-success text-success-foreground' : 'bg-primary/10 text-primary'
+                              }`}>
                                 {etapa.concluida ? <Check className="w-4 h-4" /> : etapa.ordem}
                               </div>
                               <div className="flex-1">
