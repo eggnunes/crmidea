@@ -60,6 +60,7 @@ import { ClientDocumentsManager } from "@/components/consulting/ClientDocumentsM
 import { ConsultingSessionsManager } from "@/components/consulting/ConsultingSessionsManager";
 import { PromptGenerator } from "@/components/consulting/PromptGenerator";
 import { ClientCommunication } from "@/components/consulting/ClientCommunication";
+import { ClientCommunicationHistory } from "@/components/consulting/ClientCommunicationHistory";
 import { ClientMessageTemplates } from "@/components/consulting/ClientMessageTemplates";
 
 interface ConsultingClient {
@@ -498,6 +499,7 @@ export function AdminClientViewPage() {
       <Tabs defaultValue="communication" className="space-y-4">
         <TabsList className="flex-wrap h-auto gap-1">
           <TabsTrigger value="communication">Comunicação</TabsTrigger>
+            <TabsTrigger value="history">Histórico</TabsTrigger>
           <TabsTrigger value="sessions">Reuniões</TabsTrigger>
           <TabsTrigger value="documents">Documentos</TabsTrigger>
           <TabsTrigger value="prompt">Prompt Gerado</TabsTrigger>
@@ -515,6 +517,15 @@ export function AdminClientViewPage() {
             clientName={client.full_name}
             clientEmail={client.email}
             clientPhone={client.phone}
+          />
+        </TabsContent>
+
+        <TabsContent value="history">
+          <ClientCommunicationHistory
+            clientEmail={client.email}
+            clientPhone={client.phone}
+            clientId={client.id}
+            isAdminView
           />
         </TabsContent>
 
