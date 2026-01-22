@@ -244,7 +244,14 @@ export function FragmentedPromptsGenerator({ client, onUpdate }: FragmentedPromp
       // If the client didn't select any features yet, still generate a complete multi-step roadmap.
       // This avoids producing only the base prompt (common when the diagnostic was submitted with no feature selection).
       if (selectedFeatures.length === 0) {
-        let genericSteps = await generateGenericRoadmapSteps(client);
+        let genericSteps: AIGenericStep[] = [];
+        try {
+          genericSteps = await generateGenericRoadmapSteps(client);
+        } catch (e) {
+          // Never fail the whole generation because the generic roadmap AI call failed.
+          console.warn("[FragmentedPromptsGenerator] generateGenericRoadmapSteps failed, using fallback:", e);
+          genericSteps = [];
+        }
         // If AI didn't return valid JSON steps, fall back to deterministic steps so we always generate multiple etapas.
         if (!genericSteps || genericSteps.length < 2) {
           genericSteps = getDeterministicFallbackSteps(client);
@@ -358,7 +365,10 @@ Gere as etapas sugeridas.`;
     const { data, error } = await supabase.functions.invoke("generate-consulting-prompt", {
       body: { systemPrompt, userPrompt },
     });
-    if (error) throw error;
+    if (error) {
+      console.warn("[FragmentedPromptsGenerator] generate-consulting-prompt error:", error);
+      return [];
+    }
 
     const text = data?.prompt || "";
     const jsonMatch = text.match(/\{[\s\S]*\}/);
