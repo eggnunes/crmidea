@@ -44,7 +44,7 @@ import { ClientProgressCharts } from "@/components/clients/ClientProgressCharts"
 import { ClientFormResponses } from "@/components/clients/ClientFormResponses";
 import { ClientDocumentsManagerReadOnly } from "@/components/consulting/ClientDocumentsManagerReadOnly";
 import { ClientCommunicationHistory } from "@/components/consulting/ClientCommunicationHistory";
-import { ClientStepsViewer, type ClientStep } from "@/components/consulting/ClientStepsViewer";
+import { ImplementationStepsManager } from "@/components/consulting/ImplementationStepsManager";
 
 
 interface ClientProfile {
@@ -592,8 +592,8 @@ export function ClientDashboardPage() {
 
           {/* Steps Tab */}
           <TabsContent value="steps">
-            {consultingClient && Array.isArray(consultingClient.fragmented_prompts) ? (
-              <ClientStepsViewer steps={consultingClient.fragmented_prompts as ClientStep[]} />
+            {consultingClient ? (
+              <ImplementationStepsManager clientId={consultingClient.id} clientName={profile.full_name} />
             ) : (
               <Card>
                 <CardContent className="py-8 text-center">
