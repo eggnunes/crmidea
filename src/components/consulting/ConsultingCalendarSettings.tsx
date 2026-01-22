@@ -1,13 +1,14 @@
-import { useState, useEffect } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Calendar, ExternalLink, Copy, Check, Loader2, Save } from "lucide-react";
+import { Calendar, ExternalLink, Copy, Check, Loader2, Save, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
+import { GoogleCalendarConnect } from "@/components/GoogleCalendarConnect";
 
 interface ConsultingSettings {
   id: string;
@@ -22,6 +23,8 @@ export function ConsultingCalendarSettings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [lastSync, setLastSync] = useState<{ synced: number; clientsProcessed?: number } | null>(null);
   
   const [formData, setFormData] = useState({
     calendar_booking_url: "",
@@ -114,6 +117,39 @@ export function ConsultingCalendarSettings() {
     }
   };
 
+  const canSync = useMemo(() => !!user?.id, [user?.id]);
+
+  const handleSyncAllFromGoogleCalendar = async () => {
+    if (!user?.id) return;
+
+    setSyncing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("sync-calendar-sessions", {
+        body: {
+          syncAll: true,
+          consultantId: user.id,
+        },
+      });
+
+      if (error) throw error;
+
+      const synced = Number(data?.synced || 0);
+      const clientsProcessed = Number(data?.clientsProcessed || 0) || undefined;
+      setLastSync({ synced, clientsProcessed });
+
+      if (synced > 0) {
+        toast.success(`Sincronização concluída: ${synced} reunião(ões) importada(s).`);
+      } else {
+        toast.message("Sincronização concluída, mas nenhum novo evento foi encontrado.");
+      }
+    } catch (err) {
+      console.error("Error syncing consulting sessions from Google Calendar:", err);
+      toast.error("Erro ao sincronizar com o Google Calendar. Conecte novamente e tente de novo.");
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   if (loading) {
     return (
       <Card>
@@ -126,6 +162,42 @@ export function ConsultingCalendarSettings() {
 
   return (
     <div className="space-y-6">
+      <GoogleCalendarConnect />
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <RefreshCw className="w-5 h-5" />
+            Importar agendamentos do Google Calendar
+          </CardTitle>
+          <CardDescription>
+            Puxe os eventos do seu Google Calendar e registre automaticamente as sessões da consultoria.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <Button
+            onClick={handleSyncAllFromGoogleCalendar}
+            disabled={!canSync || syncing}
+            variant="outline"
+            className="gap-2"
+          >
+            {syncing ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <RefreshCw className="w-4 h-4" />
+            )}
+            Sincronizar agora
+          </Button>
+
+          {lastSync && (
+            <p className="text-sm text-muted-foreground">
+              Última sincronização: {lastSync.synced} evento(s) novo(s)
+              {typeof lastSync.clientsProcessed === "number" ? ` • ${lastSync.clientsProcessed} cliente(s) verificado(s)` : ""}.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
