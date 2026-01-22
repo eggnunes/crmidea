@@ -189,11 +189,16 @@ export function ClientDashboardPage() {
         }
 
         // Fetch consulting client data (generated prompt)
+        // IMPORTANT: Some clients may have duplicated consulting_clients rows (same email/user_id).
+        // Using maybeSingle() would fail with "multiple rows" and the dashboard would look empty.
+        // We always pick the most recent record.
         const { data: clientData, error: clientError } = await supabase
           .from("consulting_clients")
           .select("id, generated_prompt, status, created_at, implementation_plan, fragmented_prompts")
           .eq("email", profileData.email)
           .eq("user_id", profileData.consultant_id)
+          .order("created_at", { ascending: false })
+          .limit(1)
           .maybeSingle();
 
         if (clientError) {
