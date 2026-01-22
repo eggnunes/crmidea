@@ -61,7 +61,6 @@ import { ConsultingSessionsManager } from "@/components/consulting/ConsultingSes
 import { PromptGenerator } from "@/components/consulting/PromptGenerator";
 import { ClientCommunication } from "@/components/consulting/ClientCommunication";
 import { ClientCommunicationHistory } from "@/components/consulting/ClientCommunicationHistory";
-import { ClientMessageTemplates } from "@/components/consulting/ClientMessageTemplates";
 
 interface ConsultingClient {
   id: string;
@@ -507,7 +506,6 @@ export function AdminClientViewPage() {
           <TabsTrigger value="progress">Progresso</TabsTrigger>
           <TabsTrigger value="badges">Conquistas</TabsTrigger>
           <TabsTrigger value="timeline">Timeline</TabsTrigger>
-          <TabsTrigger value="templates">Templates</TabsTrigger>
         </TabsList>
 
         {/* Communication Tab */}
@@ -704,10 +702,6 @@ export function AdminClientViewPage() {
           </div>
         </TabsContent>
 
-        {/* Templates Tab */}
-        <TabsContent value="templates">
-          <ClientMessageTemplates filterType="all" />
-        </TabsContent>
       </Tabs>
     </div>
   );
