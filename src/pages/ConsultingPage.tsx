@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useNavigate } from "react-router-dom";
 import { 
   Users, 
   Plus, 
@@ -30,7 +31,6 @@ import {
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ConsultingClientDialog } from "@/components/consulting/ConsultingClientDialog";
-import { ConsultingClientDetail } from "@/components/consulting/ConsultingClientDetail";
 import { QRCodeGenerator } from "@/components/diagnostic/QRCodeGenerator";
 import { ConsultingReminders } from "@/components/consulting/ConsultingReminders";
 import { ConsultingNotificationSettings } from "@/components/consulting/ConsultingNotificationSettings";
@@ -40,6 +40,7 @@ import { ConsultingEmailSystem } from "@/components/consulting/ConsultingEmailSy
 import { ConsultingWhatsAppSystem } from "@/components/consulting/ConsultingWhatsAppSystem";
 import { PendingClientApprovals } from "@/components/consulting/PendingClientApprovals";
 import { ProgressReportsDashboard } from "@/components/consulting/ProgressReportsDashboard";
+import { UpcomingMeetingsAdminPanel } from "@/components/consulting/UpcomingMeetingsAdminPanel";
 
 interface ConsultingClientBasic {
   id: string;
@@ -57,6 +58,17 @@ interface ConsultingClientBasic {
   selected_features: number[];
 }
 
+type ClientProfileLite = {
+  user_id: string;
+  email: string;
+};
+
+type FormProgressLite = {
+  client_user_id: string;
+  form_data: any;
+  is_completed: boolean;
+};
+
 const statusColors: Record<string, string> = {
   pending: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300",
   in_progress: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300",
@@ -71,11 +83,14 @@ const statusLabels: Record<string, string> = {
 
 export function ConsultingPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [clients, setClients] = useState<ConsultingClientBasic[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+
+  const [profileByEmail, setProfileByEmail] = useState<Record<string, ClientProfileLite>>({});
+  const [formByClientUserId, setFormByClientUserId] = useState<Record<string, FormProgressLite>>({});
 
   const fetchClients = async () => {
     if (!user?.id) return;
@@ -88,7 +103,39 @@ export function ConsultingPage() {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setClients(data || []);
+      const list = (data || []) as ConsultingClientBasic[];
+      setClients(list);
+
+      // Load client_profiles + diagnostic_form_progress to keep cards always updated
+      const emails = Array.from(new Set(list.map((c) => c.email).filter(Boolean)));
+      if (emails.length) {
+        const { data: profiles, error: profilesError } = await supabase
+          .from("client_profiles")
+          .select("user_id, email")
+          .eq("consultant_id", user.id)
+          .in("email", emails);
+        if (profilesError) throw profilesError;
+
+        const map: Record<string, ClientProfileLite> = {};
+        (profiles || []).forEach((p: any) => {
+          map[(p.email || "").toLowerCase()] = { user_id: p.user_id, email: p.email };
+        });
+        setProfileByEmail(map);
+
+        const userIds = Array.from(new Set((profiles || []).map((p: any) => p.user_id).filter(Boolean)));
+        if (userIds.length) {
+          const { data: progresses, error: progressError } = await supabase
+            .from("diagnostic_form_progress")
+            .select("client_user_id, form_data, is_completed")
+            .in("client_user_id", userIds);
+          if (progressError) throw progressError;
+          const fm: Record<string, FormProgressLite> = {};
+          (progresses || []).forEach((pr: any) => {
+            fm[pr.client_user_id] = pr;
+          });
+          setFormByClientUserId(fm);
+        }
+      }
     } catch (error) {
       console.error('Error fetching clients:', error);
       toast.error('Erro ao carregar clientes');
@@ -101,9 +148,27 @@ export function ConsultingPage() {
     fetchClients();
   }, [user?.id]);
 
-  const filteredClients = clients.filter(client =>
+  const mergedClients = useMemo(() => {
+    return clients.map((c) => {
+      const profile = profileByEmail[c.email?.toLowerCase()];
+      const form = profile ? formByClientUserId[profile.user_id] : undefined;
+      const formData = (form?.form_data || {}) as any;
+
+      // Source of truth for questionnaire answers is diagnostic_form_progress.form_data
+      return {
+        ...c,
+        ...(formData ?? {}),
+        id: c.id,
+        email: c.email,
+        full_name: c.full_name,
+        created_at: c.created_at,
+      } as ConsultingClientBasic;
+    });
+  }, [clients, profileByEmail, formByClientUserId]);
+
+  const filteredClients = mergedClients.filter(client =>
     client.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    client.office_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (client.office_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
     client.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -123,18 +188,6 @@ export function ConsultingPage() {
       toast.success('Link de cadastro copiado!');
     }
   };
-
-  const selectedClient = clients.find(c => c.id === selectedClientId);
-
-  if (selectedClientId && selectedClient) {
-    return (
-      <ConsultingClientDetail 
-        client={selectedClient as any} 
-        onBack={() => setSelectedClientId(null)}
-        onUpdate={fetchClients}
-      />
-    );
-  }
 
   return (
     <div className="space-y-6">
@@ -239,6 +292,9 @@ export function ConsultingPage() {
           {/* Reminders - Clients without recent meetings */}
           <ConsultingReminders />
 
+          {/* Próximas reuniões */}
+          <UpcomingMeetingsAdminPanel />
+
           {/* Form Link Card */}
           {/* QR Code Generator */}
           <QRCodeGenerator />
@@ -284,7 +340,7 @@ export function ConsultingPage() {
                 <Card 
                   key={client.id} 
                   className="cursor-pointer hover:border-primary/50 transition-colors"
-                  onClick={() => setSelectedClientId(client.id)}
+                  onClick={() => navigate(`/metodo-idea/consultoria/cliente/${client.id}`)}
                 >
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between">

@@ -178,6 +178,7 @@ export function useGoogleCalendar() {
     notes?: string;
     topics?: string[];
     next_steps?: string;
+    attendees?: string[];
   }) => {
     if (!user) return null;
 

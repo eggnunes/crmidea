@@ -1830,6 +1830,9 @@ export type Database = {
           client_id: string
           created_at: string
           duration_minutes: number | null
+          google_calendar_id: string | null
+          google_event_id: string | null
+          google_event_link: string | null
           id: string
           next_steps: string | null
           notes: string | null
@@ -1846,6 +1849,9 @@ export type Database = {
           client_id: string
           created_at?: string
           duration_minutes?: number | null
+          google_calendar_id?: string | null
+          google_event_id?: string | null
+          google_event_link?: string | null
           id?: string
           next_steps?: string | null
           notes?: string | null
@@ -1862,6 +1868,9 @@ export type Database = {
           client_id?: string
           created_at?: string
           duration_minutes?: number | null
+          google_calendar_id?: string | null
+          google_event_id?: string | null
+          google_event_link?: string | null
           id?: string
           next_steps?: string | null
           notes?: string | null
