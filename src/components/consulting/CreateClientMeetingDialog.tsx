@@ -95,7 +95,7 @@ export function CreateClientMeetingDialog({ clientId, clientName, clientEmail, o
         google_event_id: eventResp.eventId,
         google_event_link: eventResp.eventLink || null,
         google_calendar_id: calendarId,
-      });
+      } as any);
 
       if (error) throw error;
 

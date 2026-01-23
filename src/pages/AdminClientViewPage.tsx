@@ -61,6 +61,7 @@ import { ConsultingSessionsManager } from "@/components/consulting/ConsultingSes
 import { PromptGenerator } from "@/components/consulting/PromptGenerator";
 import { ClientCommunication } from "@/components/consulting/ClientCommunication";
 import { ClientCommunicationHistory } from "@/components/consulting/ClientCommunicationHistory";
+import { CreateClientMeetingDialog } from "@/components/consulting/CreateClientMeetingDialog";
 
 interface ConsultingClient {
   id: string;
@@ -322,7 +323,16 @@ export function AdminClientViewPage() {
             )}
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap justify-end">
+          <CreateClientMeetingDialog
+            clientId={client.id}
+            clientName={client.full_name}
+            clientEmail={client.email}
+            onCreated={() => {
+              // refresh sessions after creating
+              fetchClientData();
+            }}
+          />
           {getStatusBadge(client.status)}
           <Badge variant="outline">
             {differenceInDays(new Date(), new Date(client.created_at))} dias de consultoria
