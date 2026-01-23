@@ -4,6 +4,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useGoogleCalendar } from "@/hooks/useGoogleCalendar";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -36,6 +38,8 @@ type ConsultingClientLite = {
   email: string;
 };
 
+type MatchMode = "all" | "clients" | "unmatched";
+
 function safeLower(s?: string | null) {
   return (s || "").toLowerCase();
 }
@@ -55,6 +59,8 @@ export function ConsultingMeetingsOverview() {
   const [loading, setLoading] = useState(false);
   const [events, setEvents] = useState<GoogleCalendarEvent[]>([]);
   const [clients, setClients] = useState<ConsultingClientLite[]>([]);
+  const [mode, setMode] = useState<MatchMode>("all");
+  const [query, setQuery] = useState<string>("");
 
   const fetchClients = async () => {
     if (!user?.id) return;
@@ -127,23 +133,38 @@ export function ConsultingMeetingsOverview() {
     return byId;
   }, [events, clients]);
 
+  const filteredEvents = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return events.filter((ev) => {
+      const hasClient = !!matchedEvents.get(ev.id)?.client;
+      if (mode === "clients" && !hasClient) return false;
+      if (mode === "unmatched" && hasClient) return false;
+
+      if (!q) return true;
+      const clientName = matchedEvents.get(ev.id)?.client?.full_name;
+      const clientEmail = matchedEvents.get(ev.id)?.client?.email;
+      const searchable = safeLower([ev.summary, clientName, clientEmail].filter(Boolean).join(" "));
+      return searchable.includes(q);
+    });
+  }, [events, matchedEvents, mode, query]);
+
   const groupedEvents = useMemo(() => {
     const grouped: Record<string, GoogleCalendarEvent[]> = {};
-    for (const ev of events) {
+    for (const ev of filteredEvents) {
       const dateKey = (ev.start || "").split("T")[0];
       if (!grouped[dateKey]) grouped[dateKey] = [];
       grouped[dateKey].push(ev);
     }
     return grouped;
-  }, [events]);
+  }, [filteredEvents]);
 
   const matchedCount = useMemo(() => {
     let count = 0;
-    for (const ev of events) {
+    for (const ev of filteredEvents) {
       if (matchedEvents.get(ev.id)?.client) count += 1;
     }
     return count;
-  }, [events, matchedEvents]);
+  }, [filteredEvents, matchedEvents]);
 
   if (!isConnected) return null;
 
@@ -158,8 +179,8 @@ export function ConsultingMeetingsOverview() {
             </CardTitle>
             <CardDescription>
               Mostra todos os eventos (próx. 30 dias) e destaca os que batem com clientes.
-              {events.length > 0 && (
-                <span className="ml-2">({matchedCount}/{events.length} de clientes)</span>
+              {filteredEvents.length > 0 && (
+                <span className="ml-2">({matchedCount}/{filteredEvents.length} de clientes)</span>
               )}
             </CardDescription>
           </div>
@@ -175,14 +196,34 @@ export function ConsultingMeetingsOverview() {
       </CardHeader>
 
       <CardContent>
-        {loading && events.length === 0 ? (
+        <div className="flex flex-col lg:flex-row gap-3 mb-4">
+          <div className="flex-1">
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Buscar por cliente ou evento..."
+            />
+          </div>
+          <Select value={mode} onValueChange={(v) => setMode(v as MatchMode)}>
+            <SelectTrigger className="w-full lg:w-64">
+              <SelectValue placeholder="Filtro" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              <SelectItem value="clients">Somente clientes</SelectItem>
+              <SelectItem value="unmatched">Somente não associados</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {loading && filteredEvents.length === 0 ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
-        ) : events.length === 0 ? (
+        ) : filteredEvents.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
             <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
-            <p>Nenhum evento nos próximos 30 dias</p>
+            <p>Nenhum evento encontrado com os filtros atuais</p>
           </div>
         ) : (
           <ScrollArea className="h-[520px] pr-4">
