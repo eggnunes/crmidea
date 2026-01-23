@@ -106,7 +106,7 @@ serve(async (req) => {
     // Use the user ID from the verified JWT token, NOT from request body
     const authenticatedUserId = claimsData.claims.sub as string;
     
-    const { action, session, eventId, calendarId, timeMin, timeMax, maxResults } = await req.json();
+    const { action, session, eventId, calendarId, timeMin, timeMax, maxResults, includeHidden } = await req.json();
     console.log(`[google-calendar-sync] Action: ${action}, userId: ${authenticatedUserId}`);
 
     const accessToken = await getValidAccessToken(supabase, authenticatedUserId);
@@ -123,7 +123,12 @@ serve(async (req) => {
     const targetCalendarId = calendarId || 'primary';
 
     if (action === 'list-calendars') {
-      const response = await fetch('https://www.googleapis.com/calendar/v3/users/me/calendarList', {
+      // includeHidden=true é crucial para calendários de “página de agendamento/appointment schedule”,
+      // que podem ficar ocultos na lista padrão.
+      const params = new URLSearchParams();
+      if (includeHidden === true) params.set('showHidden', 'true');
+
+      const response = await fetch(`https://www.googleapis.com/calendar/v3/users/me/calendarList?${params.toString()}`, {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
 
@@ -138,6 +143,7 @@ serve(async (req) => {
           id: cal.id,
           summary: cal.summary,
           primary: cal.primary,
+          hidden: cal.hidden,
         })) || []
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

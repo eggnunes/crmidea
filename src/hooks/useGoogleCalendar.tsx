@@ -208,6 +208,8 @@ export function useGoogleCalendar() {
         body: {
           action: 'list-calendars',
           userId: user.id,
+          // Importante: páginas de agendamento (calendar.app) frequentemente ficam em calendários ocultos.
+          includeHidden: true,
         },
       });
 
