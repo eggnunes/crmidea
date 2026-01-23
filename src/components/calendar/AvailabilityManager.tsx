@@ -69,6 +69,78 @@ export function AvailabilityManager() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isConnected, selectedCalendar]);
 
+  const syncGoogleToDatabase = async (evs: GoogleCalendarEvent[]) => {
+    if (!user?.id || !selectedCalendar) return;
+
+    // Normaliza e remove eventos inválidos
+    const normalized = (evs || [])
+      .filter((e) => Boolean(e.start) && Boolean(e.end))
+      .map((e) => ({
+        start_time: new Date(e.start).toISOString(),
+        end_time: new Date(e.end).toISOString(),
+      }))
+      // remove possíveis NaN
+      .filter((e) => !Number.isNaN(new Date(e.start_time).getTime()) && !Number.isNaN(new Date(e.end_time).getTime()));
+
+    const key = (s: { start_time: string; end_time: string }) => `${s.start_time}|${s.end_time}`;
+    const desiredKeys = new Set(normalized.map(key));
+
+    // Carrega slots futuros não agendados para este calendário
+    const { data: existing, error: existingError } = await supabase
+      .from('calendar_availability' as any)
+      .select('id, start_time, end_time, is_booked')
+      .eq('user_id', user.id)
+      .eq('calendar_id', selectedCalendar)
+      .gte('start_time', new Date().toISOString());
+
+    if (existingError) {
+      console.error('Error fetching existing availability slots:', existingError);
+      return;
+    }
+
+    const existingRows = ((existing as any[]) || []).map((r) => ({
+      id: r.id as string,
+      start_time: r.start_time as string,
+      end_time: r.end_time as string,
+      is_booked: Boolean(r.is_booked),
+    }));
+
+    const existingKeys = new Set(existingRows.map((r) => key({ start_time: r.start_time, end_time: r.end_time })));
+
+    const toInsert = normalized
+      .filter((s) => !existingKeys.has(key(s)))
+      .map((s) => ({
+        user_id: user.id,
+        calendar_id: selectedCalendar,
+        start_time: s.start_time,
+        end_time: s.end_time,
+        is_booked: false,
+      }));
+
+    const toDeleteIds = existingRows
+      .filter((r) => !r.is_booked)
+      .filter((r) => !desiredKeys.has(key({ start_time: r.start_time, end_time: r.end_time })))
+      .map((r) => r.id);
+
+    if (toInsert.length) {
+      const { error: insertError } = await supabase.from('calendar_availability' as any).insert(toInsert as any);
+      if (insertError) {
+        console.error('Error inserting availability slots:', insertError);
+      }
+    }
+
+    if (toDeleteIds.length) {
+      const { error: deleteError } = await supabase
+        .from('calendar_availability' as any)
+        .delete()
+        .in('id', toDeleteIds);
+
+      if (deleteError) {
+        console.error('Error deleting stale availability slots:', deleteError);
+      }
+    }
+  };
+
   const fetchCalendars = async () => {
     try {
       const list = await listCalendars();
@@ -81,12 +153,17 @@ export function AvailabilityManager() {
           .eq('user_id', user.id)
           .maybeSingle();
 
-        if (data?.google_calendar_id) {
-          setSelectedCalendar(data.google_calendar_id);
-        } else {
-          const primary = list.find((c: CalendarOption) => c.primary);
-          setSelectedCalendar(primary?.id || list[0].id);
+        const configured = data?.google_calendar_id;
+        const configuredExists = configured ? list.some((c) => c.id === configured) : false;
+        if (configured && configuredExists) {
+          setSelectedCalendar(configured);
+          return;
         }
+
+        // Fallback: tenta achar o calendário pelo nome (ex.: "Consultoria e Mentoria Individual IDEA")
+        const byName = list.find((c) => (c.summary || '').toLowerCase().includes('consultoria') && (c.summary || '').toLowerCase().includes('mentoria'));
+        const primary = list.find((c: CalendarOption) => c.primary);
+        setSelectedCalendar(byName?.id || primary?.id || list[0].id);
       }
     } catch (error) {
       console.error('Error fetching calendars:', error);
@@ -118,10 +195,22 @@ export function AvailabilityManager() {
     if (!isConnected || !selectedCalendar) return;
     setLoadingGoogle(true);
     try {
-      const evs = (await listEvents(selectedCalendar)) as GoogleCalendarEvent[];
+      const now = new Date();
+      const timeMax = new Date(now.getTime() + 180 * 24 * 60 * 60 * 1000);
+      const evs = (await listEvents(selectedCalendar, {
+        timeMin: now.toISOString(),
+        timeMax: timeMax.toISOString(),
+        maxResults: 250,
+      })) as GoogleCalendarEvent[];
       // Como este é um calendário dedicado (Consultoria e Mentoria Individual IDEA),
       // tratamos os eventos dele como a “fonte da verdade” da disponibilidade.
-      setGoogleEvents((evs || []).filter((e) => Boolean(e.start) && Boolean(e.end)));
+      const clean = (evs || []).filter((e) => Boolean(e.start) && Boolean(e.end));
+      setGoogleEvents(clean);
+
+      // Mantém a base de horários (usada na página /agendar) sincronizada com o Google.
+      await syncGoogleToDatabase(clean);
+      // Atualiza slots locais (para refletir agendamentos na página pública)
+      fetchSlots();
     } catch (e) {
       console.error('Error fetching Google availability events:', e);
       toast.error('Erro ao carregar disponibilidade do Google Calendar');

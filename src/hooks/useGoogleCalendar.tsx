@@ -219,7 +219,14 @@ export function useGoogleCalendar() {
     }
   };
 
-  const listEvents = async (calendarId?: string) => {
+  const listEvents = async (
+    calendarId?: string,
+    options?: {
+      timeMin?: string;
+      timeMax?: string;
+      maxResults?: number;
+    }
+  ) => {
     if (!user) return [];
 
     try {
@@ -228,6 +235,9 @@ export function useGoogleCalendar() {
           action: 'list-events',
           userId: user.id,
           ...(calendarId ? { calendarId } : {}),
+          ...(options?.timeMin ? { timeMin: options.timeMin } : {}),
+          ...(options?.timeMax ? { timeMax: options.timeMax } : {}),
+          ...(typeof options?.maxResults === 'number' ? { maxResults: options.maxResults } : {}),
         },
       });
 
