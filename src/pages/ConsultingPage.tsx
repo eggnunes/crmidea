@@ -22,7 +22,6 @@ import {
   MapPin,
   Settings,
   MessageSquare,
-  ShieldCheck,
   MailCheck,
   CalendarCog,
   UserCheck,
@@ -34,13 +33,11 @@ import { ConsultingClientDialog } from "@/components/consulting/ConsultingClient
 import { QRCodeGenerator } from "@/components/diagnostic/QRCodeGenerator";
 import { ConsultingReminders } from "@/components/consulting/ConsultingReminders";
 import { ConsultingNotificationSettings } from "@/components/consulting/ConsultingNotificationSettings";
-import { ConsultingSettingsPanel } from "@/components/consulting/ConsultingSettingsPanel";
 import { ConsultingCalendarSettings } from "@/components/consulting/ConsultingCalendarSettings";
 import { ConsultingEmailSystem } from "@/components/consulting/ConsultingEmailSystem";
 import { ConsultingWhatsAppSystem } from "@/components/consulting/ConsultingWhatsAppSystem";
 import { PendingClientApprovals } from "@/components/consulting/PendingClientApprovals";
 import { ProgressReportsDashboard } from "@/components/consulting/ProgressReportsDashboard";
-import { UpcomingMeetingsAdminPanel } from "@/components/consulting/UpcomingMeetingsAdminPanel";
 
 interface ConsultingClientBasic {
   id: string;
@@ -221,10 +218,6 @@ export function ConsultingPage() {
             <UserCheck className="w-4 h-4" />
             Aprovações
           </TabsTrigger>
-          <TabsTrigger value="admin" className="gap-2">
-            <ShieldCheck className="w-4 h-4" />
-            Administração
-          </TabsTrigger>
           <TabsTrigger value="emails" className="gap-2">
             <MailCheck className="w-4 h-4" />
             E-mails
@@ -291,9 +284,6 @@ export function ConsultingPage() {
 
           {/* Reminders - Clients without recent meetings */}
           <ConsultingReminders />
-
-          {/* Próximas reuniões */}
-          <UpcomingMeetingsAdminPanel />
 
           {/* Form Link Card */}
           {/* QR Code Generator */}
@@ -396,10 +386,6 @@ export function ConsultingPage() {
 
         <TabsContent value="approvals">
           <PendingClientApprovals />
-        </TabsContent>
-
-        <TabsContent value="admin">
-          <ConsultingSettingsPanel />
         </TabsContent>
 
         <TabsContent value="emails">

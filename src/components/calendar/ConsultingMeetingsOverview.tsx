@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useGoogleCalendar } from "@/hooks/useGoogleCalendar";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -38,8 +37,6 @@ type ConsultingClientLite = {
   email: string;
 };
 
-type MatchMode = "all" | "clients" | "unmatched";
-
 function safeLower(s?: string | null) {
   return (s || "").toLowerCase();
 }
@@ -59,7 +56,6 @@ export function ConsultingMeetingsOverview() {
   const [loading, setLoading] = useState(false);
   const [events, setEvents] = useState<GoogleCalendarEvent[]>([]);
   const [clients, setClients] = useState<ConsultingClientLite[]>([]);
-  const [mode, setMode] = useState<MatchMode>("all");
   const [query, setQuery] = useState<string>("");
 
   const fetchClients = async () => {
@@ -137,8 +133,8 @@ export function ConsultingMeetingsOverview() {
     const q = query.trim().toLowerCase();
     return events.filter((ev) => {
       const hasClient = !!matchedEvents.get(ev.id)?.client;
-      if (mode === "clients" && !hasClient) return false;
-      if (mode === "unmatched" && hasClient) return false;
+      // Nesta aba, queremos SOMENTE eventos associados a clientes da consultoria.
+      if (!hasClient) return false;
 
       if (!q) return true;
       const clientName = matchedEvents.get(ev.id)?.client?.full_name;
@@ -146,7 +142,7 @@ export function ConsultingMeetingsOverview() {
       const searchable = safeLower([ev.summary, clientName, clientEmail].filter(Boolean).join(" "));
       return searchable.includes(q);
     });
-  }, [events, matchedEvents, mode, query]);
+  }, [events, matchedEvents, query]);
 
   const groupedEvents = useMemo(() => {
     const grouped: Record<string, GoogleCalendarEvent[]> = {};
@@ -178,7 +174,7 @@ export function ConsultingMeetingsOverview() {
               Agenda da Consultoria
             </CardTitle>
             <CardDescription>
-              Mostra todos os eventos (próx. 30 dias) e destaca os que batem com clientes.
+              Mostra somente eventos (próx. 30 dias) associados a clientes da consultoria.
               {filteredEvents.length > 0 && (
                 <span className="ml-2">({matchedCount}/{filteredEvents.length} de clientes)</span>
               )}
@@ -204,16 +200,6 @@ export function ConsultingMeetingsOverview() {
               placeholder="Buscar por cliente ou evento..."
             />
           </div>
-          <Select value={mode} onValueChange={(v) => setMode(v as MatchMode)}>
-            <SelectTrigger className="w-full lg:w-64">
-              <SelectValue placeholder="Filtro" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
-              <SelectItem value="clients">Somente clientes</SelectItem>
-              <SelectItem value="unmatched">Somente não associados</SelectItem>
-            </SelectContent>
-          </Select>
         </div>
 
         {loading && filteredEvents.length === 0 ? (

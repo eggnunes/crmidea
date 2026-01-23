@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Calendar, Plus, Trash2, Loader2, Clock, User } from 'lucide-react';
+import { Calendar, Plus, Trash2, Loader2, Clock, RefreshCw, User } from 'lucide-react';
 import { useGoogleCalendar } from '@/hooks/useGoogleCalendar';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -29,14 +29,25 @@ interface CalendarOption {
   primary?: boolean;
 }
 
+type GoogleCalendarEvent = {
+  id: string;
+  summary: string;
+  start: string;
+  end: string;
+  htmlLink: string;
+};
+
 export function AvailabilityManager() {
-  const { isConnected, listCalendars } = useGoogleCalendar();
+  const { isConnected, listCalendars, listEvents } = useGoogleCalendar();
   const { user } = useAuth();
   const [calendars, setCalendars] = useState<CalendarOption[]>([]);
   const [selectedCalendar, setSelectedCalendar] = useState<string>('');
   const [slots, setSlots] = useState<LocalSlot[]>([]);
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
+
+  const [googleEvents, setGoogleEvents] = useState<GoogleCalendarEvent[]>([]);
+  const [loadingGoogle, setLoadingGoogle] = useState(false);
   
   // Form states
   const [newDate, setNewDate] = useState(format(addDays(new Date(), 1), "yyyy-MM-dd'T'HH:mm"));
@@ -50,6 +61,13 @@ export function AvailabilityManager() {
       }
     }
   }, [isConnected, user]);
+
+  useEffect(() => {
+    if (!isConnected) return;
+    if (!selectedCalendar) return;
+    fetchGoogleAvailability();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isConnected, selectedCalendar]);
 
   const fetchCalendars = async () => {
     try {
@@ -95,6 +113,33 @@ export function AvailabilityManager() {
       setLoading(false);
     }
   };
+
+  const fetchGoogleAvailability = async () => {
+    if (!isConnected || !selectedCalendar) return;
+    setLoadingGoogle(true);
+    try {
+      const evs = (await listEvents(selectedCalendar)) as GoogleCalendarEvent[];
+      // Como este é um calendário dedicado (Consultoria e Mentoria Individual IDEA),
+      // tratamos os eventos dele como a “fonte da verdade” da disponibilidade.
+      setGoogleEvents((evs || []).filter((e) => Boolean(e.start) && Boolean(e.end)));
+    } catch (e) {
+      console.error('Error fetching Google availability events:', e);
+      toast.error('Erro ao carregar disponibilidade do Google Calendar');
+    } finally {
+      setLoadingGoogle(false);
+    }
+  };
+
+  const googleSlots = useMemo(() => {
+    return [...googleEvents]
+      .sort((a, b) => parseISO(a.start).getTime() - parseISO(b.start).getTime())
+      .map((ev) => ({
+        id: ev.id,
+        start_time: ev.start,
+        end_time: ev.end,
+        is_booked: false,
+      })) as LocalSlot[];
+  }, [googleEvents]);
 
   const handleCreateSlot = async () => {
     if (!user || !newDate) {
@@ -179,97 +224,122 @@ export function AvailabilityManager() {
           Gerenciar Disponibilidade
         </CardTitle>
         <CardDescription>
-          Crie horários disponíveis para seus alunos agendarem mentorias
+          {isConnected
+            ? 'Mostra a disponibilidade diretamente do seu calendário do Google selecionado.'
+            : 'Crie horários disponíveis para seus alunos agendarem mentorias'}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* Calendar Selector (optional) */}
+        {/* Calendar Selector */}
         {isConnected && calendars.length > 0 && (
           <div className="space-y-2">
-            <Label>Sincronizar com Google Calendar (opcional)</Label>
-            <Select value={selectedCalendar} onValueChange={setSelectedCalendar}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione um calendário" />
-              </SelectTrigger>
-              <SelectContent>
-                {calendars.map((cal) => (
-                  <SelectItem key={cal.id} value={cal.id}>
-                    {cal.summary} {cal.primary && '(Principal)'}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label>Calendário de disponibilidade</Label>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <div className="flex-1">
+                <Select value={selectedCalendar} onValueChange={setSelectedCalendar}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione um calendário" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {calendars.map((cal) => (
+                      <SelectItem key={cal.id} value={cal.id}>
+                        {cal.summary} {cal.primary && '(Principal)'}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button
+                variant="outline"
+                onClick={fetchGoogleAvailability}
+                disabled={loadingGoogle || !selectedCalendar}
+              >
+                {loadingGoogle ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
           </div>
         )}
 
-        {/* Create New Slot */}
-        <div className="p-4 rounded-lg border bg-muted/30 space-y-4">
-          <h4 className="font-medium">Adicionar Novo Horário</h4>
-          
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="slot-date">Data e Hora</Label>
-              <Input
-                id="slot-date"
-                type="datetime-local"
-                value={newDate}
-                onChange={(e) => setNewDate(e.target.value)}
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="slot-duration">Duração</Label>
-              <Select value={duration} onValueChange={setDuration}>
-                <SelectTrigger id="slot-duration">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="30">30 minutos</SelectItem>
-                  <SelectItem value="45">45 minutos</SelectItem>
-                  <SelectItem value="60">1 hora</SelectItem>
-                  <SelectItem value="90">1h30min</SelectItem>
-                  <SelectItem value="120">2 horas</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+        {/* Create New Slot (fallback when not connected) */}
+        {!isConnected && (
+          <div className="p-4 rounded-lg border bg-muted/30 space-y-4">
+            <h4 className="font-medium">Adicionar Novo Horário</h4>
 
-          <Button onClick={handleCreateSlot} disabled={creating} className="w-full">
-            {creating ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Criando...
-              </>
-            ) : (
-              <>
-                <Plus className="h-4 w-4 mr-2" />
-                Adicionar Horário
-              </>
-            )}
-          </Button>
-        </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="slot-date">Data e Hora</Label>
+                <Input
+                  id="slot-date"
+                  type="datetime-local"
+                  value={newDate}
+                  onChange={(e) => setNewDate(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="slot-duration">Duração</Label>
+                <Select value={duration} onValueChange={setDuration}>
+                  <SelectTrigger id="slot-duration">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="30">30 minutos</SelectItem>
+                    <SelectItem value="45">45 minutos</SelectItem>
+                    <SelectItem value="60">1 hora</SelectItem>
+                    <SelectItem value="90">1h30min</SelectItem>
+                    <SelectItem value="120">2 horas</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <Button onClick={handleCreateSlot} disabled={creating} className="w-full">
+              {creating ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Criando...
+                </>
+              ) : (
+                <>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Adicionar Horário
+                </>
+              )}
+            </Button>
+          </div>
+        )}
 
         {/* Available Slots List */}
         <div className="space-y-3">
           <h4 className="font-medium flex items-center justify-between">
-            Horários Cadastrados
-            <Badge variant="secondary">{slots.length}</Badge>
+            {isConnected ? 'Horários no Google Calendar' : 'Horários Cadastrados'}
+            <Badge variant="secondary">{isConnected ? googleSlots.length : slots.length}</Badge>
           </h4>
 
-          {loading ? (
+          {(isConnected ? loadingGoogle : loading) ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
-          ) : slots.length === 0 ? (
+          ) : (isConnected ? googleSlots.length === 0 : slots.length === 0) ? (
             <div className="text-center py-8 text-muted-foreground border rounded-lg">
               <Calendar className="h-10 w-10 mx-auto mb-3 opacity-50" />
-              <p className="text-sm">Nenhum horário cadastrado</p>
-              <p className="text-xs mt-1">Adicione horários para seus alunos poderem agendar</p>
+              <p className="text-sm">
+                {isConnected ? 'Nenhum horário encontrado neste calendário' : 'Nenhum horário cadastrado'}
+              </p>
+              <p className="text-xs mt-1">
+                {isConnected
+                  ? 'Selecione o calendário correto (ex.: Consultoria e Mentoria Individual IDEA)'
+                  : 'Adicione horários para seus alunos poderem agendar'}
+              </p>
             </div>
           ) : (
             <ScrollArea className="h-[300px]">
               <div className="space-y-2 pr-4">
-                {slots.map((slot) => (
+                {(isConnected ? googleSlots : slots).map((slot) => (
                   <div
                     key={slot.id}
                     className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${
@@ -298,14 +368,16 @@ export function AvailabilityManager() {
                       ) : (
                         <>
                           <Badge variant="outline">Disponível</Badge>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-destructive hover:text-destructive"
-                            onClick={() => handleDeleteSlot(slot.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          {!isConnected && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-destructive hover:text-destructive"
+                              onClick={() => handleDeleteSlot(slot.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
                         </>
                       )}
                     </div>
