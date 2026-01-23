@@ -556,30 +556,45 @@ export function ClientDiagnosticForm() {
       }
 
       // Award "Primeiro Passo" badge (diagnostic_complete)
-      const { data: firstStepBadge } = await supabase
-        .from("client_badges")
-        .select("id")
-        .eq("requirement_type", "diagnostic_complete")
-        .maybeSingle();
-
-      if (firstStepBadge) {
-        // Check if badge already earned
-        const { data: existingBadge } = await supabase
-          .from("client_earned_badges")
+      // IMPORTANT: badge awarding must never block diagnostic submission.
+      // Some environments may have stricter RLS on client_earned_badges.
+      try {
+        const { data: firstStepBadge, error: firstStepBadgeError } = await supabase
+          .from("client_badges")
           .select("id")
-          .eq("client_id", clientId)
-          .eq("badge_id", firstStepBadge.id)
+          .eq("requirement_type", "diagnostic_complete")
           .maybeSingle();
 
-        if (!existingBadge) {
-          await supabase
+        if (firstStepBadgeError) {
+          console.warn("[ClientDiagnosticForm] Could not read client_badges:", firstStepBadgeError);
+        } else if (firstStepBadge?.id) {
+          // Check if badge already earned
+          const { data: existingBadge, error: existingBadgeError } = await supabase
             .from("client_earned_badges")
-            .insert({
-              client_id: clientId,
-              badge_id: firstStepBadge.id,
-            });
-          console.log("Badge 'Primeiro Passo' awarded to client");
+            .select("id")
+            .eq("client_id", clientId)
+            .eq("badge_id", firstStepBadge.id)
+            .maybeSingle();
+
+          if (existingBadgeError) {
+            console.warn("[ClientDiagnosticForm] Could not read client_earned_badges:", existingBadgeError);
+          } else if (!existingBadge) {
+            const { error: insertBadgeError } = await supabase
+              .from("client_earned_badges")
+              .insert({
+                client_id: clientId,
+                badge_id: firstStepBadge.id,
+              });
+
+            if (insertBadgeError) {
+              console.warn("[ClientDiagnosticForm] Could not award badge:", insertBadgeError);
+            } else {
+              console.log("Badge 'Primeiro Passo' awarded to client");
+            }
+          }
         }
+      } catch (badgeError) {
+        console.warn("[ClientDiagnosticForm] Badge awarding failed (ignored):", badgeError);
       }
 
       // Add timeline event
