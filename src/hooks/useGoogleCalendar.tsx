@@ -219,7 +219,7 @@ export function useGoogleCalendar() {
     }
   };
 
-  const listEvents = async () => {
+  const listEvents = async (calendarId?: string) => {
     if (!user) return [];
 
     try {
@@ -227,6 +227,7 @@ export function useGoogleCalendar() {
         body: {
           action: 'list-events',
           userId: user.id,
+          ...(calendarId ? { calendarId } : {}),
         },
       });
 
