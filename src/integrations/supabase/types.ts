@@ -633,6 +633,7 @@ export type Database = {
       }
       booking_page_settings: {
         Row: {
+          calendar_app_url: string | null
           created_at: string
           description: string | null
           id: string
@@ -641,6 +642,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          calendar_app_url?: string | null
           created_at?: string
           description?: string | null
           id?: string
@@ -649,6 +651,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          calendar_app_url?: string | null
           created_at?: string
           description?: string | null
           id?: string
