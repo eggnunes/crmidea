@@ -303,6 +303,14 @@ serve(async (req) => {
         events: data.items?.map((event: any) => ({
           id: event.id,
           summary: event.summary,
+          description: event.description,
+          attendees: (event.attendees || []).map((a: any) => ({
+            email: a.email,
+            displayName: a.displayName,
+            responseStatus: a.responseStatus,
+            organizer: a.organizer,
+            self: a.self,
+          })),
           start: event.start?.dateTime || event.start?.date,
           end: event.end?.dateTime || event.end?.date,
           htmlLink: event.htmlLink,

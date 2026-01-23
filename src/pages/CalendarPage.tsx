@@ -7,7 +7,8 @@ import {
   CalendarSelector,
   AvailabilityManager,
   BookingPageSettings,
-  BookingReminderTemplates
+  BookingReminderTemplates,
+  ConsultingMeetingsOverview
 } from "@/components/calendar";
 import { useGoogleCalendar } from "@/hooks/useGoogleCalendar";
 import { useAuth } from "@/hooks/useAuth";
@@ -52,6 +53,10 @@ export function CalendarPage() {
               <Calendar className="w-4 h-4" />
               Eventos
             </TabsTrigger>
+            <TabsTrigger value="consultoria" className="flex items-center gap-2">
+              <CalendarPlus className="w-4 h-4" />
+              Consultoria
+            </TabsTrigger>
             <TabsTrigger value="disponibilidade" className="flex items-center gap-2">
               <Clock className="w-4 h-4" />
               Disponibilidade
@@ -72,6 +77,10 @@ export function CalendarPage() {
 
           <TabsContent value="eventos">
             <GoogleCalendarEvents />
+          </TabsContent>
+
+          <TabsContent value="consultoria">
+            <ConsultingMeetingsOverview />
           </TabsContent>
 
           <TabsContent value="disponibilidade">
