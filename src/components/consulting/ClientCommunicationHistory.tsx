@@ -81,7 +81,7 @@ export function ClientCommunicationHistory({
   const [openEmailId, setOpenEmailId] = useState<string | null>(null);
   const [syncingWhatsApp, setSyncingWhatsApp] = useState(false);
   const [autoSyncPrompted, setAutoSyncPrompted] = useState(false);
-  const [emailViewMode, setEmailViewMode] = useState<"text" | "html">("text");
+  const [emailViewMode, setEmailViewMode] = useState<"text" | "html" | "gmail">("text");
 
   useEffect(() => {
     if (user || clientEmail || clientPhone) {
@@ -197,6 +197,30 @@ export function ClientCommunicationHistory({
     () => filteredEmails.find((e) => e.id === openEmailId) || null,
     [filteredEmails, openEmailId]
   );
+
+  const gmailEmailSrcDoc = useMemo(() => {
+    if (!openEmail?.metadata?.html) return "";
+
+    // Sanitize first, then render inside an iframe via srcDoc for better isolation/fidelity.
+    // Add <base target="_blank"> so links behave like Gmail (open in new tab).
+    const sanitized = DOMPurify.sanitize(String(openEmail.metadata.html), { ADD_ATTR: ["target", "rel"] });
+
+    return `<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <base target="_blank" />
+    <style>
+      /* Lightweight reset for closer email-client behavior */
+      html, body { height: 100%; }
+      body { margin: 0; padding: 0; background: #ffffff; }
+      img { max-width: 100%; height: auto; }
+    </style>
+  </head>
+  <body>${sanitized}</body>
+</html>`;
+  }, [openEmail?.id, openEmail?.metadata?.html]);
 
   const syncWhatsAppForClient = async () => {
     if (!clientPhone) return;
@@ -401,6 +425,14 @@ export function ClientCommunicationHistory({
                         >
                           HTML
                         </Button>
+                        <Button
+                          size="sm"
+                          variant={emailViewMode === "gmail" ? "default" : "outline"}
+                          onClick={() => setEmailViewMode("gmail")}
+                          disabled={!openEmail.metadata?.html}
+                        >
+                          Gmail
+                        </Button>
                       </div>
                       <Button
                         size="sm"
@@ -416,7 +448,17 @@ export function ClientCommunicationHistory({
                       </Button>
                     </div>
 
-                    {emailViewMode === "html" && openEmail.metadata?.html ? (
+                    {emailViewMode === "gmail" && openEmail.metadata?.html ? (
+                      <div className="border rounded-lg overflow-hidden bg-background">
+                        <iframe
+                          title={`Pré-visualização Gmail: ${openEmail.subject}`}
+                          className="w-full h-[60vh] bg-background"
+                          sandbox="allow-popups allow-popups-to-escape-sandbox allow-same-origin"
+                          referrerPolicy="no-referrer"
+                          srcDoc={gmailEmailSrcDoc}
+                        />
+                      </div>
+                    ) : emailViewMode === "html" && openEmail.metadata?.html ? (
                       <div
                         className="border rounded-lg p-3 bg-muted/30 prose prose-sm max-w-none"
                         dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(String(openEmail.metadata.html)) }}
