@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Calendar, Plus, Trash2, Loader2, Clock, RefreshCw, User } from 'lucide-react';
+import { Calendar, Plus, Trash2, Loader2, Clock, RefreshCw, User, Link2 } from 'lucide-react';
 import { useGoogleCalendar } from '@/hooks/useGoogleCalendar';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -27,6 +27,7 @@ interface CalendarOption {
   id: string;
   summary: string;
   primary?: boolean;
+  hidden?: boolean;
 }
 
 type GoogleCalendarEvent = {
@@ -46,6 +47,10 @@ export function AvailabilityManager() {
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
 
+  const [calendarAppUrl, setCalendarAppUrl] = useState<string>('');
+  const [savingCalendarAppUrl, setSavingCalendarAppUrl] = useState(false);
+  const [syncingCalendarApp, setSyncingCalendarApp] = useState(false);
+
   const [googleEvents, setGoogleEvents] = useState<GoogleCalendarEvent[]>([]);
   const [loadingGoogle, setLoadingGoogle] = useState(false);
   
@@ -59,15 +64,96 @@ export function AvailabilityManager() {
       if (isConnected) {
         fetchCalendars();
       }
+      fetchBookingSettings();
     }
   }, [isConnected, user]);
 
   useEffect(() => {
     if (!isConnected) return;
     if (!selectedCalendar) return;
+
+    // Fonte calendar.app: sincroniza via scraper e mostra slots do banco
+    if (selectedCalendar === 'calendarapp') {
+      if (calendarAppUrl) {
+        void syncFromCalendarApp();
+      }
+      void fetchSlots('calendarapp');
+      return;
+    }
+
+    // Fonte Google Calendar: mostra eventos do calendário selecionado
     fetchGoogleAvailability();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isConnected, selectedCalendar]);
+
+  const fetchBookingSettings = async () => {
+    if (!user?.id) return;
+    try {
+      const { data, error } = await supabase
+        .from('booking_page_settings' as any)
+        .select('calendar_app_url')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (error) throw error;
+      const url = (data as any)?.calendar_app_url as string | null | undefined;
+      if (url) setCalendarAppUrl(url);
+    } catch (e) {
+      console.error('Error fetching booking settings:', e);
+    }
+  };
+
+  const saveCalendarAppUrl = async () => {
+    if (!user?.id) return;
+    const url = (calendarAppUrl || '').trim();
+    if (!url) {
+      toast.error('Cole o link da página (calendar.app)');
+      return;
+    }
+    setSavingCalendarAppUrl(true);
+    try {
+      const { error } = await supabase
+        .from('booking_page_settings' as any)
+        .upsert({
+          user_id: user.id,
+          calendar_app_url: url,
+        } as any, { onConflict: 'user_id' as any });
+      if (error) throw error;
+      toast.success('Link salvo');
+      // Garante que a opção apareça no seletor
+      await fetchCalendars();
+    } catch (e) {
+      console.error('Error saving calendar app url:', e);
+      toast.error('Erro ao salvar link');
+    } finally {
+      setSavingCalendarAppUrl(false);
+    }
+  };
+
+  const syncFromCalendarApp = async () => {
+    if (!user?.id) return;
+    const url = (calendarAppUrl || '').trim();
+    if (!url) {
+      toast.error('Cole o link da página (calendar.app)');
+      return;
+    }
+    setSyncingCalendarApp(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('sync-calendarapp-availability', {
+        body: {
+          url,
+          timezone: 'America/Sao_Paulo',
+        },
+      });
+      if (error) throw error;
+      toast.success(`Disponibilidade sincronizada (${data?.inserted ?? 0} novos)`);
+      await fetchSlots('calendarapp');
+    } catch (e) {
+      console.error('Error syncing from calendar.app:', e);
+      toast.error('Não foi possível sincronizar pelo link (calendar.app)');
+    } finally {
+      setSyncingCalendarApp(false);
+    }
+  };
 
   const syncGoogleToDatabase = async (evs: GoogleCalendarEvent[]) => {
     if (!user?.id || !selectedCalendar) return;
@@ -144,9 +230,17 @@ export function AvailabilityManager() {
   const fetchCalendars = async () => {
     try {
       const list = await listCalendars();
-      setCalendars(list);
+      // Adiciona a fonte "calendar.app" como opção fixa no seletor
+      const withCalendarApp: CalendarOption[] = [
+        {
+          id: 'calendarapp',
+          summary: 'Página de agendamento (calendar.app)',
+        },
+        ...(list || []),
+      ];
+      setCalendars(withCalendarApp);
       
-      if (user && list.length > 0) {
+      if (user && withCalendarApp.length > 0) {
         const { data } = await supabase
           .from('ai_assistant_config')
           .select('google_calendar_id')
@@ -154,33 +248,40 @@ export function AvailabilityManager() {
           .maybeSingle();
 
         const configured = data?.google_calendar_id;
-        const configuredExists = configured ? list.some((c) => c.id === configured) : false;
+        const configuredExists = configured ? withCalendarApp.some((c) => c.id === configured) : false;
         if (configured && configuredExists) {
           setSelectedCalendar(configured);
           return;
         }
 
         // Fallback: tenta achar o calendário pelo nome (ex.: "Consultoria e Mentoria Individual IDEA")
-        const byName = list.find((c) => (c.summary || '').toLowerCase().includes('consultoria') && (c.summary || '').toLowerCase().includes('mentoria'));
-        const primary = list.find((c: CalendarOption) => c.primary);
-        setSelectedCalendar(byName?.id || primary?.id || list[0].id);
+        const byName = withCalendarApp.find((c) => (c.summary || '').toLowerCase().includes('consultoria') && (c.summary || '').toLowerCase().includes('mentoria'));
+        const primary = withCalendarApp.find((c: CalendarOption) => c.primary);
+        setSelectedCalendar(byName?.id || primary?.id || 'calendarapp');
       }
     } catch (error) {
       console.error('Error fetching calendars:', error);
     }
   };
 
-  const fetchSlots = async () => {
+  const fetchSlots = async (calendarId?: string) => {
     if (!user) return;
     
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      let q = supabase
         .from('calendar_availability' as any)
         .select('*')
         .eq('user_id', user.id)
         .gte('start_time', new Date().toISOString())
         .order('start_time', { ascending: true });
+
+      // Quando o usuário escolhe uma fonte específica, filtramos por calendar_id
+      if (calendarId) {
+        q = q.eq('calendar_id', calendarId);
+      }
+
+      const { data, error } = await q;
 
       if (error) throw error;
       setSlots((data as unknown as LocalSlot[]) || []);
@@ -193,6 +294,7 @@ export function AvailabilityManager() {
 
   const fetchGoogleAvailability = async () => {
     if (!isConnected || !selectedCalendar) return;
+    if (selectedCalendar === 'calendarapp') return;
     setLoadingGoogle(true);
     try {
       const now = new Date();
@@ -210,7 +312,7 @@ export function AvailabilityManager() {
       // Mantém a base de horários (usada na página /agendar) sincronizada com o Google.
       await syncGoogleToDatabase(clean);
       // Atualiza slots locais (para refletir agendamentos na página pública)
-      fetchSlots();
+      fetchSlots(selectedCalendar);
     } catch (e) {
       console.error('Error fetching Google availability events:', e);
       toast.error('Erro ao carregar disponibilidade do Google Calendar');
@@ -275,7 +377,7 @@ export function AvailabilityManager() {
       }
 
       toast.success('Horário criado com sucesso!');
-      fetchSlots();
+      fetchSlots(selectedCalendar || undefined);
       setNewDate(format(addDays(new Date(), 1), "yyyy-MM-dd'T'HH:mm"));
     } catch (error) {
       console.error('Error creating slot:', error);
@@ -338,17 +440,65 @@ export function AvailabilityManager() {
                   </SelectContent>
                 </Select>
               </div>
-              <Button
-                variant="outline"
-                onClick={fetchGoogleAvailability}
-                disabled={loadingGoogle || !selectedCalendar}
-              >
-                {loadingGoogle ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <RefreshCw className="h-4 w-4" />
-                )}
-              </Button>
+              {selectedCalendar === 'calendarapp' ? (
+                <Button
+                  variant="outline"
+                  onClick={syncFromCalendarApp}
+                  disabled={syncingCalendarApp || !calendarAppUrl}
+                >
+                  {syncingCalendarApp ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4" />
+                  )}
+                </Button>
+              ) : (
+                <Button
+                  variant="outline"
+                  onClick={fetchGoogleAvailability}
+                  disabled={loadingGoogle || !selectedCalendar}
+                >
+                  {loadingGoogle ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4" />
+                  )}
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Configuração do link calendar.app */}
+        {isConnected && selectedCalendar === 'calendarapp' && (
+          <div className="rounded-lg border bg-card p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <Link2 className="h-4 w-4 text-primary" />
+              <h4 className="font-medium">Link da página de agendamento (calendar.app)</h4>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="calendarapp-url">Cole aqui o link</Label>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Input
+                  id="calendarapp-url"
+                  placeholder="https://calendar.app.google/..."
+                  value={calendarAppUrl}
+                  onChange={(e) => setCalendarAppUrl(e.target.value)}
+                />
+                <Button onClick={saveCalendarAppUrl} disabled={savingCalendarAppUrl}>
+                  {savingCalendarAppUrl ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Salvando...
+                    </>
+                  ) : (
+                    'Salvar'
+                  )}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Observação: esta sincronização depende do conteúdo público do link (pode variar se o Google mudar a página).
+              </p>
             </div>
           </div>
         )}
@@ -405,35 +555,50 @@ export function AvailabilityManager() {
         {/* Available Slots List */}
         <div className="space-y-3">
           <h4 className="font-medium flex items-center justify-between">
-            {isConnected ? 'Horários no Google Calendar' : 'Horários Cadastrados'}
-            <Badge variant="secondary">{isConnected ? googleSlots.length : slots.length}</Badge>
+            {isConnected
+              ? (selectedCalendar === 'calendarapp' ? 'Horários da página (calendar.app)' : 'Horários no Google Calendar')
+              : 'Horários Cadastrados'}
+            <Badge variant="secondary">
+              {isConnected
+                ? (selectedCalendar === 'calendarapp' ? slots.length : googleSlots.length)
+                : slots.length}
+            </Badge>
           </h4>
 
-          {(isConnected ? loadingGoogle : loading) ? (
+          {(isConnected ? (selectedCalendar === 'calendarapp' ? loading : loadingGoogle) : loading) ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
-          ) : (isConnected ? googleSlots.length === 0 : slots.length === 0) ? (
+          ) : (isConnected ? (selectedCalendar === 'calendarapp' ? slots.length === 0 : googleSlots.length === 0) : slots.length === 0) ? (
             <div className="text-center py-8 text-muted-foreground border rounded-lg">
               <Calendar className="h-10 w-10 mx-auto mb-3 opacity-50" />
               <p className="text-sm">
-                {isConnected ? 'Nenhum horário encontrado neste calendário' : 'Nenhum horário cadastrado'}
+                {isConnected
+                  ? (selectedCalendar === 'calendarapp'
+                      ? 'Nenhum horário encontrado no link (calendar.app)'
+                      : 'Nenhum horário encontrado neste calendário')
+                  : 'Nenhum horário cadastrado'}
               </p>
               <p className="text-xs mt-1">
                 {isConnected
-                  ? 'Selecione o calendário correto (ex.: Consultoria e Mentoria Individual IDEA)'
+                  ? (selectedCalendar === 'calendarapp'
+                      ? 'Cole e salve o link e clique em atualizar para sincronizar.'
+                      : 'Selecione o calendário correto (ex.: Consultoria e Mentoria Individual IDEA)')
                   : 'Adicione horários para seus alunos poderem agendar'}
               </p>
             </div>
           ) : (
             <ScrollArea className="h-[300px]">
               <div className="space-y-2 pr-4">
-                {(isConnected ? googleSlots : slots).map((slot) => (
+                {(isConnected
+                  ? (selectedCalendar === 'calendarapp' ? slots : googleSlots)
+                  : slots
+                ).map((slot) => (
                   <div
                     key={slot.id}
                     className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${
-                      slot.is_booked 
-                        ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' 
+                      slot.is_booked
+                        ? 'bg-primary/10 border-primary/20'
                         : 'bg-background hover:bg-muted/50'
                     }`}
                   >
@@ -445,7 +610,7 @@ export function AvailabilityManager() {
                         {format(parseISO(slot.start_time), "HH:mm")} - {format(parseISO(slot.end_time), "HH:mm")}
                       </p>
                       {slot.is_booked && slot.booked_by_name && (
-                        <div className="flex items-center gap-1 text-xs text-green-700 dark:text-green-400">
+                         <div className="flex items-center gap-1 text-xs text-primary">
                           <User className="h-3 w-3" />
                           <span>Agendado: {slot.booked_by_name}</span>
                         </div>
@@ -453,7 +618,7 @@ export function AvailabilityManager() {
                     </div>
                     <div className="flex items-center gap-2">
                       {slot.is_booked ? (
-                        <Badge variant="default" className="bg-green-600">Agendado</Badge>
+                        <Badge variant="default">Agendado</Badge>
                       ) : (
                         <>
                           <Badge variant="outline">Disponível</Badge>
