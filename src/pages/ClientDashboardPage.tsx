@@ -558,6 +558,10 @@ export function ClientDashboardPage() {
         <Tabs defaultValue="sessions" className="space-y-4">
           <TabsList className="flex-wrap h-auto gap-1">
             <TabsTrigger value="sessions">Reuniões</TabsTrigger>
+            <TabsTrigger value="booking" className="gap-2">
+              <Calendar className="w-4 h-4" />
+              Agendar
+            </TabsTrigger>
             <TabsTrigger value="documents" className="gap-2">
               <FolderOpen className="w-4 h-4" />
               Documentos
@@ -589,6 +593,30 @@ export function ClientDashboardPage() {
             </TabsTrigger>
             <TabsTrigger value="prompt">Prompt Gerado</TabsTrigger>
           </TabsList>
+
+          {/* Booking Tab */}
+          <TabsContent value="booking">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Calendar className="w-5 h-5" />
+                  Agendar uma sessão
+                </CardTitle>
+                <CardDescription>
+                  Selecione um horário disponível e confirme seu agendamento.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="rounded-lg border overflow-hidden">
+                  <iframe
+                    title="Agendamento"
+                    src={`/agendar/${profile.consultant_id}`}
+                    className="w-full h-[900px]"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
           {/* Steps Tab */}
           <TabsContent value="steps">

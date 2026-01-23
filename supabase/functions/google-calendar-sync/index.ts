@@ -106,7 +106,7 @@ serve(async (req) => {
     // Use the user ID from the verified JWT token, NOT from request body
     const authenticatedUserId = claimsData.claims.sub as string;
     
-    const { action, session, eventId, calendarId } = await req.json();
+    const { action, session, eventId, calendarId, timeMin, timeMax, maxResults } = await req.json();
     console.log(`[google-calendar-sync] Action: ${action}, userId: ${authenticatedUserId}`);
 
     const accessToken = await getValidAccessToken(supabase, authenticatedUserId);
@@ -290,14 +290,22 @@ serve(async (req) => {
 
     if (action === 'list-events') {
       const now = new Date();
-      const oneMonthFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+      const defaultTimeMin = now.toISOString();
+      const defaultTimeMax = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
+
+      const safeTimeMin = typeof timeMin === 'string' && timeMin ? timeMin : defaultTimeMin;
+      const safeTimeMax = typeof timeMax === 'string' && timeMax ? timeMax : defaultTimeMax;
+      const safeMaxResults =
+        typeof maxResults === 'number' && Number.isFinite(maxResults)
+          ? String(Math.min(Math.max(Math.floor(maxResults), 1), 250))
+          : '50';
 
       const params = new URLSearchParams({
-        timeMin: now.toISOString(),
-        timeMax: oneMonthFromNow.toISOString(),
+        timeMin: safeTimeMin,
+        timeMax: safeTimeMax,
         singleEvents: 'true',
         orderBy: 'startTime',
-        maxResults: '50',
+        maxResults: safeMaxResults,
       });
 
       const response = await fetch(
