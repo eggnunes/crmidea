@@ -149,6 +149,12 @@ serve(async (req) => {
       const startDate = new Date(session.session_date);
       const endDate = new Date(startDate.getTime() + (session.duration_minutes || 60) * 60 * 1000);
 
+      const attendees = Array.isArray(session.attendees)
+        ? session.attendees
+            .filter((email: unknown) => typeof email === 'string' && email.includes('@'))
+            .map((email: string) => ({ email }))
+        : undefined;
+
       const event = {
         summary: session.title,
         description: [
@@ -157,6 +163,7 @@ serve(async (req) => {
           session.topics?.length ? `\nTópicos: ${session.topics.join(', ')}` : '',
           session.next_steps ? `\nPróximos passos: ${session.next_steps}` : '',
         ].filter(Boolean).join(''),
+        ...(attendees && attendees.length ? { attendees } : {}),
         start: {
           dateTime: startDate.toISOString(),
           timeZone: 'America/Sao_Paulo',
@@ -172,12 +179,19 @@ serve(async (req) => {
             { method: 'email', minutes: 60 },
           ],
         },
+        // Attempt to create a Google Meet link when possible
+        conferenceData: {
+          createRequest: {
+            requestId: crypto.randomUUID(),
+            conferenceSolutionKey: { type: 'hangoutsMeet' },
+          },
+        },
       };
 
       console.log('[google-calendar-sync] Creating event:', event.summary);
 
       const response = await fetch(
-        `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(targetCalendarId)}/events`,
+        `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(targetCalendarId)}/events?conferenceDataVersion=1`,
         {
           method: 'POST',
           headers: {
