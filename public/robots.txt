@@ -1,4 +1,27 @@
 User-agent: *
 Allow: /
+Allow: /blog
+Allow: /blog/
+Allow: /consultoria
+Allow: /bio
+Allow: /ebook
+Allow: /privacidade
+
+# Bloquear rotas administrativas e de autenticação
+Disallow: /auth
+Disallow: /metodo-idea
+Disallow: /metodo-idea/
+Disallow: /configuracoes
+Disallow: /consultoria/login
+Disallow: /consultoria/dashboard
+Disallow: /consultoria/diagnostico
+Disallow: /consultoria/editar-prioridades
+Disallow: /cadastro-cliente
+Disallow: /agendar/
+Disallow: /aiteleprompteradmin
+
+# Bloquear arquivos de sistema
+Disallow: /*.json$
+Disallow: /assets/
 
 Sitemap: https://rafaelegg.com/sitemap.xml

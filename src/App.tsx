@@ -42,6 +42,11 @@ const queryClient = new QueryClient();
 
 function RedirectGoogleCalendarCallbackToAdminCalendar() {
   const location = useLocation();
+  // Only redirect if this is an actual OAuth callback (has code parameter)
+  // Otherwise show 404 to prevent Google from seeing redirect chains
+  if (!location.search.includes('code=')) {
+    return <Navigate to="/404" replace />;
+  }
   // Preserve query params from Google OAuth (code, scope, etc.).
   return (
     <Navigate

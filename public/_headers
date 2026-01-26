@@ -7,6 +7,47 @@
   Content-Type: application/xml; charset=utf-8
   Cache-Control: public, max-age=86400
 
-/*
+/og-image.png
+  Cache-Control: public, max-age=604800
+
+# Páginas públicas - permitir indexação
+/
   X-Robots-Tag: index, follow
   X-Content-Type-Options: nosniff
+
+/consultoria
+  X-Robots-Tag: index, follow
+
+/blog
+  X-Robots-Tag: index, follow
+
+/blog/*
+  X-Robots-Tag: index, follow
+
+/bio
+  X-Robots-Tag: index, follow
+
+/ebook
+  X-Robots-Tag: index, follow
+
+/privacidade
+  X-Robots-Tag: index, follow
+
+# Bloquear indexação de rotas administrativas
+/auth
+  X-Robots-Tag: noindex, nofollow
+
+/metodo-idea/*
+  X-Robots-Tag: noindex, nofollow
+
+/configuracoes
+  X-Robots-Tag: noindex, nofollow
+
+/consultoria/login
+  X-Robots-Tag: noindex, nofollow
+
+/consultoria/dashboard
+  X-Robots-Tag: noindex, nofollow
+
+/consultoria/diagnostico
+  X-Robots-Tag: noindex, nofollow
