@@ -445,10 +445,12 @@ serve(async (req) => {
       console.log('Duplicate guard check failed (non-fatal):', e);
     }
 
-    // Check if this is a NEW conversation (no prior messages) or ONGOING
-    // IMPORTANT: don't rely on cleaned history length (cleaning can strip content).
-    const isNewConversation = (recentMessages?.length ?? 0) === 0;
-    console.log(`Conversation status: ${isNewConversation ? 'NEW' : 'ONGOING'} (${conversationHistory.length} previous messages)`);
+    // Check if this is a NEW conversation or ONGOING
+    // A conversation is NEW only if the AI has never responded before.
+    // This prevents the AI from re-introducing itself when it already sent messages.
+    const hasAIResponded = (recentMessages || []).some(msg => !msg.is_from_contact);
+    const isNewConversation = !hasAIResponded;
+    console.log(`Conversation status: ${isNewConversation ? 'NEW (AI never responded)' : 'ONGOING (AI already responded)'} (${recentMessages?.length ?? 0} total messages, hasAIResponded: ${hasAIResponded})`);
 
     // Build system prompt
     const communicationStyles: Record<string, string> = {
@@ -463,7 +465,7 @@ serve(async (req) => {
     // Dynamic introduction rule based on conversation state
     const introductionRule = isNewConversation 
       ? `- Esta é uma NOVA conversa. Você pode se apresentar brevemente UMA VEZ.`
-      : `- Esta é uma conversa EM ANDAMENTO. NUNCA se apresente novamente! Você já se apresentou. Vá direto ao ponto respondendo a pergunta do usuário.`;
+      : `- Esta é uma conversa EM ANDAMENTO. NUNCA se apresente novamente! Você já se apresentou antes nesta conversa. Vá DIRETO ao ponto respondendo a pergunta do usuário. NÃO diga "Olá, sou..." ou qualquer variação de apresentação.`;
 
     let systemPrompt = `Você é ${aiConfig.agent_name}, um assistente de IA especializado.
 
