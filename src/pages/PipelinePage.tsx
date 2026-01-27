@@ -441,7 +441,7 @@ function PipelineColumn({
   };
 
   return (
-    <div className="flex-1 min-w-[280px] max-w-[320px]">
+    <div className="w-80 flex-shrink-0">
       <div className={cn(
         "rounded-t-lg p-3 border border-b-0",
         statusHeaderColors[status.color]
@@ -756,18 +756,48 @@ export function PipelinePage() {
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
           >
-            <div className="flex gap-4 overflow-x-auto pb-4">
-              {STATUSES.map(status => (
-                <PipelineColumn
-                  key={status.id}
-                  status={status}
-                  leads={leadsByStatus[status.id] || []}
-                  totalValue={
-                    (leadsByStatus[status.id] || []).reduce((acc, l) => acc + l.value, 0)
-                  }
-                  onCardClick={handleCardClick}
-                />
-              ))}
+            {/* Container de Scroll Horizontal */}
+            <div 
+              id="kanban-scroll"
+              style={{
+                display: 'block',
+                overflowX: 'scroll',
+                overflowY: 'visible',
+                WebkitOverflowScrolling: 'touch',
+                width: 'calc(100% + 3rem)',
+                marginLeft: '-1.5rem',
+                marginRight: '-1.5rem',
+                paddingLeft: '1.5rem',
+                paddingRight: '1.5rem',
+                paddingBottom: '1.5rem',
+                minWidth: 0,
+                maxWidth: 'none',
+              }}
+            >
+              {/* Container Flex das Colunas */}
+              <div 
+                style={{
+                  display: 'flex',
+                  gap: '16px',
+                  paddingTop: '8px',
+                  paddingBottom: '8px',
+                  paddingRight: '24px',
+                  width: 'fit-content',
+                  minWidth: '100%',
+                }}
+              >
+                {STATUSES.map(status => (
+                  <PipelineColumn
+                    key={status.id}
+                    status={status}
+                    leads={leadsByStatus[status.id] || []}
+                    totalValue={
+                      (leadsByStatus[status.id] || []).reduce((acc, l) => acc + l.value, 0)
+                    }
+                    onCardClick={handleCardClick}
+                  />
+                ))}
+              </div>
             </div>
 
             <DragOverlay>
