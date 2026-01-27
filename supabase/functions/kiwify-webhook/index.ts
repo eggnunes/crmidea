@@ -488,16 +488,38 @@ Deno.serve(async (req) => {
     const userId = adminRole.user_id;
     console.log('Using admin user_id:', userId);
 
-    // Check if lead already exists by email
-    const { data: existingLead, error: findError } = await supabase
+    // Check if lead already exists by email - get the one with best status to avoid duplicates
+    // Priority order: fechado_ganho > negociacao > proposta_enviada > em_contato > qualificado > novo > fechado_perdido
+    const { data: existingLeads, error: findError } = await supabase
       .from('leads')
       .select('*')
-      .eq('email', customer.email)
-      .eq('user_id', userId)
-      .maybeSingle();
+      .eq('email', customer.email.toLowerCase().trim())
+      .eq('user_id', userId);
 
     if (findError) {
       console.error('Error finding lead:', findError);
+    }
+
+    // If multiple leads exist, pick the one with best status
+    let existingLead = null;
+    if (existingLeads && existingLeads.length > 0) {
+      const statusPriority: Record<string, number> = {
+        'fechado_ganho': 1,
+        'negociacao': 2,
+        'proposta_enviada': 3,
+        'em_contato': 4,
+        'qualificado': 5,
+        'novo': 6,
+        'fechado_perdido': 7
+      };
+      
+      existingLead = existingLeads.sort((a, b) => {
+        const priorityA = statusPriority[a.status] || 99;
+        const priorityB = statusPriority[b.status] || 99;
+        return priorityA - priorityB;
+      })[0];
+      
+      console.log('Found', existingLeads.length, 'existing leads, using best one:', existingLead.id, 'with status:', existingLead.status);
     }
 
     const newStatus = mapEventToStatus(eventType);
@@ -516,16 +538,34 @@ Deno.serve(async (req) => {
     let leadId: string;
     let leadAction: 'created' | 'updated';
 
+    // Status priority - lower number = better status (should not be downgraded)
+    const statusPriority: Record<string, number> = {
+      'fechado_ganho': 1,
+      'negociacao': 2,
+      'proposta_enviada': 3,
+      'em_contato': 4,
+      'qualificado': 5,
+      'novo': 6,
+      'fechado_perdido': 7
+    };
+
     if (existingLead) {
-      // Update existing lead
+      // Update existing lead - but DON'T downgrade status
       console.log('Updating existing lead:', existingLead.id);
+      
+      const currentPriority = statusPriority[existingLead.status] || 99;
+      const newPriority = statusPriority[newStatus] || 99;
+      
+      // Only update status if the new one is better (lower priority number)
+      const finalStatus = newPriority < currentPriority ? newStatus : existingLead.status;
+      console.log(`Status decision: current=${existingLead.status}(${currentPriority}), new=${newStatus}(${newPriority}), final=${finalStatus}`);
       
       const { error: updateError } = await supabase
         .from('leads')
         .update({
-          status: newStatus,
+          status: finalStatus,
           product: productType,
-          value: value,
+          value: value || existingLead.value, // Keep existing value if new one is null
           notes: `${existingLead.notes || ''}\n\n[Kiwify ${new Date().toISOString()}] ${eventType}: ${productName}`.trim(),
           updated_at: new Date().toISOString(),
         })
@@ -547,7 +587,7 @@ Deno.serve(async (req) => {
         .insert({
           user_id: userId,
           name: customer.full_name,
-          email: customer.email,
+          email: customer.email.toLowerCase().trim(), // Normalize email to prevent duplicates
           phone: customer.mobile || null,
           status: newStatus,
           product: productType,
