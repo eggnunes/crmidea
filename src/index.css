@@ -169,3 +169,29 @@
 ::-webkit-scrollbar-thumb:hover {
   background: hsl(222 47% 25%);
 }
+
+/* Kanban horizontal scroll styling */
+#kanban-scroll {
+  scrollbar-width: auto !important;
+  scrollbar-color: hsl(var(--primary)) hsl(var(--muted));
+}
+
+#kanban-scroll::-webkit-scrollbar {
+  height: 14px;
+  display: block !important;
+}
+
+#kanban-scroll::-webkit-scrollbar-track {
+  background: hsl(var(--muted));
+  border-radius: 7px;
+}
+
+#kanban-scroll::-webkit-scrollbar-thumb {
+  background: hsl(var(--primary));
+  border-radius: 7px;
+  border: 2px solid hsl(var(--muted));
+}
+
+#kanban-scroll::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--primary) / 0.8);
+}

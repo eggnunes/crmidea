@@ -23,11 +23,11 @@ export function AppLayout({ children }: AppLayoutProps) {
       />
       <main 
         className={cn(
-          "min-h-screen transition-all duration-300",
+          "min-h-screen transition-all duration-300 min-w-0 overflow-hidden",
           sidebarCollapsed ? "ml-16" : "ml-64"
         )}
       >
-        <div className="p-6">
+        <div className="p-6 overflow-x-hidden overflow-y-auto min-w-0">
           <div className="flex justify-end gap-2 mb-4">
             <FollowUpSettingsDialog />
             <NotificationBell />
