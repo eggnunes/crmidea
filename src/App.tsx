@@ -27,6 +27,7 @@ import AdminUsersPage from "./pages/AdminUsersPage";
 import { AdminClientViewPage } from "./pages/AdminClientViewPage";
 import { ConsultingPage } from "./pages/ConsultingPage";
 import { AuthPage } from "./pages/AuthPage";
+import { CompleteProfilePage } from "./pages/CompleteProfilePage";
 import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
 import NotFound from "./pages/NotFound";
 import { HomePage } from "./pages/HomePage";
@@ -68,6 +69,7 @@ function AppRoutes() {
       
       {/* Autenticação admin */}
       <Route path="/auth" element={<AuthPage />} />
+      <Route path="/completar-perfil" element={<CompleteProfilePage />} />
       <Route path="/privacidade" element={<PrivacyPolicyPage />} />
 
       {/* Google Calendar OAuth callback (legacy/public path) */}

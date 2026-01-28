@@ -1,12 +1,14 @@
-import { useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Separator } from '@/components/ui/separator';
 import { Loader2, Sparkles } from 'lucide-react';
+import { GoogleAuthButton } from '@/components/auth/GoogleAuthButton';
 import { z } from 'zod';
 
 const loginSchema = z.object({
@@ -22,6 +24,7 @@ const signupSchema = z.object({
 
 export function AuthPage() {
   const { user, loading: authLoading, signIn, signUp } = useAuth();
+  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -34,6 +37,21 @@ export function AuthPage() {
   const [signupEmail, setSignupEmail] = useState('');
   const [signupPassword, setSignupPassword] = useState('');
 
+  // Check if user needs to complete profile after Google login
+  useEffect(() => {
+    if (user && !authLoading) {
+      const isProfileComplete = user.user_metadata?.profile_complete === true;
+      const hasName = user.user_metadata?.name || user.user_metadata?.full_name;
+      
+      // If user logged in via Google and doesn't have profile complete flag
+      if (user.app_metadata?.provider === 'google' && !isProfileComplete) {
+        navigate('/completar-perfil', { replace: true });
+      } else if (hasName || isProfileComplete) {
+        navigate('/metodo-idea', { replace: true });
+      }
+    }
+  }, [user, authLoading, navigate]);
+
   if (authLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -43,6 +61,12 @@ export function AuthPage() {
   }
 
   if (user) {
+    const isProfileComplete = user.user_metadata?.profile_complete === true;
+    const hasName = user.user_metadata?.name || user.user_metadata?.full_name;
+    
+    if (!isProfileComplete && !hasName) {
+      return <Navigate to="/completar-perfil" replace />;
+    }
     return <Navigate to="/metodo-idea" replace />;
   }
 
@@ -116,7 +140,21 @@ export function AuthPage() {
               Entre ou crie sua conta para continuar
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-6">
+            {/* Google Auth Button */}
+            <GoogleAuthButton className="w-full" />
+            
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <Separator className="w-full" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-card px-2 text-muted-foreground">
+                  ou continue com email
+                </span>
+              </div>
+            </div>
+
             <Tabs defaultValue="login" className="w-full">
               <TabsList className="grid w-full grid-cols-2 mb-6">
                 <TabsTrigger value="login">Entrar</TabsTrigger>
