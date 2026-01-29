@@ -202,19 +202,57 @@ export function FragmentedPromptsGenerator({ client, onUpdate }: FragmentedPromp
     }
   };
 
+  /**
+   * CRITICAL FIX: Robust diagnostic form data retrieval.
+   * Uses multiple strategies to find the correct diagnostic data:
+   * 1. Direct match by email in form_data
+   * 2. Match via client_profiles.email -> user_id -> diagnostic_form_progress
+   * 3. Match via consulting_clients.email_lc lookup
+   */
   const fetchLatestDiagnosticFormDataByEmail = async (email: string) => {
-    // Diagnostic answers are persisted in diagnostic_form_progress.form_data.
-    // We use this as a source of truth when consulting_clients isn't fully synced.
+    if (!email) return null;
+    
+    const normalizedEmail = email.trim().toLowerCase();
+    console.log("[FragmentedPromptsGenerator] Fetching diagnostic data for email:", normalizedEmail);
+    
     try {
+      // Strategy 1: Try to find via client_profiles first
       const { data: profile } = await supabase
         .from("client_profiles")
         .select("user_id")
-        .eq("email", email)
+        .ilike("email", normalizedEmail)
         .maybeSingle();
 
-      const clientUserId = profile?.user_id;
-      if (!clientUserId) return null;
+      let clientUserId = profile?.user_id;
+      console.log("[FragmentedPromptsGenerator] Strategy 1 - client_profiles user_id:", clientUserId);
 
+      // Strategy 2: If not found, try to find a diagnostic_form_progress with matching email in form_data
+      if (!clientUserId) {
+        const { data: allProgress } = await supabase
+          .from("diagnostic_form_progress")
+          .select("client_user_id, form_data, updated_at, is_completed")
+          .eq("is_completed", true)
+          .order("updated_at", { ascending: false })
+          .limit(50);
+        
+        if (allProgress) {
+          for (const p of allProgress) {
+            const fd = p.form_data as any;
+            if (fd?.email && fd.email.trim().toLowerCase() === normalizedEmail) {
+              clientUserId = p.client_user_id;
+              console.log("[FragmentedPromptsGenerator] Strategy 2 - Found via form_data email match:", clientUserId);
+              break;
+            }
+          }
+        }
+      }
+
+      if (!clientUserId) {
+        console.warn("[FragmentedPromptsGenerator] Could not find client_user_id for email:", normalizedEmail);
+        return null;
+      }
+
+      // Fetch the diagnostic progress with the found client_user_id
       const { data: progress } = await supabase
         .from("diagnostic_form_progress")
         .select("form_data, updated_at, is_completed")
@@ -222,6 +260,16 @@ export function FragmentedPromptsGenerator({ client, onUpdate }: FragmentedPromp
         .order("updated_at", { ascending: false })
         .limit(1)
         .maybeSingle();
+
+      if (progress?.form_data) {
+        const fd = progress.form_data as any;
+        console.log("[FragmentedPromptsGenerator] Found diagnostic data:", {
+          office_name: fd.office_name,
+          num_lawyers: fd.num_lawyers,
+          num_employees: fd.num_employees,
+          email: fd.email,
+        });
+      }
 
       return progress || null;
     } catch (e) {
@@ -307,18 +355,40 @@ export function FragmentedPromptsGenerator({ client, onUpdate }: FragmentedPromp
   const generateFragmentedPrompts = async () => {
     setGenerating(true);
     try {
+      console.log("[FragmentedPromptsGenerator] Starting generation for client:", {
+        id: client.id,
+        email: client.email,
+        current_office: client.office_name,
+        current_lawyers: client.num_lawyers,
+        current_employees: client.num_employees,
+      });
+      
       // CRITICAL FIX: ALWAYS sync and use data from diagnostic_form_progress as the source of truth.
       // The consulting_clients table may have stale or incomplete data.
       const synced = await trySyncClientFromDiagnostic();
       const formData = synced?.formData || {};
       
+      console.log("[FragmentedPromptsGenerator] Synced formData from diagnostic:", {
+        office_name: formData.office_name,
+        num_lawyers: formData.num_lawyers,
+        num_employees: formData.num_employees,
+        practice_areas: formData.practice_areas,
+        has_data: Object.keys(formData).length > 0,
+      });
+      
       // Build an effective client object that merges diagnostic data (priority) with consulting_clients data (fallback)
       const effectiveClient: ConsultingClient = {
         ...client,
-        // Override with diagnostic data if available
-        office_name: formData.office_name || client.office_name || "Não informado",
-        num_lawyers: typeof formData.num_lawyers === 'number' ? formData.num_lawyers : (client.num_lawyers || 1),
-        num_employees: typeof formData.num_employees === 'number' ? formData.num_employees : (client.num_employees || 1),
+        // Override with diagnostic data if available - ALWAYS use diagnostic data when present
+        office_name: formData.office_name && formData.office_name !== 'Não informado' 
+          ? formData.office_name 
+          : (client.office_name || "Não informado"),
+        num_lawyers: typeof formData.num_lawyers === 'number' && formData.num_lawyers > 0 
+          ? formData.num_lawyers 
+          : (client.num_lawyers || 1),
+        num_employees: typeof formData.num_employees === 'number' && formData.num_employees > 0 
+          ? formData.num_employees 
+          : (client.num_employees || 1),
         practice_areas: formData.practice_areas || client.practice_areas,
         ai_familiarity_level: formData.ai_familiarity_level || client.ai_familiarity_level,
         case_management_system: formData.case_management_system || client.case_management_system,
@@ -328,7 +398,7 @@ export function FragmentedPromptsGenerator({ client, onUpdate }: FragmentedPromp
         logo_url: formData.logo_url || client.logo_url,
       };
       
-      console.log("[FragmentedPromptsGenerator] Using effectiveClient data:", {
+      console.log("[FragmentedPromptsGenerator] FINAL effectiveClient data for AI prompt:", {
         office_name: effectiveClient.office_name,
         num_lawyers: effectiveClient.num_lawyers,
         num_employees: effectiveClient.num_employees,
