@@ -232,7 +232,7 @@ export function FragmentedPromptsGenerator({ client, onUpdate }: FragmentedPromp
 
   const trySyncClientFromDiagnostic = async () => {
     // Best-effort sync so the admin view + generators have consistent data.
-    // We avoid overwriting existing values.
+    // CRITICAL: Always sync ALL fields from diagnostic to consulting_clients to ensure prompts use correct data.
     if (!client?.email) return null;
 
     const diagnostic = await fetchLatestDiagnosticFormDataByEmail(client.email);
@@ -244,14 +244,49 @@ export function FragmentedPromptsGenerator({ client, onUpdate }: FragmentedPromp
       ? formData.feature_priorities
       : null;
 
-    // Nothing useful to sync
-    if (!selected_features.length && !feature_priorities) return { selected_features, feature_priorities, formData };
-
     try {
-      // Only fill missing fields; do not clobber data already present on consulting_clients.
+      // ALWAYS sync ALL fields from diagnostic_form_progress to consulting_clients.
+      // The diagnostic form is the source of truth for client data.
       const patch: Record<string, unknown> = {};
-      if (!client.selected_features || client.selected_features.length === 0) patch.selected_features = selected_features;
-      if (!client.feature_priorities || Object.keys(client.feature_priorities).length === 0) patch.feature_priorities = feature_priorities;
+      
+      // Sync selected_features and feature_priorities
+      if (selected_features.length > 0) patch.selected_features = selected_features;
+      if (feature_priorities) patch.feature_priorities = feature_priorities;
+      
+      // Sync ALL other relevant fields from the diagnostic form
+      if (formData.office_name && formData.office_name !== 'Não informado') {
+        patch.office_name = formData.office_name;
+      }
+      if (typeof formData.num_lawyers === 'number' && formData.num_lawyers > 0) {
+        patch.num_lawyers = formData.num_lawyers;
+      }
+      if (typeof formData.num_employees === 'number' && formData.num_employees > 0) {
+        patch.num_employees = formData.num_employees;
+      }
+      if (formData.practice_areas) {
+        patch.practice_areas = formData.practice_areas;
+      }
+      if (formData.ai_familiarity_level) {
+        patch.ai_familiarity_level = formData.ai_familiarity_level;
+      }
+      if (formData.case_management_system) {
+        patch.case_management_system = formData.case_management_system;
+      }
+      if (formData.tasks_to_automate) {
+        patch.tasks_to_automate = formData.tasks_to_automate;
+      }
+      if (formData.custom_features) {
+        patch.custom_features = formData.custom_features;
+      }
+      if (formData.website) {
+        patch.website = formData.website;
+      }
+      if (formData.logo_url) {
+        patch.logo_url = formData.logo_url;
+      }
+      if (typeof formData.foundation_year === 'number') {
+        patch.foundation_year = formData.foundation_year;
+      }
 
       if (Object.keys(patch).length > 0) {
         const { error } = await supabase
@@ -272,31 +307,48 @@ export function FragmentedPromptsGenerator({ client, onUpdate }: FragmentedPromp
   const generateFragmentedPrompts = async () => {
     setGenerating(true);
     try {
-      // Prefer consulting_clients data, but if it isn't populated, fall back to diagnostic_form_progress.
-      // This fixes cases where the user sees “form already completed” but the admin doesn't see the answers.
-      let effectiveSelectedFeatureIds = client.selected_features || [];
-      let effectiveFeaturePriorities = (client.feature_priorities || {}) as Record<string, Priority>;
-
-      if (effectiveSelectedFeatureIds.length === 0) {
-        const synced = await trySyncClientFromDiagnostic();
-        const fromFormSelected = Array.isArray(synced?.formData?.selected_features) ? synced?.formData?.selected_features : [];
-        const fromFormPriorities = synced?.formData?.feature_priorities && typeof synced?.formData?.feature_priorities === "object"
-          ? synced?.formData?.feature_priorities
-          : null;
-
-        if (fromFormSelected.length > 0) {
-          effectiveSelectedFeatureIds = fromFormSelected;
-        }
-        if (fromFormPriorities) {
-          effectiveFeaturePriorities = fromFormPriorities as Record<string, Priority>;
-        }
-      }
+      // CRITICAL FIX: ALWAYS sync and use data from diagnostic_form_progress as the source of truth.
+      // The consulting_clients table may have stale or incomplete data.
+      const synced = await trySyncClientFromDiagnostic();
+      const formData = synced?.formData || {};
+      
+      // Build an effective client object that merges diagnostic data (priority) with consulting_clients data (fallback)
+      const effectiveClient: ConsultingClient = {
+        ...client,
+        // Override with diagnostic data if available
+        office_name: formData.office_name || client.office_name || "Não informado",
+        num_lawyers: typeof formData.num_lawyers === 'number' ? formData.num_lawyers : (client.num_lawyers || 1),
+        num_employees: typeof formData.num_employees === 'number' ? formData.num_employees : (client.num_employees || 1),
+        practice_areas: formData.practice_areas || client.practice_areas,
+        ai_familiarity_level: formData.ai_familiarity_level || client.ai_familiarity_level,
+        case_management_system: formData.case_management_system || client.case_management_system,
+        tasks_to_automate: formData.tasks_to_automate || client.tasks_to_automate,
+        custom_features: formData.custom_features || client.custom_features,
+        website: formData.website || client.website,
+        logo_url: formData.logo_url || client.logo_url,
+      };
+      
+      console.log("[FragmentedPromptsGenerator] Using effectiveClient data:", {
+        office_name: effectiveClient.office_name,
+        num_lawyers: effectiveClient.num_lawyers,
+        num_employees: effectiveClient.num_employees,
+        practice_areas: effectiveClient.practice_areas,
+      });
+      
+      // Use effective selected features and priorities from diagnostic or consulting_clients
+      const effectiveSelectedFeatureIds = (Array.isArray(formData.selected_features) && formData.selected_features.length > 0)
+        ? formData.selected_features
+        : (client.selected_features || []);
+      
+      const effectiveFeaturePriorities = (formData.feature_priorities && typeof formData.feature_priorities === "object")
+        ? formData.feature_priorities as Record<string, Priority>
+        : (client.feature_priorities || {}) as Record<string, Priority>;
 
       const selectedFeatures = (effectiveSelectedFeatureIds || [])
         .map((id: number) => CONSULTING_FEATURES.find(f => f.id === id))
         .filter(Boolean) as ConsultingFeature[];
 
-      const featurePriorities = (effectiveFeaturePriorities || {}) as Record<string, Priority>;
+      const featurePriorities = effectiveFeaturePriorities;
 
       // Group features by category and priority
       const featuresByCategory: Record<string, Record<Priority, ConsultingFeature[]>> = {};
@@ -314,8 +366,8 @@ export function FragmentedPromptsGenerator({ client, onUpdate }: FragmentedPromp
       const generatedEtapas: EtapaPrompt[] = [];
       let etapaId = 1;
 
-      // ETAPA 1 - Estrutura Base (always first)
-      const basePrompt = await generateBasePrompt(client);
+      // ETAPA 1 - Estrutura Base (always first) - USE effectiveClient with correct data
+      const basePrompt = await generateBasePrompt(effectiveClient);
       generatedEtapas.push({
         id: etapaId++,
         titulo: "ESTRUTURA BASE",
@@ -333,7 +385,7 @@ export function FragmentedPromptsGenerator({ client, onUpdate }: FragmentedPromp
       if (selectedFeatures.length === 0) {
         let genericSteps: AIGenericStep[] = [];
         try {
-          genericSteps = await generateGenericRoadmapSteps(client);
+          genericSteps = await generateGenericRoadmapSteps(effectiveClient);
         } catch (e) {
           // Never fail the whole generation because the generic roadmap AI call failed.
           console.warn("[FragmentedPromptsGenerator] generateGenericRoadmapSteps failed, using fallback:", e);
@@ -341,7 +393,7 @@ export function FragmentedPromptsGenerator({ client, onUpdate }: FragmentedPromp
         }
         // If AI didn't return valid JSON steps, fall back to deterministic steps so we always generate multiple etapas.
         if (!genericSteps || genericSteps.length < 2) {
-          genericSteps = getDeterministicFallbackSteps(client);
+          genericSteps = getDeterministicFallbackSteps(effectiveClient);
         }
         for (const step of genericSteps) {
           generatedEtapas.push({
@@ -373,7 +425,8 @@ export function FragmentedPromptsGenerator({ client, onUpdate }: FragmentedPromp
           
           for (let i = 0; i < chunks.length; i++) {
             const chunk = chunks[i];
-            const promptText = await generateFeaturePrompt(client, chunk, categoryInfo.name, priority, chunks.length > 1 ? i + 1 : undefined);
+            // USE effectiveClient for feature prompts too
+            const promptText = await generateFeaturePrompt(effectiveClient, chunk, categoryInfo.name, priority, chunks.length > 1 ? i + 1 : undefined);
             
             generatedEtapas.push({
               id: etapaId++,
@@ -413,7 +466,7 @@ export function FragmentedPromptsGenerator({ client, onUpdate }: FragmentedPromp
     }
   };
 
-  const generateGenericRoadmapSteps = async (client: ConsultingClient): Promise<AIGenericStep[]> => {
+  const generateGenericRoadmapSteps = async (effectiveClient: ConsultingClient): Promise<AIGenericStep[]> => {
     const systemPrompt = `Você é um especialista em criar prompts para o Lovable.dev.
 
 Sua tarefa: gerar um ROADMAP de implementação em ETAPAS para uma intranet de escritório de advocacia, mesmo quando o cliente ainda não escolheu funcionalidades.
@@ -438,14 +491,14 @@ REGRAS:
 }`;
 
     const userPrompt = `Contexto do cliente:
-- Escritório: ${client.office_name}
-- Advogados: ${client.num_lawyers}
-- Funcionários: ${client.num_employees}
-- Áreas de atuação: ${client.practice_areas || 'Não informado'}
-- Nível de IA: ${client.ai_familiarity_level || 'Não informado'}
-- Sistema de gestão atual: ${client.case_management_system || 'Não informado'}
-- Tarefas para automatizar: ${client.tasks_to_automate || 'Não informado'}
-- Funcionalidades personalizadas (se houver): ${client.custom_features || 'Nenhuma'}
+- Escritório: ${effectiveClient.office_name}
+- Advogados: ${effectiveClient.num_lawyers}
+- Funcionários: ${effectiveClient.num_employees}
+- Áreas de atuação: ${effectiveClient.practice_areas || 'Não informado'}
+- Nível de IA: ${effectiveClient.ai_familiarity_level || 'Não informado'}
+- Sistema de gestão atual: ${effectiveClient.case_management_system || 'Não informado'}
+- Tarefas para automatizar: ${effectiveClient.tasks_to_automate || 'Não informado'}
+- Funcionalidades personalizadas (se houver): ${effectiveClient.custom_features || 'Nenhuma'}
 
 Gere as etapas sugeridas.`;
 
@@ -480,17 +533,17 @@ Gere as etapas sugeridas.`;
     }
   };
 
-  const generateBasePrompt = async (client: ConsultingClient): Promise<string> => {
+  const generateBasePrompt = async (effectiveClient: ConsultingClient): Promise<string> => {
     const systemPrompt = `Você é um especialista em criar prompts para o Lovable.dev. Crie um prompt conciso (máximo 5000 caracteres) em português brasileiro para criar a estrutura base de uma intranet.`;
     
     const userPrompt = `Crie um prompt para o Lovable.dev criar a ESTRUTURA BASE de uma intranet para:
 
-**Escritório:** ${client.office_name}
-- ${client.num_lawyers} advogado(s)
-- ${client.num_employees} funcionário(s)
-- Áreas: ${client.practice_areas || 'Não informado'}
-${client.website ? `- Website: ${client.website}` : ''}
-${client.logo_url ? `- Logo: ${client.logo_url}` : ''}
+**Escritório:** ${effectiveClient.office_name}
+- ${effectiveClient.num_lawyers} advogado(s)
+- ${effectiveClient.num_employees} funcionário(s)
+- Áreas: ${effectiveClient.practice_areas || 'Não informado'}
+${effectiveClient.website ? `- Website: ${effectiveClient.website}` : ''}
+${effectiveClient.logo_url ? `- Logo: ${effectiveClient.logo_url}` : ''}
 
 O prompt deve incluir:
 1. Sistema de autenticação de usuários (login/logout)
@@ -519,7 +572,7 @@ O prompt deve ser COMPLETO e prático, pronto para colar no Lovable.dev.`;
   };
 
   const generateFeaturePrompt = async (
-    client: ConsultingClient, 
+    effectiveClient: ConsultingClient, 
     features: ConsultingFeature[], 
     categoryName: string,
     priority: Priority,
@@ -529,7 +582,7 @@ O prompt deve ser COMPLETO e prático, pronto para colar no Lovable.dev.`;
     
     const featureList = features.map(f => `- ${f.name}: ${f.description}`).join('\n');
     
-    const userPrompt = `Crie um prompt para o Lovable.dev ADICIONAR as seguintes funcionalidades de ${categoryName} ao projeto existente da intranet "${client.office_name}":
+    const userPrompt = `Crie um prompt para o Lovable.dev ADICIONAR as seguintes funcionalidades de ${categoryName} ao projeto existente da intranet "${effectiveClient.office_name}":
 
 **Funcionalidades (Prioridade ${getPriorityLabel(priority).replace(/🔴|🟡|🟢 /g, '')}):**
 ${featureList}
@@ -803,13 +856,13 @@ O prompt deve ser COMPLETO, prático e pronto para colar no Lovable.dev.`;
                           key={etapa.id} 
                           value={`etapa-${etapa.id}`}
                           className={`rounded-lg px-4 bg-card border ${
-                            etapa.concluida ? 'border-success/35' : 'border-border'
+                            etapa.concluida ? 'border-green-500/35' : 'border-border'
                           }`}
                         >
                           <AccordionTrigger className="hover:no-underline py-3">
                             <div className="flex items-center gap-3 flex-1 text-left">
                               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                                etapa.concluida ? 'bg-success text-success-foreground' : 'bg-primary/10 text-primary'
+                                etapa.concluida ? 'bg-green-500 text-white' : 'bg-primary/10 text-primary'
                               }`}>
                                 {etapa.concluida ? <Check className="w-4 h-4" /> : etapa.ordem}
                               </div>
