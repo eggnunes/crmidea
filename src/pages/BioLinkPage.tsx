@@ -151,8 +151,17 @@ export function BioLinkPage() {
   return (
     <>
       <Helmet>
-        <title>Rafael Egg | Links</title>
-        <meta name="description" content="Todos os links, produtos e projetos de Rafael Egg - Mentor em IA para Advocacia" />
+        <title>Rafael Egg | Links - IA para Advogados</title>
+        <meta name="description" content="Todos os links, produtos e projetos de Rafael Egg - Mentor em IA para Advocacia. Consultoria, Mentoria, Cursos e E-books sobre Inteligência Artificial para advogados." />
+        <meta name="keywords" content="Rafael Egg links, IA para advogados, consultoria IA, mentoria advogados, cursos IA jurídica" />
+        <meta name="robots" content="index, follow" />
+        <link rel="canonical" href="https://rafaelegg.com/bio" />
+        
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://rafaelegg.com/bio" />
+        <meta property="og:title" content="Rafael Egg | Links - IA para Advogados" />
+        <meta property="og:description" content="Todos os links, produtos e projetos de Rafael Egg - Mentor em IA para Advocacia." />
+        <meta property="og:image" content="https://rafaelegg.com/og-image.png" />
       </Helmet>
       
       <div className="min-h-screen bg-gradient-to-br from-[#1a1f2e] via-[#0f1419] to-[#1a1f2e]">

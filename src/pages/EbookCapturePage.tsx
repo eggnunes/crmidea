@@ -5,6 +5,7 @@ import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
+import { Helmet } from "react-helmet";
 import { Loader2, Camera, CheckCircle, Sparkles, ArrowRight, Star, Wand2, Instagram, Linkedin, Youtube, Home, Briefcase, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -151,6 +152,25 @@ export function EbookCapturePage() {
   }
 
   return (
+    <>
+      <Helmet>
+        <title>Prompts para Fotos Profissionais com IA | Rafael Egg</title>
+        <meta name="description" content="Baixe gratuitamente prompts testados para criar fotos profissionais de perfil usando Inteligência Artificial. Material exclusivo para advogados." />
+        <meta name="keywords" content="prompts fotos IA, fotos profissionais inteligência artificial, ChatGPT fotos, IA para advogados, Rafael Egg ebook" />
+        <meta name="robots" content="index, follow" />
+        <link rel="canonical" href="https://rafaelegg.com/ebook" />
+        
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://rafaelegg.com/ebook" />
+        <meta property="og:title" content="Prompts para Fotos Profissionais com IA | Rafael Egg" />
+        <meta property="og:description" content="Baixe gratuitamente prompts para criar fotos profissionais usando IA." />
+        <meta property="og:image" content="https://rafaelegg.com/og-image.png" />
+        
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Prompts para Fotos Profissionais com IA" />
+        <meta name="twitter:description" content="Baixe gratuitamente prompts para criar fotos profissionais usando IA." />
+      </Helmet>
+      
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 relative overflow-hidden">
       {/* Background Effects */}
       <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxwYXRoIGQ9Ik0wIDBoNjB2NjBIMHoiLz48cGF0aCBkPSJNMzAgMzBtLTEgMGExIDEgMCAxIDAgMiAwYTEgMSAwIDEgMCAtMiAwIiBmaWxsPSIjZmZhNTAwIiBmaWxsLW9wYWNpdHk9IjAuMSIvPjwvZz48L3N2Zz4=')] opacity-30"></div>
@@ -394,5 +414,6 @@ export function EbookCapturePage() {
         </div>
       </div>
     </div>
+    </>
   );
 }

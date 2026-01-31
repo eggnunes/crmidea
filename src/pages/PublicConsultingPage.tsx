@@ -38,6 +38,7 @@ import {
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { Helmet } from "react-helmet";
+import { JsonLd, generateFAQSchema, generateServiceSchema, generateBreadcrumbSchema } from "@/components/seo/JsonLd";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRoles } from "@/hooks/useUserRoles";
 import { CONSULTING_FEATURES, FEATURE_CATEGORIES } from "@/data/consultingFeatures";
@@ -226,12 +227,29 @@ export function PublicConsultingPage() {
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  const consultingFaqSchema = generateFAQSchema(consultingFaqItems);
+  
+  const serviceSchema = generateServiceSchema({
+    name: "Consultoria IDEA - Implementação de IA para Advogados",
+    description: "Consultoria especializada em implementação de Inteligência Artificial para escritórios de advocacia. Trabalhamos a quatro mãos para implantar soluções que aumentam sua produtividade em até 10x.",
+    provider: "Rafael Egg",
+    url: "https://rafaelegg.com/consultoria",
+    priceRange: "$$$$"
+  });
+
+  const breadcrumbSchema = generateBreadcrumbSchema([
+    { name: "Início", url: "https://rafaelegg.com" },
+    { name: "Consultoria IDEA", url: "https://rafaelegg.com/consultoria" }
+  ]);
+
   return (
     <>
       <Helmet>
         <title>Consultoria IDEA - Implementação de IA para Advogados | Rafael Egg</title>
-        <meta name="description" content="Consultoria especializada em implementação de Inteligência Artificial para escritórios de advocacia. Aumente sua produtividade em até 10x com IA aplicada ao Direito." />
-        <meta name="keywords" content="consultoria IA advogados, inteligência artificial advocacia, automação jurídica, ChatGPT advogados, IA para escritórios, produtividade jurídica, Rafael Egg" />
+        <meta name="description" content="Consultoria especializada em implementação de Inteligência Artificial para escritórios de advocacia. Aumente sua produtividade em até 10x com IA aplicada ao Direito. ROI de 1.820-3.500%." />
+        <meta name="keywords" content="consultoria IA advogados, implementação IA escritório, automação jurídica personalizada, produtividade advogados, sistema IA escritório advocacia, consultoria ChatGPT advogados, Rafael Egg consultoria, IA para escritório de advocacia" />
+        <meta name="author" content="Rafael Egg" />
+        <meta name="robots" content="index, follow" />
         <link rel="canonical" href="https://rafaelegg.com/consultoria" />
         
         {/* Open Graph */}
@@ -250,6 +268,10 @@ export function PublicConsultingPage() {
         <meta name="twitter:description" content="Consultoria especializada em implementação de IA para escritórios de advocacia." />
         <meta name="twitter:image" content="https://rafaelegg.com/og-image.png" />
       </Helmet>
+      
+      <JsonLd data={serviceSchema} />
+      <JsonLd data={consultingFaqSchema} />
+      <JsonLd data={breadcrumbSchema} />
       
       <div className="min-h-screen bg-[hsl(222,47%,5%)] overflow-x-hidden">
       {/* Navigation */}
