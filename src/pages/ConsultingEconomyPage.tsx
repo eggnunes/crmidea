@@ -527,7 +527,7 @@ export function ConsultingEconomyPage() {
                 <CardContent className="p-8">
                   <div className="text-center mb-8">
                     <div className="text-sm text-white/50 mb-2">Investimento na Consultoria IDEA</div>
-                    <div className="text-4xl font-bold text-white">R$ 22.000</div>
+                    <div className="text-4xl font-bold text-white">R$ 50.000</div>
                     <div className="text-white/50">(pagamento único)</div>
                   </div>
 
@@ -544,11 +544,11 @@ export function ConsultingEconomyPage() {
                           </div>
                           <div>
                             <div className="text-sm text-white/50">Payback</div>
-                            <div className="text-xl font-bold text-emerald-400">8 dias</div>
+                            <div className="text-xl font-bold text-emerald-400">19 dias</div>
                           </div>
                           <div>
                             <div className="text-sm text-white/50">ROI em 12 meses</div>
-                            <div className="text-xl font-bold text-yellow-400">4.363%</div>
+                            <div className="text-xl font-bold text-yellow-400">1.820%</div>
                           </div>
                         </div>
                       </CardContent>
@@ -567,11 +567,11 @@ export function ConsultingEconomyPage() {
                           </div>
                           <div>
                             <div className="text-sm text-white/50">Payback</div>
-                            <div className="text-xl font-bold text-emerald-400">6 dias</div>
+                            <div className="text-xl font-bold text-emerald-400">13 dias</div>
                           </div>
                           <div>
                             <div className="text-sm text-white/50">ROI em 12 meses</div>
-                            <div className="text-xl font-bold text-yellow-400">6.272%</div>
+                            <div className="text-xl font-bold text-yellow-400">2.660%</div>
                           </div>
                         </div>
                       </CardContent>
@@ -589,11 +589,11 @@ export function ConsultingEconomyPage() {
                           </div>
                           <div>
                             <div className="text-sm text-white/50">Payback</div>
-                            <div className="text-xl font-bold text-emerald-400">4,5 dias</div>
+                            <div className="text-xl font-bold text-emerald-400">10 dias</div>
                           </div>
                           <div>
                             <div className="text-sm text-white/50">ROI em 12 meses</div>
-                            <div className="text-xl font-bold text-yellow-400">8.181%</div>
+                            <div className="text-xl font-bold text-yellow-400">3.500%</div>
                           </div>
                         </div>
                       </CardContent>
@@ -669,14 +669,14 @@ export function ConsultingEconomyPage() {
                   <div className="flex items-start gap-3">
                     <CheckCircle2 className="w-6 h-6 text-emerald-400 flex-shrink-0" />
                     <div>
-                      <div className="font-semibold text-white">ROI de 4.000-8.000% em 12 meses</div>
+                      <div className="font-semibold text-white">ROI de 1.820-3.500% em 12 meses</div>
                       <div className="text-white/60 text-sm">Investimento que se multiplica</div>
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
                     <CheckCircle2 className="w-6 h-6 text-emerald-400 flex-shrink-0" />
                     <div>
-                      <div className="font-semibold text-white">Payback em 4-8 dias</div>
+                      <div className="font-semibold text-white">Payback em 10-19 dias</div>
                       <div className="text-white/60 text-sm">Retorno praticamente imediato</div>
                     </div>
                   </div>
