@@ -353,7 +353,7 @@ export function ClientDocumentsManager({ clientId, readOnly = false }: ClientDoc
             <p>Nenhum documento compartilhado ainda.</p>
           </div>
         ) : (
-          <ScrollArea className="max-h-[400px]">
+          <ScrollArea className="h-[400px] pr-4">
             <div className="space-y-3">
               {documents.map((doc) => (
                 <div 
