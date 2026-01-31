@@ -19,6 +19,7 @@ import { CalendarPage } from "./pages/CalendarPage";
 import { PublicBookingPage } from "./pages/PublicBookingPage";
 
 import { PublicConsultingPage } from "./pages/PublicConsultingPage";
+import { ConsultingEconomyPage } from "./pages/ConsultingEconomyPage";
 import { ClientAuthPage } from "./pages/ClientAuthPage";
 import { ClientDashboardPage } from "./pages/ClientDashboardPage";
 import { ClientDiagnosticForm } from "./pages/ClientDiagnosticForm";
@@ -86,6 +87,7 @@ function AppRoutes() {
       
       {/* Consultoria - Página pública com informações sobre a consultoria */}
       <Route path="/consultoria" element={<PublicConsultingPage />} />
+      <Route path="/consultoria/economia" element={<ConsultingEconomyPage />} />
       
       {/* Área do Cliente da Consultoria - Login e Dashboard */}
       <Route path="/consultoria/login" element={<ClientAuthPage />} />
