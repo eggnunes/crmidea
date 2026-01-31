@@ -32,7 +32,9 @@ import {
   Sparkles,
   TrendingUp,
   Award,
-  MessageCircle
+  MessageCircle,
+  Calculator,
+  DollarSign
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { Helmet } from "react-helmet";
@@ -265,6 +267,10 @@ export function PublicConsultingPage() {
               <a href="#beneficios" className="text-sm text-white/70 hover:text-white transition-colors">Benefícios</a>
               <a href="#como-funciona" className="text-sm text-white/70 hover:text-white transition-colors">Como Funciona</a>
               <a href="#funcionalidades" className="text-sm text-white/70 hover:text-white transition-colors">Funcionalidades</a>
+              <Link to="/consultoria/economia" className="text-sm text-emerald-400 hover:text-emerald-300 transition-colors font-medium flex items-center gap-1">
+                <Calculator className="w-3 h-3" />
+                Calculadora de Economia
+              </Link>
               <a href="#faq" className="text-sm text-white/70 hover:text-white transition-colors">FAQ</a>
             </div>
 
@@ -309,6 +315,10 @@ export function PublicConsultingPage() {
                     <a href="#beneficios" className="text-white/70 hover:text-white transition-colors py-2" onClick={() => setMobileMenuOpen(false)}>Benefícios</a>
                     <a href="#como-funciona" className="text-white/70 hover:text-white transition-colors py-2" onClick={() => setMobileMenuOpen(false)}>Como Funciona</a>
                     <a href="#funcionalidades" className="text-white/70 hover:text-white transition-colors py-2" onClick={() => setMobileMenuOpen(false)}>Funcionalidades</a>
+                    <Link to="/consultoria/economia" className="text-emerald-400 hover:text-emerald-300 transition-colors py-2 font-medium flex items-center gap-2" onClick={() => setMobileMenuOpen(false)}>
+                      <Calculator className="w-4 h-4" />
+                      Calculadora de Economia
+                    </Link>
                     <a href="#faq" className="text-white/70 hover:text-white transition-colors py-2" onClick={() => setMobileMenuOpen(false)}>FAQ</a>
                     <div className="border-t border-white/10 pt-4 mt-4 space-y-3">
                       <Button variant="outline" asChild className="w-full gap-2 justify-start border-white/20 text-white hover:bg-white/10" onClick={() => setMobileMenuOpen(false)}>
@@ -475,6 +485,55 @@ export function PublicConsultingPage() {
           ))}
         </div>
       </div>
+
+      {/* Economy CTA Banner */}
+      <section className="py-16 relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-r from-emerald-600/20 via-green-600/20 to-emerald-600/20" />
+        <div className="absolute inset-0 bg-[hsl(222,47%,5%)]/80" />
+        
+        <div className="container mx-auto px-4 relative z-10">
+          <div className="max-w-4xl mx-auto">
+            <Card className="bg-gradient-to-br from-emerald-500/10 to-green-500/10 border-emerald-500/30 overflow-hidden">
+              <CardContent className="p-8 md:p-10">
+                <div className="flex flex-col md:flex-row items-center gap-6 md:gap-10">
+                  <div className="flex-shrink-0">
+                    <div className="w-20 h-20 md:w-24 md:h-24 rounded-2xl bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center shadow-lg shadow-emerald-500/30">
+                      <Calculator className="w-10 h-10 md:w-12 md:h-12 text-white" />
+                    </div>
+                  </div>
+                  <div className="flex-1 text-center md:text-left">
+                    <h3 className="text-2xl md:text-3xl font-bold text-white mb-2">
+                      Descubra quanto você pode <span className="text-emerald-400">economizar</span>
+                    </h3>
+                    <p className="text-white/60 mb-4 text-lg">
+                      Veja a análise completa de economia para escritórios de todos os portes. 
+                      <span className="text-emerald-400 font-semibold"> Economia de até R$ 4 milhões por ano!</span>
+                    </p>
+                    <div className="flex flex-wrap gap-4 justify-center md:justify-start">
+                      <Badge className="bg-emerald-500/20 border-emerald-500/30 text-emerald-300">
+                        <Clock className="w-3 h-3 mr-1" />
+                        270-415h economizadas/mês
+                      </Badge>
+                      <Badge className="bg-green-500/20 border-green-500/30 text-green-300">
+                        <DollarSign className="w-3 h-3 mr-1" />
+                        ROI de até 8.000%
+                      </Badge>
+                    </div>
+                  </div>
+                  <div className="flex-shrink-0">
+                    <Button size="lg" className="gap-2 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 border-0 text-lg" asChild>
+                      <Link to="/consultoria/economia">
+                        Ver Análise Completa
+                        <ArrowRight className="w-5 h-5" />
+                      </Link>
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </section>
 
       {/* About Section */}
       <section id="sobre" className="py-24 relative">
