@@ -251,7 +251,7 @@ export function ConsultingEconomyPage() {
 
               <div className="hidden md:flex items-center gap-3">
                 <Button className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 border-0" asChild>
-                  <a href="https://pay.kiwify.com.br/3Z1PXqV" target="_blank" rel="noopener noreferrer">
+                  <a href="https://pay.kiwify.com.br/O6KhBrS" target="_blank" rel="noopener noreferrer">
                     Contratar Consultoria
                   </a>
                 </Button>
@@ -276,7 +276,7 @@ export function ConsultingEconomyPage() {
                       <a href="#roi" className="text-white/70 hover:text-white transition-colors py-2" onClick={() => setMobileMenuOpen(false)}>ROI</a>
                       <div className="border-t border-white/10 pt-4 mt-4">
                         <Button className="w-full bg-gradient-to-r from-blue-500 to-purple-600" asChild onClick={() => setMobileMenuOpen(false)}>
-                          <a href="https://pay.kiwify.com.br/3Z1PXqV" target="_blank" rel="noopener noreferrer">
+                          <a href="https://pay.kiwify.com.br/O6KhBrS" target="_blank" rel="noopener noreferrer">
                             Contratar Consultoria
                           </a>
                         </Button>
@@ -703,7 +703,7 @@ export function ConsultingEconomyPage() {
                   
                   <div className="flex flex-col sm:flex-row gap-4 justify-center">
                     <Button size="lg" className="gap-2 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 border-0 text-lg px-8 py-6" asChild>
-                      <a href="https://pay.kiwify.com.br/3Z1PXqV" target="_blank" rel="noopener noreferrer">
+                      <a href="https://pay.kiwify.com.br/O6KhBrS" target="_blank" rel="noopener noreferrer">
                         QUERO ECONOMIZAR AGORA
                         <ArrowRight className="w-5 h-5" />
                       </a>

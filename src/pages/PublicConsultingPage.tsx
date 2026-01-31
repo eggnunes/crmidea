@@ -289,7 +289,7 @@ export function PublicConsultingPage() {
                 </Link>
               </Button>
               <Button className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 border-0" asChild>
-                <a href="https://pay.kiwify.com.br/3Z1PXqV" target="_blank" rel="noopener noreferrer">
+                <a href="https://pay.kiwify.com.br/O6KhBrS" target="_blank" rel="noopener noreferrer">
                   Contratar
                 </a>
               </Button>
@@ -328,7 +328,7 @@ export function PublicConsultingPage() {
                         </Link>
                       </Button>
                       <Button className="w-full bg-gradient-to-r from-blue-500 to-purple-600" asChild onClick={() => setMobileMenuOpen(false)}>
-                        <a href="https://pay.kiwify.com.br/3Z1PXqV" target="_blank" rel="noopener noreferrer">
+                        <a href="https://pay.kiwify.com.br/O6KhBrS" target="_blank" rel="noopener noreferrer">
                           Contratar Consultoria
                         </a>
                       </Button>
@@ -423,7 +423,7 @@ export function PublicConsultingPage() {
               
               <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start mb-12">
                 <Button size="lg" className="gap-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 border-0 text-lg px-8 py-6" asChild>
-                  <a href="https://pay.kiwify.com.br/3Z1PXqV" target="_blank" rel="noopener noreferrer">
+                  <a href="https://pay.kiwify.com.br/O6KhBrS" target="_blank" rel="noopener noreferrer">
                     EU QUERO A CONSULTORIA IDEA
                     <ArrowRight className="w-5 h-5" />
                   </a>
@@ -753,7 +753,7 @@ export function PublicConsultingPage() {
           
           <div className="text-center mt-12">
             <Button size="lg" className="gap-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 border-0 text-lg px-8 py-6" asChild>
-              <a href="https://pay.kiwify.com.br/3Z1PXqV" target="_blank" rel="noopener noreferrer">
+              <a href="https://pay.kiwify.com.br/O6KhBrS" target="_blank" rel="noopener noreferrer">
                 <ArrowRight className="w-5 h-5" />
                 Contratar Consultoria
               </a>
@@ -887,6 +887,121 @@ export function PublicConsultingPage() {
         </div>
       </section>
       
+      {/* Investment Section */}
+      <section id="investimento" className="py-24 relative">
+        <div className="absolute inset-0 bg-gradient-to-b from-[hsl(222,47%,6%)] via-[hsl(222,47%,5%)] to-[hsl(222,47%,6%)]" />
+        
+        <div className="container mx-auto px-4 relative z-10">
+          <div className="max-w-4xl mx-auto">
+            <div className="text-center mb-12">
+              <Badge variant="secondary" className="mb-4 bg-emerald-500/10 text-emerald-400 border-emerald-500/30">
+                <DollarSign className="w-3 h-3 mr-1" />
+                Investimento
+              </Badge>
+              <h2 className="text-3xl md:text-4xl font-bold mb-4 text-white">
+                O valor da sua <span className="text-emerald-400">transformação</span>
+              </h2>
+              <p className="text-white/60 text-lg max-w-2xl mx-auto">
+                Investimento único para resultados que se multiplicam ao longo do tempo
+              </p>
+            </div>
+
+            <Card className="bg-gradient-to-br from-white/[0.08] to-white/[0.02] border-white/10 backdrop-blur-sm mb-8">
+              <CardContent className="p-8">
+                <div className="text-center mb-8">
+                  <div className="text-sm text-white/50 mb-2">Investimento na Consultoria IDEA</div>
+                  <div className="text-5xl font-bold text-white mb-2">R$ 50.000</div>
+                  <div className="text-white/50 mb-4">ou 12x de <span className="text-emerald-400 font-semibold">R$ 5.171,15</span></div>
+                  <div className="text-white/40 text-sm">(pagamento via Kiwify com cartão ou PIX)</div>
+                </div>
+
+                <div className="border-t border-white/10 pt-8">
+                  <h3 className="text-xl font-semibold text-white mb-6 text-center">
+                    O que você <span className="text-emerald-400">ganha</span> com esse investimento:
+                  </h3>
+                  
+                  <div className="grid md:grid-cols-2 gap-6 mb-8">
+                    <div className="flex items-start gap-3">
+                      <CheckCircle2 className="w-6 h-6 text-emerald-400 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <div className="font-semibold text-white">Economia de 270-415 horas/mês</div>
+                        <div className="text-white/60 text-sm">Tempo que você pode usar para crescer</div>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <CheckCircle2 className="w-6 h-6 text-emerald-400 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <div className="font-semibold text-white">Até R$ 337.530/mês em economia</div>
+                        <div className="text-white/60 text-sm">Entre ganhos diretos e indiretos</div>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <CheckCircle2 className="w-6 h-6 text-emerald-400 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <div className="font-semibold text-white">ROI de 1.820-3.500% em 12 meses</div>
+                        <div className="text-white/60 text-sm">Investimento que se multiplica</div>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <CheckCircle2 className="w-6 h-6 text-emerald-400 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <div className="font-semibold text-white">Payback em 10-19 dias</div>
+                        <div className="text-white/60 text-sm">Retorno praticamente imediato</div>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <CheckCircle2 className="w-6 h-6 text-emerald-400 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <div className="font-semibold text-white">Equivalente a 4-6 colaboradores</div>
+                        <div className="text-white/60 text-sm">Sem os custos trabalhistas</div>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <CheckCircle2 className="w-6 h-6 text-emerald-400 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <div className="font-semibold text-white">Até R$ 4 milhões/ano</div>
+                        <div className="text-white/60 text-sm">Economia máxima potencial</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-6 text-center mb-8">
+                    <p className="text-lg text-white mb-2">
+                      <strong className="text-emerald-400">R$ 50.000 parece muito?</strong>
+                    </p>
+                    <p className="text-white/70">
+                      Pense assim: você recupera esse valor em apenas <strong className="text-emerald-400">10 a 19 dias</strong> de economia. 
+                      Depois disso, é lucro puro por anos.
+                    </p>
+                  </div>
+
+                  <div className="text-center">
+                    <p className="text-white/60 mb-6">
+                      <strong className="text-white">Cada dia sem automação</strong> é dinheiro desperdiçado e oportunidades perdidas.
+                    </p>
+                    
+                    <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                      <Button size="lg" className="gap-2 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 border-0 text-lg px-8 py-6" asChild>
+                        <a href="https://pay.kiwify.com.br/O6KhBrS" target="_blank" rel="noopener noreferrer">
+                          QUERO TRANSFORMAR MEU ESCRITÓRIO
+                          <ArrowRight className="w-5 h-5" />
+                        </a>
+                      </Button>
+                      <Button size="lg" variant="outline" className="gap-2 border-white/20 text-white hover:bg-white/10 text-lg px-8 py-6" asChild>
+                        <Link to="/consultoria/economia">
+                          <Calculator className="w-5 h-5" />
+                          Ver Cálculos Detalhados
+                        </Link>
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </section>
+
       {/* FAQ Section */}
       <section id="faq" className="py-24 relative">
         <div className="absolute inset-0 bg-gradient-to-b from-[hsl(222,47%,5%)] via-[hsl(222,47%,7%)] to-[hsl(222,47%,5%)]" />
@@ -942,7 +1057,7 @@ export function PublicConsultingPage() {
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
             <Button size="lg" variant="secondary" className="gap-2 bg-white text-blue-600 hover:bg-white/90 text-lg px-8 py-6" asChild>
-              <a href="https://pay.kiwify.com.br/3Z1PXqV" target="_blank" rel="noopener noreferrer">
+              <a href="https://pay.kiwify.com.br/O6KhBrS" target="_blank" rel="noopener noreferrer">
                 Contratar Consultoria
                 <ArrowRight className="w-5 h-5" />
               </a>
