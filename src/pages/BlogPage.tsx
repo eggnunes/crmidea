@@ -14,10 +14,12 @@ import {
   Loader2
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { Helmet } from "react-helmet";
 import logoRE from "@/assets/logo-re.png";
 import { useBlogPosts } from "@/hooks/useBlogPosts";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { JsonLd, generateBreadcrumbSchema } from "@/components/seo/JsonLd";
 
 // Blog images - mapeamento exato por slug (sem repetição)
 import blogIaRevolucionando from "@/assets/blog-ia-revolucionando.png";
@@ -143,9 +145,37 @@ export function BlogPage() {
   const featuredArticle = articles[0];
   const otherArticles = articles.slice(1);
 
-  
+  const breadcrumbSchema = generateBreadcrumbSchema([
+    { name: "Início", url: "https://rafaelegg.com" },
+    { name: "Blog", url: "https://rafaelegg.com/blog" }
+  ]);
 
   return (
+    <>
+      <Helmet>
+        <title>Blog sobre IA na Advocacia | Rafael Egg</title>
+        <meta name="description" content="Artigos, tutoriais e insights sobre como a inteligência artificial está transformando o mundo jurídico. Aprenda a usar IA para aumentar sua produtividade." />
+        <meta name="keywords" content="blog IA advocacia, artigos inteligência artificial direito, dicas IA advogados, tutoriais ChatGPT jurídico, novidades IA escritórios advocacia, como usar IA na advocacia" />
+        <meta name="robots" content="index, follow" />
+        <meta name="author" content="Rafael Egg" />
+        <link rel="canonical" href="https://rafaelegg.com/blog" />
+        
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://rafaelegg.com/blog" />
+        <meta property="og:title" content="Blog sobre IA na Advocacia | Rafael Egg" />
+        <meta property="og:description" content="Artigos, tutoriais e insights sobre IA na advocacia." />
+        <meta property="og:image" content="https://rafaelegg.com/og-image.png" />
+        <meta property="og:site_name" content="Rafael Egg - IA para Advogados" />
+        <meta property="og:locale" content="pt_BR" />
+        
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Blog sobre IA na Advocacia | Rafael Egg" />
+        <meta name="twitter:description" content="Artigos, tutoriais e insights sobre IA na advocacia." />
+        <meta name="twitter:image" content="https://rafaelegg.com/og-image.png" />
+      </Helmet>
+      
+      <JsonLd data={breadcrumbSchema} />
+      
     <div className="min-h-screen bg-gradient-to-br from-[#1a1f2e] via-[#0f1419] to-[#1a1f2e]">
       {/* Header */}
       <header className="relative overflow-hidden">
@@ -370,5 +400,6 @@ export function BlogPage() {
         </div>
       </footer>
     </div>
+    </>
   );
 }

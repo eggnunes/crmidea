@@ -19,6 +19,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Card, CardContent } from "@/components/ui/card";
 import DOMPurify from "dompurify";
+import { JsonLd, generateArticleSchema, generateBreadcrumbSchema } from "@/components/seo/JsonLd";
 
 // Blog images - mapeamento exato por slug (sem repetição)
 import blogIaRevolucionando from "@/assets/blog-ia-revolucionando.png";
@@ -113,18 +114,54 @@ export function BlogArticlePage() {
       .replace(/\n/g, '<br/>');
   };
 
+  const articleSchema = generateArticleSchema({
+    title: article.title,
+    excerpt: article.excerpt,
+    slug: article.slug,
+    published_at: article.published_at,
+    updated_at: article.updated_at,
+    cover_image_url: article.cover_image_url
+  });
+
+  const breadcrumbSchema = generateBreadcrumbSchema([
+    { name: "Início", url: "https://rafaelegg.com" },
+    { name: "Blog", url: "https://rafaelegg.com/blog" },
+    { name: article.title, url: `https://rafaelegg.com/blog/${article.slug}` }
+  ]);
+
+  const articleUrl = `https://rafaelegg.com/blog/${article.slug}`;
+  const articleImage = article.cover_image_url || getArticleImage(article.slug) || "https://rafaelegg.com/og-image.png";
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#1a1f2e] via-[#0f1419] to-[#1a1f2e]">
       <Helmet>
         <title>{article.title} | Rafael Egg - IA para Advogados</title>
-        <meta name="description" content={article.excerpt || ""} />
+        <meta name="description" content={article.excerpt || `Leia sobre ${article.title} no blog de Rafael Egg, especialista em IA para advogados.`} />
+        <meta name="keywords" content={`${article.category || "IA advocacia"}, inteligência artificial advogados, ${article.title.toLowerCase().split(" ").slice(0, 3).join(", ")}`} />
+        <meta name="author" content="Rafael Egg" />
+        <meta name="robots" content="index, follow" />
+        <link rel="canonical" href={articleUrl} />
+        
+        <meta property="og:type" content="article" />
+        <meta property="og:url" content={articleUrl} />
         <meta property="og:title" content={article.title} />
         <meta property="og:description" content={article.excerpt || ""} />
-        <meta property="og:type" content="article" />
+        <meta property="og:image" content={articleImage} />
+        <meta property="og:site_name" content="Rafael Egg - IA para Advogados" />
+        <meta property="og:locale" content="pt_BR" />
+        <meta property="article:author" content="Rafael Egg" />
+        <meta property="article:published_time" content={article.published_at || ""} />
+        <meta property="article:modified_time" content={article.updated_at} />
+        
         <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:url" content={articleUrl} />
         <meta name="twitter:title" content={article.title} />
         <meta name="twitter:description" content={article.excerpt || ""} />
+        <meta name="twitter:image" content={articleImage} />
       </Helmet>
+      
+      <JsonLd data={articleSchema} />
+      <JsonLd data={breadcrumbSchema} />
 
       {/* Header */}
       <header className="relative overflow-hidden">

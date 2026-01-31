@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Helmet } from "react-helmet";
+import { JsonLd, generateBreadcrumbSchema } from "@/components/seo/JsonLd";
 import { useState } from "react";
 import logoConsultoria from "@/assets/logo-consultoria.png";
 import {
@@ -211,20 +212,37 @@ const intangibleBenefits = [
 export function ConsultingEconomyPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  const breadcrumbSchema = generateBreadcrumbSchema([
+    { name: "Início", url: "https://rafaelegg.com" },
+    { name: "Consultoria", url: "https://rafaelegg.com/consultoria" },
+    { name: "Calculadora de Economia", url: "https://rafaelegg.com/consultoria/economia" }
+  ]);
+
   return (
     <>
       <Helmet>
-        <title>Quanto Você Pode Economizar com IA? | Consultoria IDEA</title>
-        <meta name="description" content="Descubra quanto seu escritório de advocacia pode economizar implementando IA. Economia de até R$ 4 milhões por ano com automação e inteligência artificial." />
-        <meta name="keywords" content="economia escritório advocacia, ROI IA advogados, automação jurídica economia, consultoria IDEA economia" />
+        <title>Quanto Você Pode Economizar com IA? | Calculadora de ROI - Consultoria IDEA</title>
+        <meta name="description" content="Descubra quanto seu escritório de advocacia pode economizar implementando IA. ROI de 1.820-3.500%, payback em 10-19 dias. Economia de até R$ 4 milhões por ano." />
+        <meta name="keywords" content="economia escritório advocacia, ROI IA advogados, automação jurídica economia, consultoria IDEA economia, calculadora ROI advocacia, quanto economizar com IA" />
+        <meta name="author" content="Rafael Egg" />
+        <meta name="robots" content="index, follow" />
         <link rel="canonical" href="https://rafaelegg.com/consultoria/economia" />
         
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://rafaelegg.com/consultoria/economia" />
-        <meta property="og:title" content="Quanto Você Pode Economizar com IA? | Consultoria IDEA" />
+        <meta property="og:title" content="Calculadora de Economia com IA | Consultoria IDEA" />
         <meta property="og:description" content="Economia de até R$ 4 milhões por ano com automação e IA no seu escritório de advocacia." />
         <meta property="og:image" content="https://rafaelegg.com/og-image.png" />
+        <meta property="og:site_name" content="Rafael Egg - IA para Advogados" />
+        <meta property="og:locale" content="pt_BR" />
+        
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Calculadora de Economia com IA | Consultoria IDEA" />
+        <meta name="twitter:description" content="Economia de até R$ 4 milhões por ano com automação e IA." />
+        <meta name="twitter:image" content="https://rafaelegg.com/og-image.png" />
       </Helmet>
+      
+      <JsonLd data={breadcrumbSchema} />
       
       <div className="min-h-screen bg-[hsl(222,47%,5%)] overflow-x-hidden">
         {/* Navigation */}

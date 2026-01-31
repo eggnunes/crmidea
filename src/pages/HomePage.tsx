@@ -41,6 +41,7 @@ import logoRE from "@/assets/logo-re.png";
 import { Link } from "react-router-dom";
 import { Helmet } from "react-helmet";
 import { supabase } from "@/integrations/supabase/client";
+import { JsonLd, personSchema, organizationSchema, generateFAQSchema } from "@/components/seo/JsonLd";
 import { toast } from "sonner";
 import logoMentoria from "@/assets/logo-mentoria-new.png";
 import logoCursoIdea from "@/assets/logo-curso-idea-new.png";
@@ -203,20 +204,24 @@ export function HomePage() {
     }
   };
 
+  // Generate FAQ schema from faqItems
+  const faqSchema = generateFAQSchema(faqItems);
+
   return (
     <>
       <Helmet>
         <title>Rafael Egg - IA para Advogados | Consultoria, Mentoria e Cursos</title>
-        <meta name="description" content="Rafael Egg - Especialista em Inteligência Artificial para Advogados. Consultoria personalizada, Mentoria e Cursos para transformar sua advocacia com IA." />
-        <meta name="keywords" content="IA para advogados, inteligência artificial advocacia, consultoria jurídica, ChatGPT advogados, automação jurídica, Rafael Egg" />
+        <meta name="description" content="Rafael Egg - Especialista em Inteligência Artificial para Advogados. Consultoria personalizada, Mentoria e Cursos para transformar sua advocacia com IA. Aumente sua produtividade em até 60%." />
+        <meta name="keywords" content="IA para advogados, inteligência artificial advocacia, consultoria IA jurídica, ChatGPT advogados, automação escritório advocacia, IA direito, Rafael Egg, mentor IA advocacia, inteligência artificial no direito Brasil, IA jurídica, como usar chatgpt para escrever petições, automação de escritório de advocacia" />
         <meta name="robots" content="index, follow" />
+        <meta name="author" content="Rafael Egg" />
         <link rel="canonical" href="https://rafaelegg.com/" />
         
         {/* Open Graph */}
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://rafaelegg.com/" />
-        <meta property="og:title" content="Rafael Egg - IA para Advogados" />
-        <meta property="og:description" content="Especialista em Inteligência Artificial para Advogados. Consultoria, Mentoria e Cursos." />
+        <meta property="og:title" content="Rafael Egg - IA para Advogados | Consultoria, Mentoria e Cursos" />
+        <meta property="og:description" content="Especialista em Inteligência Artificial para Advogados. Consultoria, Mentoria e Cursos para transformar sua advocacia." />
         <meta property="og:image" content="https://rafaelegg.com/og-image.png" />
         <meta property="og:site_name" content="Rafael Egg - IA para Advogados" />
         <meta property="og:locale" content="pt_BR" />
@@ -228,6 +233,11 @@ export function HomePage() {
         <meta name="twitter:description" content="Especialista em Inteligência Artificial para Advogados. Consultoria, Mentoria e Cursos." />
         <meta name="twitter:image" content="https://rafaelegg.com/og-image.png" />
       </Helmet>
+      
+      {/* Structured Data */}
+      <JsonLd data={personSchema} />
+      <JsonLd data={organizationSchema} />
+      <JsonLd data={faqSchema} />
       
       <div className="min-h-screen bg-gradient-to-br from-[#1a1f2e] via-[#0f1419] to-[#1a1f2e]">
       {/* Hero Section */}
