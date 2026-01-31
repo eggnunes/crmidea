@@ -14,6 +14,32 @@ serve(async (req) => {
   }
 
   try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Validate JWT and get authenticated user
+    const authHeader = req.headers.get("authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
+
+    if (claimsError || !claimsData?.claims) {
+      console.error("JWT validation failed:", claimsError);
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const authenticatedUserId = claimsData.claims.sub as string;
+
     const { conversationId } = await req.json();
     
     if (!conversationId) {
@@ -23,11 +49,23 @@ serve(async (req) => {
       );
     }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    // Verify conversation belongs to authenticated user
+    const { data: conversation, error: convError } = await supabase
+      .from("whatsapp_conversations")
+      .select("contact_name, contact_phone, channel")
+      .eq("id", conversationId)
+      .eq("user_id", authenticatedUserId)
+      .single();
 
-    // Fetch messages
+    if (convError || !conversation) {
+      console.error("Conversation not found or access denied:", convError);
+      return new Response(
+        JSON.stringify({ error: "Conversa não encontrada ou acesso negado" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Fetch messages (conversation ownership already verified)
     const { data: messages, error: messagesError } = await supabase
       .from("whatsapp_messages")
       .select("content, is_from_contact, is_ai_response, message_type, created_at")
@@ -42,13 +80,6 @@ serve(async (req) => {
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-
-    // Fetch conversation details
-    const { data: conversation } = await supabase
-      .from("whatsapp_conversations")
-      .select("contact_name, contact_phone, channel")
-      .eq("id", conversationId)
-      .single();
 
     const contactName = conversation?.contact_name || conversation?.contact_phone || "Contato";
     const channel = conversation?.channel?.toUpperCase() || "WHATSAPP";

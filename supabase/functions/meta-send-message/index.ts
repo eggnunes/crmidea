@@ -11,8 +11,34 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Validate JWT and get authenticated user
+    const authHeader = req.headers.get('authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
+
+    if (claimsError || !claimsData?.claims) {
+      console.error('JWT validation failed:', claimsError);
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const authenticatedUserId = claimsData.claims.sub as string;
+
     const { conversationId, content, channel, recipientId } = await req.json();
-    console.log('Meta send message request:', { conversationId, content, channel, recipientId });
+    console.log('Meta send message request:', { conversationId, content, channel, recipientId, authenticatedUserId });
 
     if (!conversationId || !content || !channel || !recipientId) {
       return new Response(
@@ -21,30 +47,27 @@ Deno.serve(async (req) => {
       );
     }
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    // Get conversation to find user_id
+    // Verify conversation belongs to authenticated user
     const { data: conversation, error: convError } = await supabase
       .from('whatsapp_conversations')
       .select('user_id, channel_page_id')
       .eq('id', conversationId)
+      .eq('user_id', authenticatedUserId)
       .single();
 
     if (convError || !conversation) {
-      console.error('Conversation not found:', convError);
+      console.error('Conversation not found or access denied:', convError);
       return new Response(
-        JSON.stringify({ error: 'Conversation not found' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: 'Conversa não encontrada ou acesso negado' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Get channel config for access token
+    // Get channel config for access token (verified user is the owner)
     const { data: channelConfig, error: configError } = await supabase
       .from('channel_configs')
       .select('access_token, page_id')
-      .eq('user_id', conversation.user_id)
+      .eq('user_id', authenticatedUserId)
       .eq('channel', channel)
       .eq('is_active', true)
       .single();
@@ -111,7 +134,7 @@ Deno.serve(async (req) => {
       .from('whatsapp_messages')
       .insert({
         conversation_id: conversationId,
-        user_id: conversation.user_id,
+        user_id: authenticatedUserId,
         content,
         message_type: 'text',
         is_from_contact: false,
@@ -129,7 +152,8 @@ Deno.serve(async (req) => {
     await supabase
       .from('whatsapp_conversations')
       .update({ last_message_at: new Date().toISOString() })
-      .eq('id', conversationId);
+      .eq('id', conversationId)
+      .eq('user_id', authenticatedUserId);
 
     return new Response(
       JSON.stringify({ success: true, message_id: metaResult.message_id }),

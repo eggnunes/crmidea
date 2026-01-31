@@ -12,6 +12,32 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Validate JWT and get authenticated user
+    const authHeader = req.headers.get('authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
+
+    if (claimsError || !claimsData?.claims) {
+      console.error('JWT validation failed:', claimsError);
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const authenticatedUserId = claimsData.claims.sub as string;
+
     const manychatApiKey = Deno.env.get('MANYCHAT_API_KEY');
     
     if (!manychatApiKey) {
@@ -21,28 +47,25 @@ Deno.serve(async (req) => {
       );
     }
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
     // Parse request body
     const body = await req.json().catch(() => ({}));
     const action = body.action || 'sync_all';
     const leadId = body.lead_id;
 
-    console.log('Sync action:', action, 'Lead ID:', leadId);
+    console.log('Sync action:', action, 'Lead ID:', leadId, 'User ID:', authenticatedUserId);
 
     if (action === 'sync_single' && leadId) {
-      // Sync a single lead
+      // Sync a single lead - verify ownership
       const { data: lead, error: leadError } = await supabase
         .from('leads')
         .select('*')
         .eq('id', leadId)
+        .eq('user_id', authenticatedUserId)
         .single();
 
       if (leadError || !lead) {
         return new Response(
-          JSON.stringify({ success: false, error: 'Lead not found' }),
+          JSON.stringify({ success: false, error: 'Lead not found or access denied' }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
         );
       }
@@ -56,8 +79,8 @@ Deno.serve(async (req) => {
     }
 
     if (action === 'import_from_manychat') {
-      // Import subscribers from ManyChat as leads
-      const result = await importFromManyChat(supabase, manychatApiKey, body.user_id);
+      // Import subscribers from ManyChat as leads - use authenticated user
+      const result = await importFromManyChat(supabase, manychatApiKey, authenticatedUserId);
       
       return new Response(
         JSON.stringify({ success: true, ...result }),
@@ -83,17 +106,18 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Default: sync all leads with phone numbers
+    // Default: sync all leads with phone numbers FOR THIS USER ONLY
     const { data: leads, error: leadsError } = await supabase
       .from('leads')
       .select('*')
+      .eq('user_id', authenticatedUserId)
       .not('phone', 'is', null);
 
     if (leadsError) {
       throw leadsError;
     }
 
-    console.log(`Found ${leads?.length || 0} leads with phone numbers`);
+    console.log(`Found ${leads?.length || 0} leads with phone numbers for user ${authenticatedUserId}`);
 
     const results: { lead_id: string; error?: string; synced?: boolean; subscriber_id?: string; tags_added?: string[]; reason?: string }[] = [];
     for (const lead of leads || []) {
@@ -254,7 +278,7 @@ async function importFromManyChat(supabase: any, apiKey: string, userId: string)
   // This is a simplified version - ManyChat doesn't have a "get all subscribers" endpoint
   // You would need to use tags to filter subscribers
   
-  console.log('Importing subscribers from ManyChat...');
+  console.log('Importing subscribers from ManyChat for user:', userId);
   
   // Get all tags first to find relevant ones
   const tagsResponse = await fetch('https://api.manychat.com/fb/page/getTags', {
