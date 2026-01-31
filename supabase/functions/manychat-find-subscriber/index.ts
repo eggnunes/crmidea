@@ -11,8 +11,34 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Validate JWT and get authenticated user
+    const authHeader = req.headers.get('authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
+
+    if (claimsError || !claimsData?.claims) {
+      console.error('JWT validation failed:', claimsError);
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const authenticatedUserId = claimsData.claims.sub as string;
+
     const { conversationId, instagramUserId, fetchNameOnly } = await req.json();
-    console.log('ManyChat find subscriber request:', { conversationId, instagramUserId, fetchNameOnly });
+    console.log('ManyChat find subscriber request:', { conversationId, instagramUserId, fetchNameOnly, authenticatedUserId });
 
     if (!conversationId && !instagramUserId) {
       return new Response(
@@ -21,8 +47,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const manychatApiKey = Deno.env.get('MANYCHAT_API_KEY');
     
     if (!manychatApiKey) {
@@ -32,25 +56,23 @@ Deno.serve(async (req) => {
       );
     }
 
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    let igUserId = instagramUserId;
     let convId = conversationId;
     let conversation: Record<string, unknown> | null = null;
 
-    // If conversationId provided, get the conversation details
+    // If conversationId provided, get the conversation details AND verify ownership
     if (conversationId) {
       const { data: conv, error: convError } = await supabase
         .from('whatsapp_conversations')
         .select('*')
         .eq('id', conversationId)
+        .eq('user_id', authenticatedUserId)
         .single();
 
       if (convError || !conv) {
-        console.error('Conversation not found:', convError);
+        console.error('Conversation not found or access denied:', convError);
         return new Response(
-          JSON.stringify({ error: 'Conversation not found' }),
-          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          JSON.stringify({ error: 'Conversa não encontrada ou acesso negado' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
@@ -95,7 +117,8 @@ Deno.serve(async (req) => {
             const { error: updateError } = await supabase
               .from('whatsapp_conversations')
               .update({ contact_name: newName })
-              .eq('id', convId);
+              .eq('id', convId)
+              .eq('user_id', authenticatedUserId);
 
             if (updateError) {
               console.error('Error updating name:', updateError);
@@ -137,7 +160,6 @@ Deno.serve(async (req) => {
       }
 
       // Check if we have a manychat_subscriber_id - that's the ONLY valid ID for ManyChat API
-      // channel_user_id and contact_phone contain Instagram user IDs, NOT ManyChat subscriber IDs
       const subscriberId = conv.manychat_subscriber_id;
       
       if (subscriberId) {
@@ -174,7 +196,8 @@ Deno.serve(async (req) => {
             await supabase
               .from('whatsapp_conversations')
               .update({ contact_name: newName })
-              .eq('id', convId);
+              .eq('id', convId)
+              .eq('user_id', authenticatedUserId);
             
             console.log(`Updated contact name from "${conv.contact_name}" to "${newName}"`);
           }
@@ -199,7 +222,6 @@ Deno.serve(async (req) => {
       }
       
       // No manychat_subscriber_id - cannot auto-lookup
-      // Explain that user needs to send a new message via ManyChat to populate the ID
       console.log('No manychat_subscriber_id found - cannot auto-lookup');
       
       return new Response(
