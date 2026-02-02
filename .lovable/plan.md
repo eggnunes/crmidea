@@ -1,360 +1,194 @@
 
-# Plano de Otimizacao SEO Completo - rafaelegg.com
 
-## Diagnostico Atual
+# Plano de Correcao: Problema de Indexacao "Pagina com Redirecionamento"
 
-Apos analisar detalhadamente todo o codigo do site, identifiquei **problemas criticos e oportunidades** que explicam por que o site nao aparece nas buscas por "IA na advocacia" mesmo voce tendo autoridade no assunto.
+## Diagnostico do Problema
+
+O Google Search Console esta reportando problemas de **"Pagina com redirecionamento"** no site rafaelegg.com. Apos analise detalhada do codigo, identifiquei as seguintes causas:
 
 ---
 
 ## PROBLEMAS ENCONTRADOS
 
-### 1. Sitemap.xml Incompleto (CRITICO)
+### 1. Rota `/configuracoes` Redireciona para `/404` (PROBLEMA PRINCIPAL)
 
-**Problema**: O sitemap atual tem apenas 6 URLs estaticas, mas seu blog tem 10 artigos publicados que nao estao incluidos.
+**Arquivo**: `src/App.tsx` (linhas 45-59 e 77-80)
 
-**Sitemap Atual**:
-- / (home)
-- /consultoria
-- /blog
-- /bio
-- /ebook
-- /privacidade
-
-**Faltando**:
-- Todos os artigos do blog (10 URLs)
-- /consultoria/economia (pagina nova)
-- Nenhum artigo individual esta indexado
-
-### 2. Blog sem Meta Tags Dinamicas Completas (CRITICO)
-
-**Problema**: Os artigos do blog nao tem:
-- URL canonica dinamica
-- og:url dinamica
-- keywords especificas por artigo
-- Schema.org/JSON-LD para artigos (structured data)
-
-**Exemplo - BlogArticlePage.tsx atual**:
 ```text
-<Helmet>
-  <title>{article.title} | Rafael Egg - IA para Advogados</title>
-  <meta name="description" content={article.excerpt || ""} />
-  <meta property="og:title" content={article.title} />
-  // FALTA: canonical, og:url, keywords, structured data
-</Helmet>
+Rota publica "/configuracoes" → RedirectGoogleCalendarCallbackToAdminCalendar()
+  → Se NAO tem parametro "code=" → Navigate to "/404"
 ```
 
-### 3. Falta de Structured Data/JSON-LD (MUITO IMPORTANTE)
+**Problema**: O Google tenta indexar `/configuracoes` (que esta no robots.txt como Disallow), mas essa pagina faz um redirect JavaScript para `/404`. O Google detecta isso como uma **cadeia de redirecionamento**.
 
-**Problema**: O Google usa Schema.org para entender o conteudo. Seu site nao tem nenhum.
+**Solucao**: Remover essa rota publica completamente. O callback do Google Calendar deve usar apenas a rota interna `/metodo-idea/configuracoes`.
 
-**Faltando**:
-- `Person` schema para voce (autor, especialista)
-- `Article` schema para posts do blog
-- `Organization` schema para o escritorio
-- `Course` / `Service` schema para seus produtos
-- `FAQPage` schema para as perguntas frequentes
-- `BreadcrumbList` para navegacao
+### 2. URLs com `www.` nos Templates de Mensagem
 
-### 4. Paginas sem Helmet/Meta Tags (MEDIO)
+**Arquivos afetados**:
+- `supabase/functions/schedule-evento-followups/index.ts`
+- `supabase/migrations/20260119070853_...sql`
 
-Paginas que nao tem meta tags otimizadas:
-- `/blog` - Falta meta tags completas
-- `/ebook` - Sem Helmet
-- `/privacidade` - Sem Helmet
-- Nenhuma tem keywords
+**Problema**: Algumas mensagens e configuracoes usam `www.rafaelegg.com` que e redirecionado 301 para `rafaelegg.com`. Se o Google segue esses links, ve uma cadeia de redirect.
 
-### 5. Keywords Limitadas e Repetitivas (MEDIO)
+**Solucao**: Padronizar todas as URLs internas para usar `https://rafaelegg.com/` sem www.
 
-**Atual**: Apenas 3 paginas tem keywords, e sao muito genericas:
-- "IA para advogados, inteligencia artificial advocacia..."
+### 3. Redirect de www → non-www no `_redirects`
 
-**Problema**: Nao esta usando variações de long-tail que as pessoas buscam:
-- "como usar chatgpt para escrever peticoes"
-- "inteligencia artificial no direito"
-- "automacao de escritorio de advocacia"
-- "IA juridica brasil"
+**Arquivo**: `public/_redirects`
 
-### 6. Sitemap Estatico vs Dinamico (MEDIO)
+**Status**: Este redirect esta CORRETO (301 permanente). Porem, se houver links com www no sitemap ou conteudo, o Google pode reportar como problema.
 
-O sitemap e um arquivo estatico em `/public/sitemap.xml`. Para um blog com conteudo dinamico, deveria ser gerado automaticamente para incluir novos artigos.
-
-### 7. Falta de Internal Linking Estrategico (MENOR)
-
-Os artigos do blog nao linkam uns para os outros nem para produtos relacionados de forma estruturada.
+**Verificacao**: O sitemap.xml esta correto, usando apenas `https://rafaelegg.com/`.
 
 ---
 
-## SOLUCOES PROPOSTAS
+## SOLUCAO PROPOSTA
 
-### Fase 1: Structured Data (Schema.org) - ALTA PRIORIDADE
+### Arquivo 1: `src/App.tsx`
 
-Criar um componente de JSON-LD e adicionar a todas as paginas:
+**Mudanca**: Remover a rota publica `/configuracoes` que causa redirect para 404.
 
-| Tipo de Schema | Pagina | Beneficio |
-|----------------|--------|-----------|
-| Person | HomePage | Aparece como especialista no Google |
-| Article | BlogArticlePage | Rich snippets nos resultados |
-| FAQPage | HomePage, PublicConsultingPage | FAQ aparece no Google |
-| Course | PublicConsultingPage | Destaque como curso/servico |
-| Organization | Todas | Informacoes de marca |
-| BreadcrumbList | Todas | Navegacao estruturada |
+```text
+ANTES:
+Route path="/configuracoes" → RedirectGoogleCalendarCallbackToAdminCalendar
 
-### Fase 2: Meta Tags Completas - ALTA PRIORIDADE
+DEPOIS:
+(rota removida - o OAuth do Google Calendar usa /metodo-idea/calendario diretamente)
+```
 
-Adicionar Helmet com meta tags completas a:
-- BlogPage
-- BlogArticlePage (canonical, og:url dinamica)
-- EbookCapturePage
-- PrivacyPolicyPage
-- BioLinkPage (melhorar)
+### Arquivo 2: `src/hooks/useGoogleCalendar.tsx`
 
-### Fase 3: Sitemap Dinamico - MEDIA PRIORIDADE
+**Mudanca**: Atualizar o redirect URI do OAuth para apontar diretamente para a rota interna.
 
-Criar um sitemap que inclui dinamicamente:
-- Todas as paginas estaticas
-- Todos os artigos do blog (buscando do banco)
-- Nova pagina /consultoria/economia
-- lastmod real baseado em updated_at
+```text
+ANTES:
+return `${base}/configuracoes?google_callback=true`;
 
-### Fase 4: Otimizacao de Keywords - MEDIA PRIORIDADE
+DEPOIS:
+return `${base}/metodo-idea/calendario?google_callback=true`;
+```
 
-Expandir keywords para incluir:
-- Long-tail keywords especificas
-- Variacoes regionais (Brasil)
-- Perguntas que as pessoas fazem
+**Importante**: Apos essa mudanca, voce precisara atualizar a configuracao do OAuth no Google Cloud Console para adicionar a nova URI de redirecionamento autorizada.
 
-### Fase 5: Conteudo Adicional - BONUS
+### Arquivo 3: `supabase/functions/schedule-evento-followups/index.ts`
 
-Criar uma pagina "/sobre" ou "/quem-sou" dedicada com:
-- Schema Person completo
-- Historia detalhada
-- Premios e credenciais
-- Links para redes sociais
+**Mudanca**: Padronizar URLs sem www.
 
----
+```text
+ANTES:
+www.rafaelegg.com/consultoria
 
-## Arquivos a Criar/Modificar
+DEPOIS:
+https://rafaelegg.com/consultoria
+```
 
-| Arquivo | Acao |
-|---------|------|
-| `src/components/seo/JsonLd.tsx` | CRIAR - Componente de structured data |
-| `src/components/seo/SeoHead.tsx` | CRIAR - Componente reutilizavel de meta tags |
-| `src/pages/HomePage.tsx` | Adicionar JSON-LD Person, Organization, FAQPage |
-| `src/pages/BlogPage.tsx` | Adicionar Helmet completo |
-| `src/pages/BlogArticlePage.tsx` | Adicionar canonical dinamica, JSON-LD Article |
-| `src/pages/PublicConsultingPage.tsx` | Adicionar JSON-LD Course, FAQPage |
-| `src/pages/ConsultingEconomyPage.tsx` | Adicionar JSON-LD (ja tem Helmet) |
-| `src/pages/EbookCapturePage.tsx` | Adicionar Helmet |
-| `src/pages/PrivacyPolicyPage.tsx` | Adicionar Helmet |
-| `src/pages/BioLinkPage.tsx` | Melhorar meta tags |
-| `public/sitemap.xml` | Atualizar com todas as URLs |
+### Arquivo 4: `public/robots.txt`
+
+**Verificacao**: Confirmar que `/configuracoes` e `/404` estao bloqueados.
+
+```text
+# Ja existente - manter:
+Disallow: /configuracoes
+
+# ADICIONAR:
+Disallow: /404
+```
 
 ---
 
-## Secao Tecnica: Implementacao Detalhada
+## ARQUIVOS A MODIFICAR
 
-### Componente JsonLd.tsx
+| Arquivo | Acao | Impacto |
+|---------|------|---------|
+| `src/App.tsx` | Remover rota `/configuracoes` publica | Elimina redirect chain |
+| `src/hooks/useGoogleCalendar.tsx` | Atualizar redirect URI | Necessario para OAuth funcionar |
+| `supabase/functions/schedule-evento-followups/index.ts` | Padronizar URLs | Evita redirects em links de mensagens |
+| `public/robots.txt` | Bloquear `/404` | Impede indexacao da pagina 404 |
+
+---
+
+## SECAO TECNICA
+
+### Mudanca em `src/App.tsx`
+
+Remover as linhas 45-59 e 77-80:
 
 ```tsx
-// Componente generico para structured data
-interface JsonLdProps {
-  type: 'Person' | 'Article' | 'FAQPage' | 'Course' | 'Organization' | 'BreadcrumbList';
-  data: Record<string, unknown>;
-}
-
-export function JsonLd({ type, data }: JsonLdProps) {
-  const structuredData = {
-    "@context": "https://schema.org",
-    "@type": type,
-    ...data
-  };
-  
+// REMOVER este bloco de funcao:
+function RedirectGoogleCalendarCallbackToAdminCalendar() {
+  const location = useLocation();
+  if (!location.search.includes('code=')) {
+    return <Navigate to="/404" replace />;
+  }
   return (
-    <script
-      type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+    <Navigate
+      to={`/metodo-idea/calendario${location.search}${location.hash}`}
+      replace
     />
   );
 }
+
+// REMOVER esta rota:
+<Route
+  path="/configuracoes"
+  element={<RedirectGoogleCalendarCallbackToAdminCalendar />}
+/>
 ```
 
-### Schema Person (para HomePage)
+### Mudanca em `src/hooks/useGoogleCalendar.tsx`
 
-```json
-{
-  "@context": "https://schema.org",
-  "@type": "Person",
-  "name": "Rafael Egg",
-  "jobTitle": "Mentor em IA para Advocacia",
-  "description": "Advogado desde 2008, especialista em Inteligencia Artificial para escritorios de advocacia",
-  "url": "https://rafaelegg.com",
-  "image": "https://rafaelegg.com/og-image.png",
-  "sameAs": [
-    "https://www.instagram.com/rafaeleggnunes/",
-    "https://www.tiktok.com/@rafaeleggnunes",
-    "https://youtube.com/@rafaeleggnunes"
-  ],
-  "knowsAbout": [
-    "Inteligencia Artificial",
-    "Advocacia",
-    "Automacao Juridica",
-    "ChatGPT para Advogados"
-  ],
-  "award": "Melhor Escritorio em IA do Brasil 2025 - Law Summit"
-}
+Linha 54:
+
+```tsx
+// ANTES:
+return `${base}/configuracoes?google_callback=true`;
+
+// DEPOIS:
+return `${base}/metodo-idea/calendario?google_callback=true`;
 ```
 
-### Schema Article (para cada post do blog)
+### Mudanca em `schedule-evento-followups/index.ts`
 
-```json
-{
-  "@context": "https://schema.org",
-  "@type": "Article",
-  "headline": "{titulo do artigo}",
-  "description": "{excerpt}",
-  "author": {
-    "@type": "Person",
-    "name": "Rafael Egg"
-  },
-  "datePublished": "{published_at}",
-  "dateModified": "{updated_at}",
-  "publisher": {
-    "@type": "Organization",
-    "name": "Rafael Egg - IA para Advogados",
-    "logo": "https://rafaelegg.com/og-image.png"
-  },
-  "mainEntityOfPage": "https://rafaelegg.com/blog/{slug}"
-}
+Linhas 22, 39, 52:
+
+```ts
+// ANTES:
+www.rafaelegg.com/consultoria
+
+// DEPOIS:
+https://rafaelegg.com/consultoria
 ```
 
-### Schema FAQPage (para as paginas com FAQ)
+### Mudanca em `public/robots.txt`
 
-```json
-{
-  "@context": "https://schema.org",
-  "@type": "FAQPage",
-  "mainEntity": [
-    {
-      "@type": "Question",
-      "name": "O que e a Consultoria IDEA?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "A Consultoria IDEA e um servico personalizado..."
-      }
-    }
-  ]
-}
-```
+Adicionar apos linha 21:
 
-### Sitemap.xml Atualizado
-
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <!-- Paginas principais -->
-  <url>
-    <loc>https://rafaelegg.com/</loc>
-    <lastmod>2026-01-31</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>1.0</priority>
-  </url>
-  <url>
-    <loc>https://rafaelegg.com/consultoria</loc>
-    <lastmod>2026-01-31</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://rafaelegg.com/consultoria/economia</loc>
-    <lastmod>2026-01-31</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://rafaelegg.com/blog</loc>
-    <lastmod>2026-01-31</lastmod>
-    <changefreq>daily</changefreq>
-    <priority>0.8</priority>
-  </url>
-  
-  <!-- Artigos do Blog (10 URLs) -->
-  <url>
-    <loc>https://rafaelegg.com/blog/ia-revolucionando-advocacia-2025</loc>
-    <lastmod>2026-01-07</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://rafaelegg.com/blog/chatgpt-advogados-10-prompts-essenciais</loc>
-    <lastmod>2026-01-06</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <!-- ... demais 8 artigos -->
-  
-  <url>
-    <loc>https://rafaelegg.com/bio</loc>
-    <lastmod>2026-01-26</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://rafaelegg.com/ebook</loc>
-    <lastmod>2026-01-26</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://rafaelegg.com/privacidade</loc>
-    <lastmod>2026-01-26</lastmod>
-    <changefreq>yearly</changefreq>
-    <priority>0.3</priority>
-  </url>
-</urlset>
-```
-
-### Keywords Expandidas por Pagina
-
-**HomePage**:
 ```text
-IA para advogados, inteligencia artificial advocacia, consultoria IA juridica, 
-ChatGPT advogados, automacao escritorio advocacia, IA direito, Rafael Egg, 
-mentor IA advocacia, inteligencia artificial no direito Brasil, IA juridica
-```
-
-**BlogPage**:
-```text
-blog IA advocacia, artigos inteligencia artificial direito, dicas IA advogados, 
-tutoriais ChatGPT juridico, novidades IA escritorios advocacia
-```
-
-**PublicConsultingPage**:
-```text
-consultoria IA advogados, implementacao IA escritorio, automacao juridica 
-personalizada, produtividade advogados, sistema IA escritorio advocacia, 
-consultoria ChatGPT advogados
+Disallow: /404
 ```
 
 ---
 
-## Impacto Esperado
+## ACAO POS-IMPLEMENTACAO
 
-Apos implementacao:
+1. **Google Cloud Console**: Atualizar as URIs de redirecionamento autorizadas:
+   - Remover: `https://crmidea.lovable.app/configuracoes`
+   - Adicionar: `https://crmidea.lovable.app/metodo-idea/calendario`
 
-1. **Google vai entender melhor seu conteudo** gracas ao Schema.org
-2. **Artigos do blog vao ser indexados** (atualmente ignorados pelo sitemap)
-3. **Rich snippets** vao aparecer nos resultados (FAQ, artigos)
-4. **Keywords long-tail** vao capturar buscas especificas
-5. **Internal linking** vai distribuir autoridade entre paginas
+2. **Google Search Console**: 
+   - Acessar "Indexacao > Paginas"
+   - Localizar o problema "Pagina com redirecionamento"
+   - Clicar em "Validar correcao" apos o deploy
+
+3. **Aguardar**: O Google leva alguns dias para reprocessar as URLs
 
 ---
 
-## Recomendacoes Extras (Pos-Implementacao)
+## IMPACTO ESPERADO
 
-1. **Google Search Console**: Solicitar nova indexacao apos mudancas
-2. **Publicar mais conteudo**: 1-2 artigos por semana no blog
-3. **Backlinks**: Buscar links de sites juridicos, OAB, portais
-4. **Google Business Profile**: Criar perfil se ainda nao existe
-5. **YouTube SEO**: Otimizar descricoes dos videos com links para o site
+- O Google nao vera mais redirects em `/configuracoes`
+- As mensagens de WhatsApp nao terao links que redirecionam
+- A pagina 404 sera ignorada pelo Google
+- O erro de indexacao deve ser resolvido na proxima validacao
 
