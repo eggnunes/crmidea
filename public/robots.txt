@@ -19,6 +19,7 @@ Disallow: /consultoria/editar-prioridades
 Disallow: /cadastro-cliente
 Disallow: /agendar/
 Disallow: /aiteleprompteradmin
+Disallow: /404
 
 # Bloquear arquivos de sistema
 Disallow: /*.json$
