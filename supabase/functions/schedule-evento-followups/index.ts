@@ -19,7 +19,7 @@ Eu criei a Consultoria IDEA justamente para ajudar advogados a implementarem iss
 
 *Estendemos as condições especiais do evento para quem se cadastrou no estande, mas só até sexta-feira!*
 
-Se quiser saber mais: www.rafaelegg.com/consultoria
+Se quiser saber mais: https://rafaelegg.com/consultoria
 
 Abraço!
 Rafael`,
@@ -36,7 +36,7 @@ Não é solução pronta de prateleira... é feito sob medida para você.
 
 *As condições do Safe Experience ainda estão valendo para quem se cadastrou no estande, mas só até amanhã!*
 
-Dá uma olhada: www.rafaelegg.com/consultoria
+Dá uma olhada: https://rafaelegg.com/consultoria
 
 Abraço!
 Rafael`,
@@ -49,7 +49,7 @@ Não quero encher o saco, mas também não queria que você perdesse essa oportu
 
 A Consultoria IDEA não é para todo mundo... é para quem realmente quer sair do operacional e escalar o escritório com inteligência artificial.
 
-Se esse é o seu momento, a porta está aberta: www.rafaelegg.com/consultoria
+Se esse é o seu momento, a porta está aberta: https://rafaelegg.com/consultoria
 
 Se não for agora, sem problema! Quando estiver pronto, me chama. 😊
 

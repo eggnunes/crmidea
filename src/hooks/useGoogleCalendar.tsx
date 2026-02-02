@@ -51,7 +51,7 @@ export function useGoogleCalendar() {
     const publishedDomain = 'https://crmidea.lovable.app';
     const origin = typeof window !== 'undefined' ? window.location.origin : publishedDomain;
     const base = origin === publishedDomain ? origin : publishedDomain;
-    return `${base}/configuracoes?google_callback=true`;
+    return `${base}/metodo-idea/calendario?google_callback=true`;
   };
 
   const getAuthUrl = async () => {
