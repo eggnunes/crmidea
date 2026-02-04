@@ -7,6 +7,22 @@ Allow: /bio
 Allow: /ebook
 Allow: /privacidade
 
+# Permitir bots de IA para maior visibilidade
+User-agent: GPTBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Claude-Web
+Allow: /
+
+User-agent: Anthropic-AI
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
 # Bloquear rotas administrativas e de autenticação
 Disallow: /auth
 Disallow: /metodo-idea

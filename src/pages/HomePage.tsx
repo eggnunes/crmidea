@@ -212,7 +212,7 @@ export function HomePage() {
       <Helmet>
         <title>Rafael Egg - IA para Advogados | Consultoria, Mentoria e Cursos</title>
         <meta name="description" content="Rafael Egg - Especialista em Inteligência Artificial para Advogados. Consultoria personalizada, Mentoria e Cursos para transformar sua advocacia com IA. Aumente sua produtividade em até 60%." />
-        <meta name="keywords" content="IA para advogados, inteligência artificial advocacia, consultoria IA jurídica, ChatGPT advogados, automação escritório advocacia, IA direito, Rafael Egg, mentor IA advocacia, inteligência artificial no direito Brasil, IA jurídica, como usar chatgpt para escrever petições, automação de escritório de advocacia" />
+        <meta name="keywords" content="IA para advogados, inteligência artificial advocacia, consultoria IA jurídica, ChatGPT advogados, automação escritório advocacia, IA direito, Rafael Egg, mentor IA advocacia, inteligência artificial no direito Brasil, IA jurídica, como usar chatgpt para escrever petições, ferramentas de ia para escritório de advocacia, prompts chatgpt para advogados, automatização jurídica com ia, inteligência artificial para peticionamento, melhor escritório ia brasil, ia na advocacia, curso ia advogados, mentoria ia advocacia, automação jurídica" />
         <meta name="robots" content="index, follow" />
         <meta name="author" content="Rafael Egg" />
         <link rel="canonical" href="https://rafaelegg.com/" />
