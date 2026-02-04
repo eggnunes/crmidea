@@ -115,20 +115,47 @@ export function ClientFormResponses({ clientId }: ClientFormResponsesProps) {
 
   const fetchLatestDiagnosticFormData = async (params: { email: string; consultantId: string }) => {
     // The diagnostic answers are persisted in diagnostic_form_progress.form_data.
-    // In some cases, consulting_clients columns are not fully synced.
+    // CRITICAL FIX: Use multiple strategies to find the correct diagnostic data
+    // because client_profiles.email might differ from the email used in the form.
     try {
+      const normalizedEmail = params.email?.trim().toLowerCase();
+      let clientUserId: string | null = null;
+      
+      // Strategy 1: Try via client_profiles (email match)
       const { data: profile } = await supabase
         .from("client_profiles")
         .select("user_id")
-        .eq("email", params.email)
-        // Disambiguate in case there are multiple client_profiles with same email
-        // (e.g., duplicates across consultants).
+        .ilike("email", normalizedEmail)
         .eq("consultant_id", params.consultantId)
         .maybeSingle();
 
-      const clientUserId = profile?.user_id;
+      clientUserId = profile?.user_id || null;
+      
+      // Strategy 2: If not found, search diagnostic_form_progress directly by email in form_data
+      if (!clientUserId) {
+        const { data: allProgress } = await supabase
+          .from("diagnostic_form_progress")
+          .select("client_user_id, form_data, updated_at, is_completed")
+          .eq("consultant_id", params.consultantId)
+          .eq("is_completed", true)
+          .order("updated_at", { ascending: false })
+          .limit(20);
+        
+        if (allProgress) {
+          for (const p of allProgress) {
+            const fd = p.form_data as any;
+            if (fd?.email && fd.email.trim().toLowerCase() === normalizedEmail) {
+              clientUserId = p.client_user_id;
+              // Return this progress directly since we already have it
+              return p;
+            }
+          }
+        }
+      }
+
       if (!clientUserId) return null;
 
+      // Fetch the diagnostic progress with the found client_user_id
       const { data: progress } = await supabase
         .from("diagnostic_form_progress")
         .select("form_data, updated_at, is_completed")

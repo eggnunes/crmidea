@@ -402,11 +402,12 @@ export function ClientDiagnosticForm() {
 
       if (completeError) throw completeError;
 
-      // Check if consulting_client already exists for this email
+      // Check if consulting_client already exists for this email (use normalized email for consistency)
+      const normalizedEmail = formData.email.trim().toLowerCase();
       const { data: existingClient, error: existingClientError } = await supabase
         .from("consulting_clients")
         .select("id")
-        .eq("email", formData.email)
+        .eq("email_lc", normalizedEmail)
         .eq("user_id", consultantId)
         .order("updated_at", { ascending: false })
         .limit(1)
@@ -478,6 +479,7 @@ export function ClientDiagnosticForm() {
           user_id: consultantId,
           full_name: formData.full_name,
           email: formData.email,
+          email_lc: normalizedEmail, // CRITICAL: Normalized email for uniqueness constraint
           phone: formData.phone,
           cpf_cnpj: formData.cpf_cnpj || null,
           oab_number: formData.oab_number || null,
@@ -530,12 +532,12 @@ export function ClientDiagnosticForm() {
           const code = (error as any)?.code;
           if (code !== '23505') throw error;
 
-          // If it already exists (unique constraint), fetch and update it.
+          // If it already exists (unique constraint), fetch and update it using normalized email.
           const { data: existing, error: findError } = await supabase
             .from('consulting_clients')
             .select('id')
             .eq('user_id', consultantId)
-            .eq('email', formData.email)
+            .eq('email_lc', normalizedEmail)
             .order('updated_at', { ascending: false })
             .limit(1)
             .maybeSingle();
