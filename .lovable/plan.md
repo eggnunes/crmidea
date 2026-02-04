@@ -1,337 +1,225 @@
 
+# Plano de Correcao SEO - Resolver Problemas de Redirecionamento e Indexacao
 
-# Plano Completo de SEO para Ranqueamento - rafaelegg.com
+## Diagnostico Completo Baseado nas Imagens do GSC
 
-## Diagnostico Aprofundado
+### Problema 1: Paginas com Redirecionamento (3 URLs)
+As seguintes URLs estao sendo vistas pelo Google como tendo redirecionamentos problematicos:
+- `http://rafaelegg.com/` (HTTP sem www)
+- `http://www.rafaelegg.com/` (HTTP com www)  
+- `https://www.rafaelegg.com/` (HTTPS com www)
 
-Apos analise completa do codigo e pesquisa externa, confirmei o problema principal:
+**Causa**: O `public/_redirects` tem regras apenas para www, mas **falta a regra para HTTP sem www** (`http://rafaelegg.com` -> `https://rafaelegg.com`). A hospedagem pode nao estar fazendo essa conversao automaticamente.
 
-**O site NAO ESTA INDEXADO NO GOOGLE** - A busca `site:rafaelegg.com` retornou ZERO resultados.
+### Problema 2: Erro de Redirecionamento (1 URL)
+- `https://www.rafaelegg.com/consultoria` apresenta **erro** (nao apenas redirecionamento)
 
-Seu nome "Rafael Egg" tambem nao aparece nos resultados para termos como "IA na advocacia" - outros competidores dominam esses termos (iaparaadv.com.br, iaparaadvogados.com.br).
+**Causa**: Quando o Google tenta acessar essa URL com www, o redirecionamento pode estar falhando ou entrando em loop. Isso pode acontecer porque:
+1. A regra de redirect no `_redirects` nao esta cobrindo subpaginas corretamente
+2. O SPA fallback (`/*  /index.html  200`) pode estar interferindo
 
----
+### Problema 3: Detectada mas Nao Indexada (5 URLs)
+- `/bio`, `/blog`, `/consultoria`, `/ebook`, `/privacidade`
+- Todas mostram "N/D" (nunca rastreadas pelo Google)
 
-## CAUSA RAIZ IDENTIFICADA
-
-O Lovable gera aplicacoes React SPA (Single Page Application) com renderizacao client-side (CSR). Isso significa:
-
-1. **Google ve o site em 2 etapas**: Primeiro carrega o HTML "vazio", depois retorna para executar o JavaScript
-2. **Indexacao mais lenta**: Pode levar dias/semanas em vez de horas
-3. **Plataformas sociais e AI nao executam JavaScript**: Podem nao ver o conteudo completo
-4. **Concorrentes com SSR/SSG tem vantagem**: Sites WordPress/Webflow sao indexados mais rapidamente
-
-**IMPORTANTE**: CSR NAO IMPEDE o ranqueamento, apenas torna-o mais lento. O problema e que seu site ainda NAO FOI INDEXADO, provavelmente porque:
-
-- Verificacao do Google Search Console pode estar incompleta
-- Sitemap pode nao ter sido processado corretamente
-- O dominio pode ter problemas de configuracao
+**Causa**: Como as URLs canonicas dependem dos redirecionamentos funcionando corretamente, o Google nao conseguiu rastrear essas paginas ainda. Uma vez corrigidos os redirecionamentos, o rastreamento sera possivel.
 
 ---
 
-## PROBLEMAS ESPECIFICOS ENCONTRADOS
+## Solucoes Propostas
 
-### 1. Falta de Pagina Estatica para LLMs/AI (CRITICO)
+### Fase 1: Corrigir Configuracao de Redirecionamentos
 
-A documentacao oficial do Lovable recomenda criar uma pagina `/llm.html` ou `/about-ai.html` com conteudo estatico em HTML puro para que bots de IA (GPTBot, PerplexityBot, Claude) consigam ler o conteudo.
+**Arquivo: `public/_redirects`**
 
-**Status atual**: Nao existe essa pagina.
+Adicionar regras mais completas para cobrir TODOS os cenarios:
 
-### 2. Falta de Google Site Verification Meta Tag no index.html (CRITICO)
-
-O `index.html` NAO tem a meta tag de verificacao do Google Search Console. Isso pode significar que o dominio nao esta verificado corretamente.
-
-**O que precisa**:
-```html
-<meta name="google-site-verification" content="SEU_CODIGO_GSC" />
-```
-
-### 3. Robots.txt Bloqueia Bots de IA (IMPORTANTE)
-
-O robots.txt atual nao permite explicitamente bots de IA como GPTBot (ChatGPT) e PerplexityBot.
-
-**Atual**:
 ```text
-User-agent: *
-Allow: /
+# Forcar HTTPS em todas as requisicoes HTTP
+http://rafaelegg.com/* https://rafaelegg.com/:splat 301!
+http://www.rafaelegg.com/* https://rafaelegg.com/:splat 301!
+
+# Redirecionar www para nao-www (HTTPS)
+https://www.rafaelegg.com/* https://rafaelegg.com/:splat 301!
+
+# Arquivos estaticos
+/robots.txt    /robots.txt    200
+/sitemap.xml   /sitemap.xml   200
+/llm.html      /llm.html      200
+/favicon.ico   /favicon.ico   200
+/favicon.png   /favicon.png   200
+/og-image.png  /og-image.png  200
+
+# SPA fallback
+/*    /index.html   200
 ```
 
-**Recomendado**:
+A mudanca principal e adicionar `http://rafaelegg.com/*` como regra separada.
+
+### Fase 2: Adicionar Canonical Explicito em Cada Pagina
+
+**Problema atual**: O `index.html` tem `<link rel="canonical" href="https://rafaelegg.com/" />` que e estatico e aponta sempre para a home, independentemente da pagina atual.
+
+**Solucao**: Cada pagina ja usa React Helmet para definir seu proprio canonical (o HomePage.tsx ja faz isso), mas precisamos garantir que TODAS as paginas publicas facam isso.
+
+Paginas a verificar/adicionar canonical:
+- `/blog` - BlogPage.tsx
+- `/bio` - BioLinkPage.tsx
+- `/ebook` - EbookCapturePage.tsx
+- `/consultoria` - PublicConsultingPage.tsx
+- `/privacidade` - PrivacyPolicyPage.tsx
+
+### Fase 3: Melhorar o index.html Base
+
+**Arquivo: `index.html`**
+
+O canonical no index.html deve ser dinamico ou removido para deixar o React Helmet gerenciar. Como nao podemos ter canonical dinamico no HTML estatico de um SPA, a melhor abordagem e:
+
+1. Manter o canonical base para a home (ja esta correto)
+2. Garantir que cada pagina React use o Helmet para sobrescrever
+
+### Fase 4: Adicionar Header HTTP de Redirect no Servidor
+
+**Arquivo: `public/_headers`**
+
+Adicionar headers que forcam o uso da versao canonica:
+
 ```text
-User-agent: *
-Allow: /
+https://www.rafaelegg.com/*
+  Link: <https://rafaelegg.com/:splat>; rel="canonical"
+  
+http://rafaelegg.com/*
+  Link: <https://rafaelegg.com/:splat>; rel="canonical"
 
-User-agent: GPTBot
-Allow: /
-
-User-agent: PerplexityBot
-Allow: /
-
-User-agent: Claude-Web
-Allow: /
+http://www.rafaelegg.com/*
+  Link: <https://rafaelegg.com/:splat>; rel="canonical"
 ```
 
-### 4. Falta de Keywords Mais Agressivas (MEDIO)
+### Fase 5: Criar Pagina 404 com Status HTTP Correto
 
-Suas keywords atuais sao boas mas muito genericas:
-```text
-"IA para advogados, inteligencia artificial advocacia..."
-```
+**Problema**: A rota `/*` no SPA retorna **status 200** para TODAS as URLs, incluindo paginas que nao existem. Isso confunde o Google.
 
-**Faltam long-tail keywords que as pessoas realmente buscam**:
-- "como usar chatgpt para escrever peticoes"
-- "ferramentas de ia para escritorio de advocacia"
-- "inteligencia artificial no direito brasileiro"
-- "automatizacao juridica com ia"
-- "prompts chatgpt para advogados"
+**Solucao**: No Lovable/Netlify, nao e possivel retornar 404 real para rotas SPA inexistentes. Porem, podemos:
 
-### 5. Conteudo Pouco "Quotable" para AI (MEDIO)
-
-O conteudo do site e muito visual e interativo. Para ranquear em buscas de IA (ChatGPT, Perplexity, etc), precisa ter:
-- Definicoes claras ("O que e IA na advocacia?")
-- Listas com fatos ("10 ferramentas de IA para advogados")
-- Estatisticas ("Aumento de 60% na produtividade")
-
-### 6. Falta de Backlinks (MUITO IMPORTANTE para competir)
-
-Para competir com sites estabelecidos para termos como "IA na advocacia", voce precisa de:
-- Links de sites juridicos (OAB, portais juridicos)
-- Guest posts em blogs do setor
-- Mencoes em podcasts, videos do YouTube
-- Links de redes sociais verificadas
+1. Usar `X-Robots-Tag: noindex` na pagina NotFound
+2. Melhorar a pagina NotFound para informar que e uma pagina inexistente
 
 ---
 
-## SOLUCOES PROPOSTAS
-
-### Fase 1: Correcoes Tecnicas Urgentes
+## Arquivos a Modificar
 
 | Arquivo | Mudanca | Impacto |
 |---------|---------|---------|
-| `index.html` | Adicionar meta tag de verificacao GSC | Critico |
-| `public/robots.txt` | Adicionar permissoes para bots AI | Alto |
-| `public/llm.html` | Criar pagina estatica para AI crawlers | Alto |
-| `public/sitemap.xml` | Confirmar que esta acessivel e atualizado | Alto |
-
-### Fase 2: Otimizacao de Conteudo
-
-| Arquivo | Mudanca | Impacto |
-|---------|---------|---------|
-| `src/pages/HomePage.tsx` | Adicionar mais keywords long-tail | Medio |
-| `src/pages/BlogPage.tsx` | Melhorar estrutura de H1/H2/H3 | Medio |
-| `src/pages/PublicConsultingPage.tsx` | Adicionar mais definicoes quotaveis | Medio |
-
-### Fase 3: Estrategia de Pre-renderizacao (Opcional)
-
-Conforme a documentacao do Lovable, para sites que dependem muito de SEO, voce pode adicionar pre-renderizacao usando servicos externos:
-
-- **Prerender.io**: Servico pago mas muito eficiente
-- **DataJelly**: Alternativa mais simples
-- **Rendertron**: Open-source, auto-hospedado
-
-Isso faz com que bots recebam HTML completo em vez de ter que executar JavaScript.
+| `public/_redirects` | Adicionar regra `http://rafaelegg.com/*` | Critico - resolve "Pagina com redirecionamento" |
+| `public/_headers` | Adicionar headers Link canonical | Alto - ajuda Google entender versao canonica |
+| `src/pages/BlogPage.tsx` | Verificar/adicionar canonical correto | Medio |
+| `src/pages/BioLinkPage.tsx` | Verificar/adicionar canonical correto | Medio |
+| `src/pages/PublicConsultingPage.tsx` | Verificar/adicionar canonical correto | Medio |
+| `src/pages/EbookCapturePage.tsx` | Verificar/adicionar canonical correto | Medio |
+| `src/pages/PrivacyPolicyPage.tsx` | Verificar/adicionar canonical correto | Medio |
+| `src/pages/NotFound.tsx` | Adicionar meta noindex via Helmet | Baixo |
+| `index.html` | Remover canonical estatico (deixar Helmet gerenciar) | Medio |
 
 ---
 
-## ARQUIVOS A CRIAR/MODIFICAR
+## Secao Tecnica: Detalhes de Implementacao
 
-### 1. `index.html` - Adicionar Verificacao GSC
-
-```html
-<!-- Adicionar dentro do <head> -->
-<meta name="google-site-verification" content="CODIGO_DO_GOOGLE_SEARCH_CONSOLE" />
-```
-
-### 2. `public/robots.txt` - Permitir Bots AI
+### 1. public/_redirects (Atualizado)
 
 ```text
-User-agent: *
-Allow: /
-Allow: /blog
-Allow: /blog/
-Allow: /consultoria
-Allow: /bio
-Allow: /ebook
-Allow: /privacidade
+# Forcar HTTPS e remover www - TODAS as combinacoes
+http://rafaelegg.com/* https://rafaelegg.com/:splat 301!
+http://www.rafaelegg.com/* https://rafaelegg.com/:splat 301!
+https://www.rafaelegg.com/* https://rafaelegg.com/:splat 301!
 
-# Permitir bots de IA para maior visibilidade
-User-agent: GPTBot
-Allow: /
+# Arquivos estaticos servidos diretamente
+/robots.txt    /robots.txt    200
+/sitemap.xml   /sitemap.xml   200
+/llm.html      /llm.html      200
+/favicon.ico   /favicon.ico   200
+/favicon.png   /favicon.png   200
+/og-image.png  /og-image.png  200
 
-User-agent: PerplexityBot
-Allow: /
-
-User-agent: Claude-Web
-Allow: /
-
-User-agent: Anthropic-AI
-Allow: /
-
-# Bloquear rotas administrativas
-Disallow: /auth
-Disallow: /metodo-idea
-Disallow: /metodo-idea/
-Disallow: /consultoria/login
-Disallow: /consultoria/dashboard
-Disallow: /consultoria/diagnostico
-Disallow: /consultoria/editar-prioridades
-Disallow: /cadastro-cliente
-Disallow: /agendar/
-Disallow: /aiteleprompteradmin
-Disallow: /404
-
-# Bloquear arquivos de sistema
-Disallow: /*.json$
-Disallow: /assets/
-
-Sitemap: https://rafaelegg.com/sitemap.xml
+# SPA fallback - todas as outras rotas
+/*    /index.html   200
 ```
 
-### 3. `public/llm.html` - Nova Pagina Estatica para AI (NOVO)
-
-Criar um arquivo HTML puro que os bots de IA possam ler sem executar JavaScript:
-
-```html
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="UTF-8">
-  <title>Rafael Egg - Especialista em IA para Advogados</title>
-  <meta name="description" content="Informacoes sobre Rafael Egg e servicos de IA para advogados">
-</head>
-<body>
-  <h1>Rafael Egg - Especialista em Inteligencia Artificial para Advogados</h1>
-  
-  <h2>Quem e Rafael Egg?</h2>
-  <p>Rafael Egg Nunes e advogado desde 2008, mentor em IA para advogados e socio do Egg Nunes Advogados Associados. Em 2025, seu escritorio foi premiado como Melhor Escritorio em Inteligencia Artificial do Brasil pela Law Summit.</p>
-  
-  <h2>O que e o Metodo IDEA?</h2>
-  <p>O Metodo IDEA (Inteligencia de Dados e Artificial) e uma metodologia criada por Rafael Egg para ajudar advogados a automatizarem rotinas, captarem clientes e escalarem seus escritorios usando inteligencia artificial.</p>
-  
-  <h2>Servicos Oferecidos</h2>
-  <ul>
-    <li><strong>Consultoria IDEA</strong>: Implementacao personalizada de IA em escritorios de advocacia. Investimento a partir de R$ 10.000.</li>
-    <li><strong>Mentoria</strong>: Acompanhamento individual ou em grupo para advogados.</li>
-    <li><strong>Curso IDEA</strong>: Formacao completa em Inteligencia de Dados e Artificial para advogados.</li>
-  </ul>
-  
-  <h2>Resultados Comprovados</h2>
-  <ul>
-    <li>Aumento de ate 60% na produtividade dos escritorios</li>
-    <li>Mais de 500 advogados capacitados</li>
-    <li>50+ escritorios atendidos</li>
-    <li>Faturamento multiplicado em 10x usando IA estrategicamente</li>
-  </ul>
-  
-  <h2>Perguntas Frequentes</h2>
-  <dl>
-    <dt>Preciso saber programar para usar IA na advocacia?</dt>
-    <dd>Nao. Todos os produtos sao projetados para advogados de qualquer nivel tecnico.</dd>
-    
-    <dt>Quanto custa a Consultoria IDEA?</dt>
-    <dd>O investimento varia conforme o plano escolhido. Entre em contato para uma proposta personalizada.</dd>
-  </dl>
-  
-  <h2>Contato</h2>
-  <p>Site: https://rafaelegg.com</p>
-  <p>Instagram: @rafaeleggnunes</p>
-  <p>YouTube: @rafaeleggnunes</p>
-</body>
-</html>
-```
-
-### 4. `public/sitemap.xml` - Adicionar llm.html
-
-Incluir a nova pagina no sitemap:
-
-```xml
-<url>
-  <loc>https://rafaelegg.com/llm.html</loc>
-  <lastmod>2026-02-04</lastmod>
-  <changefreq>monthly</changefreq>
-  <priority>0.5</priority>
-</url>
-```
-
-### 5. Keywords Long-tail em `HomePage.tsx`
-
-Atualizar a meta tag de keywords para incluir variacoes mais especificas:
+### 2. NotFound.tsx com noindex
 
 ```tsx
-<meta name="keywords" content="IA para advogados, inteligencia artificial advocacia, consultoria IA juridica, ChatGPT advogados, automacao escritorio advocacia, IA direito, Rafael Egg, mentor IA advocacia, inteligencia artificial no direito Brasil, IA juridica, como usar chatgpt para escrever peticoes, ferramentas de ia para escritorio de advocacia, prompts chatgpt para advogados, automatizacao juridica com ia, inteligencia artificial para peticionamento, melhor escritorio ia brasil" />
+import { Helmet } from "react-helmet";
+
+const NotFound = () => {
+  return (
+    <>
+      <Helmet>
+        <title>Pagina nao encontrada - Rafael Egg</title>
+        <meta name="robots" content="noindex, nofollow" />
+      </Helmet>
+      <div className="flex min-h-screen items-center justify-center bg-muted">
+        <div className="text-center">
+          <h1 className="mb-4 text-4xl font-bold">404</h1>
+          <p className="mb-4 text-xl text-muted-foreground">Pagina nao encontrada</p>
+          <a href="/" className="text-primary underline hover:text-primary/90">
+            Voltar ao inicio
+          </a>
+        </div>
+      </div>
+    </>
+  );
+};
 ```
 
----
+### 3. index.html - Remover canonical estatico
 
-## ACOES MANUAIS NECESSARIAS (FORA DO CODIGO)
-
-### 1. Google Search Console - Verificacao (URGENTE)
-
-1. Acesse: https://search.google.com/search-console
-2. Adicione a propriedade `https://rafaelegg.com`
-3. Escolha verificacao por **Meta Tag**
-4. Copie o codigo (ex: `<meta name="google-site-verification" content="abc123" />`)
-5. Me passe o codigo para eu adicionar ao `index.html`
-
-### 2. Google Search Console - Reenviar Sitemap
-
-1. Va para "Sitemaps" no menu lateral
-2. Insira: `https://rafaelegg.com/sitemap.xml`
-3. Clique em "Enviar"
-4. Aguarde 24-48h para processamento
-
-### 3. Solicitar Indexacao Manual
-
-1. Use a ferramenta "Inspecao de URL"
-2. Cole cada URL importante:
-   - `https://rafaelegg.com/`
-   - `https://rafaelegg.com/blog`
-   - `https://rafaelegg.com/consultoria`
-3. Clique em "Solicitar indexacao" para cada uma
-
-### 4. Criar Backlinks (Estrategia de Medio Prazo)
-
-- Escrever guest posts para blogs juridicos
-- Ser entrevistado em podcasts sobre direito/tecnologia
-- Conseguir link na OAB ou associacoes de advogados
-- Criar perfil no Google Business Profile
-- Listar o site em diretorios juridicos
-
----
-
-## EXPECTATIVA DE RESULTADOS
-
-| Acao | Tempo para Efeito |
-|------|-------------------|
-| Adicionar meta tag GSC + solicitar indexacao | 1-7 dias |
-| Sitemap processado | 1-3 dias |
-| Aparecer em buscas basicas pelo nome | 2-4 semanas |
-| Comecar a rankear para termos especificos | 1-3 meses |
-| Competir com sites estabelecidos | 3-6 meses (requer backlinks) |
-
----
-
-## SECAO TECNICA: Detalhes de Implementacao
-
-### Meta Tag de Verificacao no index.html
-
-Voce precisa me fornecer o codigo de verificacao do Google Search Console. Ele sera algo como:
-
+Remover a linha:
 ```html
-<meta name="google-site-verification" content="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" />
+<link rel="canonical" href="https://rafaelegg.com/" />
 ```
 
-### Pre-renderizacao (Opcional Futuro)
+Deixar cada pagina React gerenciar seu proprio canonical via Helmet.
 
-Se apos implementar todas as correcoes o site ainda demorar para ranquear, podemos explorar:
+### 4. Verificar paginas publicas
 
-1. **Prerender.io** (mais facil): Servico SaaS que intercepta requisicoes de bots e serve HTML pre-renderizado
-2. **vite-plugin-html-prerender**: Plugin que gera HTML estatico no build para rotas especificas
+Para cada pagina publica, garantir que tenha:
+```tsx
+<Helmet>
+  <link rel="canonical" href="https://rafaelegg.com/ROTA_ESPECIFICA" />
+</Helmet>
+```
 
-### Monitoramento
+---
 
-Use o Google Search Console semanalmente para acompanhar:
-- Quantas paginas estao indexadas
-- Quais termos estao gerando impressoes
-- Quais erros de rastreamento existem
+## Acoes Manuais no Google Search Console (Apos Deploy)
 
+1. **Inspecionar URL** para cada uma das 3 URLs com problema de redirecionamento:
+   - `https://www.rafaelegg.com/consultoria`
+   - Verificar se agora mostra redirecionamento 301 correto
+
+2. **Validar Correcao** nos dois grupos de problemas:
+   - "Pagina com redirecionamento" - Clicar em "VALIDAR CORRECAO"
+   - "Erro de redirecionamento" - Clicar em "VALIDAR CORRECAO"
+
+3. **Solicitar Indexacao Manual** para as 5 paginas detectadas mas nao indexadas:
+   - Usar Inspecao de URL
+   - Clicar "SOLICITAR INDEXACAO"
+
+---
+
+## Expectativa de Resultados
+
+| Acao | Tempo Estimado |
+|------|----------------|
+| Validacao de correcao no GSC | 1-3 dias |
+| Primeira indexacao das paginas | 1-7 dias |
+| Aparecer em buscas por nome | 2-3 semanas |
+| Comecar a ranquear para termos competitivos | 1-3 meses |
+
+---
+
+## Resumo das Mudancas
+
+1. **Redirect HTTP->HTTPS**: Adicionar regra para `http://rafaelegg.com/*`
+2. **Canonical dinamico**: Remover canonical do index.html e garantir em cada pagina React
+3. **NotFound com noindex**: Evitar que paginas 404 sejam indexadas
+4. **LLM.html no redirects**: Garantir que a pagina estatica seja servida corretamente
