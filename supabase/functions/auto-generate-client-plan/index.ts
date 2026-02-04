@@ -136,6 +136,240 @@ const CONSULTING_FEATURES: Record<number, { name: string; description: string; c
   85: { name: "API para Integrações Personalizadas", description: "API REST documentada para integrações customizadas com outros sistemas.", category: "Integrações" },
 };
 
+// Priority type
+type Priority = 'alta' | 'media' | 'baixa';
+
+// Etapa structure for fragmented prompts
+interface EtapaPrompt {
+  id: number;
+  titulo: string;
+  descricao: string;
+  prompt: string;
+  categoria: string;
+  prioridade: Priority;
+  funcionalidades: string[];
+  ordem: number;
+  concluida: boolean;
+}
+
+// Category order for organizing prompts
+const CATEGORY_ORDER = [
+  { id: 'base', name: 'Estrutura Base' },
+  { id: 'IA', name: 'Inteligência Artificial' },
+  { id: 'Documentos', name: 'Documentos Jurídicos' },
+  { id: 'Jurídico', name: 'Jurídico e Processual' },
+  { id: 'Gestão', name: 'Gestão e Produtividade' },
+  { id: 'Financeiro', name: 'Financeiro e Comercial' },
+  { id: 'Comunicação', name: 'Comunicação e Colaboração' },
+  { id: 'RH', name: 'Recursos Humanos' },
+  { id: 'Utilidades', name: 'Utilidades e Ferramentas' },
+  { id: 'Segurança', name: 'Segurança e Administração' },
+  { id: 'Integrações', name: 'Integrações' },
+];
+
+const PRIORITY_ORDER: Priority[] = ['alta', 'media', 'baixa'];
+
+// Helper function to chunk array
+function chunkArray<T>(array: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < array.length; i += size) {
+    chunks.push(array.slice(i, i + size));
+  }
+  return chunks;
+}
+
+// Generate base prompt for the initial structure
+function generateBasePrompt(client: any): string {
+  return `Crie uma intranet completa para o escritório de advocacia "${client.office_name}" com as seguintes características:
+
+## Informações do Escritório
+- Nome: ${client.office_name}
+- Advogados: ${client.num_lawyers}
+- Funcionários: ${client.num_employees}
+- Áreas de Atuação: ${client.practice_areas || 'Advocacia'}
+
+## Estrutura Base Necessária
+
+### 1. Sistema de Autenticação
+- Login/Logout com Supabase Auth
+- Proteção de rotas autenticadas
+- Recuperação de senha
+
+### 2. Layout Principal
+- Sidebar com navegação
+- Header com informações do usuário
+- Área de conteúdo principal responsiva
+- Tema claro/escuro
+
+### 3. Dashboard Principal
+- Cards de métricas resumidas
+- Gráficos de performance
+- Atalhos rápidos para funcionalidades principais
+
+### 4. Perfil do Usuário
+- Edição de dados pessoais
+- Upload de foto
+- Configurações de notificação
+
+Use React com TypeScript, Tailwind CSS, shadcn/ui e Supabase. 
+Design moderno e profissional adequado para escritório de advocacia.
+Cores: tons de azul escuro (#1e3a5f) como primária, branco e cinzas para contraste.`;
+}
+
+// Generate prompt for a specific feature group
+function generateFeaturePrompt(client: any, features: { name: string; description: string }[], categoryName: string, priority: Priority): string {
+  const featureList = features.map(f => `- ${f.name}: ${f.description}`).join('\n');
+  const priorityText = priority === 'alta' ? 'ALTA PRIORIDADE' : priority === 'media' ? 'MÉDIA PRIORIDADE' : 'BAIXA PRIORIDADE';
+  
+  return `Adicione ao projeto existente da intranet do ${client.office_name} as seguintes funcionalidades de ${categoryName} (${priorityText}):
+
+## Funcionalidades a Implementar
+${featureList}
+
+## Requisitos Técnicos
+- Não recrie a autenticação ou layout (já existem)
+- Adicione novos itens ao menu lateral
+- Crie rotas/páginas para cada funcionalidade
+- Use os componentes shadcn/ui existentes
+- Mantenha consistência visual com o resto do projeto
+- Implemente CRUD completo quando aplicável
+- Use Supabase para persistência
+
+## Design
+- Cards e tabelas bem organizadas
+- Formulários com validação
+- Feedback visual (toasts, loading states)
+- Responsividade mobile/desktop
+
+Seja específico e implemente de forma completa e funcional.`;
+}
+
+// Main function to generate fragmented prompts
+async function generateFragmentedPromptsForClient(client: any, supabase: any): Promise<EtapaPrompt[] | null> {
+  try {
+    const selectedFeatures = (client.selected_features || [])
+      .map((id: number) => CONSULTING_FEATURES[id])
+      .filter(Boolean);
+    
+    const featurePriorities = client.feature_priorities || {};
+    
+    // Group features by category and priority
+    const featuresByCategory: Record<string, Record<Priority, { name: string; description: string }[]>> = {};
+    
+    selectedFeatures.forEach((feature: { name: string; description: string; category: string }, index: number) => {
+      const id = client.selected_features[index];
+      const category = feature.category;
+      const priority = (featurePriorities[id] || 'media') as Priority;
+      
+      if (!featuresByCategory[category]) {
+        featuresByCategory[category] = { alta: [], media: [], baixa: [] };
+      }
+      featuresByCategory[category][priority].push(feature);
+    });
+
+    const generatedEtapas: EtapaPrompt[] = [];
+    let etapaId = 1;
+
+    // ETAPA 1 - Estrutura Base (always first)
+    generatedEtapas.push({
+      id: etapaId++,
+      titulo: "ESTRUTURA BASE",
+      descricao: "Criação da estrutura inicial da intranet com autenticação, dashboard e navegação",
+      prompt: generateBasePrompt(client),
+      categoria: "base",
+      prioridade: "alta",
+      funcionalidades: ["Sistema de autenticação", "Dashboard principal", "Layout responsivo", "Navegação lateral"],
+      ordem: 1,
+      concluida: false
+    });
+
+    // Generate etapas for each priority level
+    for (const priority of PRIORITY_ORDER) {
+      for (const categoryInfo of CATEGORY_ORDER) {
+        if (categoryInfo.id === 'base') continue;
+        
+        const categoryFeatures = featuresByCategory[categoryInfo.id]?.[priority] || [];
+        if (categoryFeatures.length === 0) continue;
+
+        // Split into chunks of 3-4 features
+        const chunkSize = Math.min(4, Math.ceil(categoryFeatures.length / Math.ceil(categoryFeatures.length / 4)));
+        const chunks = chunkArray(categoryFeatures, chunkSize || 1);
+        
+        for (let i = 0; i < chunks.length; i++) {
+          const chunk = chunks[i];
+          const promptText = generateFeaturePrompt(client, chunk, categoryInfo.name, priority);
+          const priorityLabel = priority === 'alta' ? '🔴 Alta' : priority === 'media' ? '🟡 Média' : '🟢 Baixa';
+          
+          generatedEtapas.push({
+            id: etapaId++,
+            titulo: `${categoryInfo.name.toUpperCase()}${chunks.length > 1 ? ` (Parte ${i + 1})` : ''}`,
+            descricao: `Implementação de ${chunk.length} funcionalidade(s) de ${categoryInfo.name} com prioridade ${priorityLabel}`,
+            prompt: promptText,
+            categoria: categoryInfo.id,
+            prioridade: priority,
+            funcionalidades: chunk.map((f: { name: string }) => f.name),
+            ordem: etapaId - 1,
+            concluida: false
+          });
+        }
+      }
+    }
+
+    // If no features selected, add fallback steps
+    if (generatedEtapas.length === 1) {
+      const office = client.office_name || "o escritório";
+      generatedEtapas.push({
+        id: etapaId++,
+        titulo: "GESTÃO DE DOCUMENTOS",
+        descricao: "Módulo para organizar documentos e modelos do escritório.",
+        prompt: `Adicione ao projeto existente um módulo de **Documentos** para ${office}:
+1) Crie uma nova rota/página "/documentos"
+2) Implemente upload, categorização e busca de documentos
+3) Use tabela listando documentos com filtros`,
+        categoria: "Documentos",
+        prioridade: "alta",
+        funcionalidades: ["Biblioteca de documentos", "Upload", "Busca"],
+        ordem: etapaId - 1,
+        concluida: false
+      });
+      
+      generatedEtapas.push({
+        id: etapaId++,
+        titulo: "ATENDIMENTO E CONTATOS",
+        descricao: "Área para registrar contatos e atendimentos do escritório.",
+        prompt: `Adicione ao projeto existente um módulo de **Contatos & Atendimento** para ${office}:
+1) Crie rotas/páginas "/contatos" e "/atendimentos"
+2) Implemente CRUD para contatos e registro de atendimentos
+3) Adicione filtros por status e busca`,
+        categoria: "Comunicação",
+        prioridade: "media",
+        funcionalidades: ["Agenda de contatos", "Registro de atendimentos"],
+        ordem: etapaId - 1,
+        concluida: false
+      });
+    }
+
+    // Save to database
+    const { error } = await supabase
+      .from('consulting_clients')
+      .update({ 
+        fragmented_prompts: generatedEtapas,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', client.id);
+
+    if (error) {
+      console.error('[auto-generate-client-plan] Error saving fragmented prompts:', error);
+      return null;
+    }
+
+    return generatedEtapas;
+  } catch (error) {
+    console.error('[auto-generate-client-plan] Error generating fragmented prompts:', error);
+    return null;
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -320,7 +554,7 @@ O prompt deve ser tão completo que o Lovable consiga criar o sistema inteiro ap
       console.error('[auto-generate-client-plan] Error generating prompt:', await promptResponse.text());
     }
 
-    // Update the client with the generated prompt
+    // Update the client with the generated prompt (will be updated again after fragmented prompts)
     if (generatedPrompt) {
       const { error: updateError } = await supabase
         .from("consulting_clients")
@@ -488,11 +722,21 @@ O primeiro prompt deve criar a base do sistema com autenticação, layout e estr
       console.error('[auto-generate-client-plan] Error generating plan:', await planResponse.text());
     }
 
+    // ========== GENERATE FRAGMENTED PROMPTS ==========
+    console.log('[auto-generate-client-plan] Generating fragmented prompts...');
+    const fragmentedPromptsResult = await generateFragmentedPromptsForClient(client, supabase);
+    const hasFragmentedPrompts = fragmentedPromptsResult && fragmentedPromptsResult.length > 0;
+    if (hasFragmentedPrompts) {
+      console.log(`[auto-generate-client-plan] Generated ${fragmentedPromptsResult.length} fragmented prompt steps`);
+    }
+
     return new Response(
       JSON.stringify({ 
         success: true, 
         generatedPrompt: !!generatedPrompt,
-        generatedPlan: !!implementationPlan
+        generatedPlan: !!implementationPlan,
+        generatedFragmentedPrompts: hasFragmentedPrompts,
+        fragmentedPromptsCount: fragmentedPromptsResult?.length || 0
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
