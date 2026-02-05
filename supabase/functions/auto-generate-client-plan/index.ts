@@ -306,6 +306,47 @@ Design moderno e profissional adequado para escritório de advocacia.
 Cores: tons de azul escuro (#1e3a5f) como primária, branco e cinzas para contraste.`;
 }
 
+// Generate base prompt with reference to PRD (to avoid repetition)
+function generateBasePromptWithPRDReference(client: any): string {
+  return `**IMPORTANTE: Esta etapa assume que você já leu o PRD (Product Requirements Document) da Etapa 1. NÃO REPITA as informações de requisitos, arquitetura ou funcionalidades que já constam no PRD.**
+
+Implemente a ESTRUTURA BASE da intranet para o escritório "${client.office_name}" conforme definido no PRD:
+
+## Foco desta Etapa: Código e Implementação Técnica
+
+### 1. Sistema de Autenticação
+- Implementar login/logout com Supabase Auth
+- Proteção de rotas autenticadas
+- Recuperação de senha funcional
+
+### 2. Layout Principal (Código)
+- Criar componente Sidebar com navegação
+- Criar componente Header com informações do usuário
+- Área de conteúdo principal responsiva
+- Implementar tema claro/escuro
+
+### 3. Dashboard Principal (Código)
+- Criar página de dashboard
+- Adicionar cards de métricas (estrutura)
+- Preparar área para gráficos
+- Implementar atalhos rápidos
+
+### 4. Estrutura de Rotas
+- Configurar React Router
+- Criar rotas protegidas
+- Preparar estrutura para futuras páginas
+
+**Tecnologias:** React, TypeScript, Tailwind CSS, shadcn/ui, Supabase
+**Cores:** Tons de azul escuro (#1e3a5f) como primária
+
+**NÃO INCLUA nesta etapa:**
+- Repetição de requisitos do PRD
+- Descrição de funcionalidades futuras
+- Documentação (já está no PRD)
+
+Foque apenas no código funcional da estrutura base.`;
+}
+
 // Generate prompt for a specific feature group
 function generateFeaturePrompt(client: any, features: { name: string; description: string }[], categoryName: string, priority: Priority): string {
   const featureList = features.map(f => `- ${f.name}: ${f.description}`).join('\n');
@@ -411,20 +452,20 @@ async function generateFragmentedPromptsForClient(client: any, supabase: any, se
         "Roadmap de Implementação",
         "Critérios de Aceite"
       ],
-      ordem: 0,
+      ordem: 1,
       concluida: false
     });
 
-    // ETAPA 1 - Estrutura Base (always first)
+    // ETAPA 2 - Estrutura Base (always second, after PRD)
     generatedEtapas.push({
       id: etapaId++,
       titulo: "ESTRUTURA BASE",
       descricao: "Criação da estrutura inicial da intranet com autenticação, dashboard e navegação",
-      prompt: generateBasePrompt(client),
+      prompt: generateBasePromptWithPRDReference(client),
       categoria: "base",
       prioridade: "alta",
       funcionalidades: ["Sistema de autenticação", "Dashboard principal", "Layout responsivo", "Navegação lateral"],
-      ordem: 1,
+      ordem: 2,
       concluida: false
     });
 
