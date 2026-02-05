@@ -457,12 +457,12 @@ export function FragmentedPromptsGenerator({ client, onUpdate }: FragmentedPromp
           "Roadmap de Implementação",
           "Critérios de Aceite"
         ],
-        ordem: 0,
+        ordem: 1,
         concluida: false
       });
 
-      // ETAPA 1 - Estrutura Base (always second) - USE effectiveClient with correct data
-      const basePrompt = await generateBasePrompt(effectiveClient);
+      // ETAPA 2 - Estrutura Base (always second, after PRD) - USE effectiveClient with correct data
+      const basePrompt = await generateBasePromptWithPRDReference(effectiveClient);
       generatedEtapas.push({
         id: etapaId++,
         titulo: "ESTRUTURA BASE",
@@ -471,7 +471,7 @@ export function FragmentedPromptsGenerator({ client, onUpdate }: FragmentedPromp
         categoria: "base",
         prioridade: "alta",
         funcionalidades: ["Sistema de autenticação", "Dashboard principal", "Layout responsivo", "Navegação lateral"],
-        ordem: 1,
+        ordem: 2,
         concluida: false
       });
 
@@ -802,6 +802,53 @@ Crie um PRD completo e profissional seguindo a estrutura definida.`;
       console.error("[FragmentedPromptsGenerator] Exception generating PRD:", prdError);
       return "";
     }
+  };
+
+  const generateBasePromptWithPRDReference = async (effectiveClient: ConsultingClient): Promise<string> => {
+    const systemPrompt = `Você é um especialista em criar prompts para o Lovable.dev. 
+
+REGRA CRÍTICA: O usuário JÁ POSSUI um PRD (Product Requirements Document) na Etapa 1. 
+Seu prompt NÃO DEVE repetir requisitos, arquitetura ou funcionalidades documentadas no PRD.
+Foque APENAS em instruções de implementação de código.
+
+Crie um prompt conciso (máximo 4000 caracteres) em português brasileiro para implementar a estrutura base de código.`;
+    
+    const userPrompt = `Crie um prompt para o Lovable.dev implementar a ESTRUTURA BASE DE CÓDIGO para:
+
+**Escritório:** ${effectiveClient.office_name}
+- ${effectiveClient.num_lawyers} advogado(s)
+- ${effectiveClient.num_employees} funcionário(s)
+- Áreas: ${effectiveClient.practice_areas || 'Não informado'}
+${effectiveClient.website ? `- Website: ${effectiveClient.website}` : ''}
+${effectiveClient.logo_url ? `- Logo: ${effectiveClient.logo_url}` : ''}
+
+**IMPORTANTE:** O cliente já tem um PRD completo na Etapa 1. NÃO repita:
+- Visão do projeto
+- Requisitos funcionais/não-funcionais
+- Arquitetura técnica detalhada
+- Lista de funcionalidades
+
+O prompt deve focar APENAS em:
+1. Implementação do sistema de autenticação (código)
+2. Criação dos componentes de layout (Sidebar, Header)
+3. Configuração de rotas protegidas
+4. Dashboard inicial (estrutura visual básica)
+5. Configuração de tema (claro/escuro)
+
+Tecnologias: React, TypeScript, Tailwind CSS, shadcn/ui, Supabase
+
+O prompt deve ser prático e focado em código, não em documentação.`;
+
+    const { data, error } = await supabase.functions.invoke("generate-consulting-prompt", {
+      body: { systemPrompt, userPrompt },
+    });
+
+    if (error) {
+      const message = (error as any)?.message || "Erro ao gerar prompt base";
+      throw new Error(message);
+    }
+
+    return data?.prompt || "";
   };
 
   const generateFeaturePrompt = async (
