@@ -147,6 +147,7 @@ Deixe pronto para futura persistência no backend.`,
 
 // Category mapping for grouping
 const CATEGORY_ORDER = [
+  { id: 'prd', name: 'PRD - Documentação', icon: '📋' },
   { id: 'base', name: 'Estrutura Base', icon: '🏗️' },
   { id: 'Documentos', name: 'Documentos Jurídicos', icon: '📄' },
   { id: 'IA', name: 'Inteligência Artificial', icon: '🤖' },
@@ -436,7 +437,31 @@ export function FragmentedPromptsGenerator({ client, onUpdate }: FragmentedPromp
       const generatedEtapas: EtapaPrompt[] = [];
       let etapaId = 1;
 
-      // ETAPA 1 - Estrutura Base (always first) - USE effectiveClient with correct data
+      // ========== ETAPA 0 - PRD (PRODUCT REQUIREMENTS DOCUMENT) ==========
+      console.log("[FragmentedPromptsGenerator] Generating PRD as Step 0...");
+      const prdContent = await generatePRD(effectiveClient, selectedFeatures, featurePriorities);
+      
+      generatedEtapas.push({
+        id: etapaId++,
+        titulo: "PRD - DOCUMENTAÇÃO DO PROJETO",
+        descricao: "Product Requirements Document completo com todos os requisitos e especificações do sistema",
+        prompt: prdContent || "PRD não gerado. Regenere as etapas para obter o documento completo.",
+        categoria: "prd",
+        prioridade: "alta",
+        funcionalidades: [
+          "Visão Geral do Projeto",
+          "Perfis de Usuário e Permissões",
+          "Requisitos Funcionais",
+          "Requisitos Não-Funcionais",
+          "Arquitetura Técnica",
+          "Roadmap de Implementação",
+          "Critérios de Aceite"
+        ],
+        ordem: 0,
+        concluida: false
+      });
+
+      // ETAPA 1 - Estrutura Base (always second) - USE effectiveClient with correct data
       const basePrompt = await generateBasePrompt(effectiveClient);
       generatedEtapas.push({
         id: etapaId++,
@@ -604,6 +629,7 @@ Gere as etapas sugeridas.`;
   };
 
   const generateBasePrompt = async (effectiveClient: ConsultingClient): Promise<string> => {
+    // This is the base structure prompt - PRD is generated separately
     const systemPrompt = `Você é um especialista em criar prompts para o Lovable.dev. Crie um prompt conciso (máximo 5000 caracteres) em português brasileiro para criar a estrutura base de uma intranet.`;
     
     const userPrompt = `Crie um prompt para o Lovable.dev criar a ESTRUTURA BASE de uma intranet para:
@@ -639,6 +665,143 @@ O prompt deve ser COMPLETO e prático, pronto para colar no Lovable.dev.`;
     }
 
     return data?.prompt || "";
+  };
+
+  const generatePRD = async (
+    effectiveClient: ConsultingClient,
+    selectedFeatures: ConsultingFeature[],
+    featurePriorities: Record<string, Priority>
+  ): Promise<string> => {
+    // Build prioritized features string
+    const highPriorityFeatures: string[] = [];
+    const mediumPriorityFeatures: string[] = [];
+    const lowPriorityFeatures: string[] = [];
+    
+    selectedFeatures.forEach(feature => {
+      const priority = featurePriorities[feature.id.toString()] || 'media';
+      const featureText = `- ${feature.name} (${feature.category}): ${feature.description}`;
+      
+      if (priority === 'alta') {
+        highPriorityFeatures.push(featureText);
+      } else if (priority === 'baixa') {
+        lowPriorityFeatures.push(featureText);
+      } else {
+        mediumPriorityFeatures.push(featureText);
+      }
+    });
+
+    const prioritizedFeatures = `
+**🔴 ALTA PRIORIDADE (implementar primeiro):**
+${highPriorityFeatures.length > 0 ? highPriorityFeatures.join('\n') : 'Nenhuma funcionalidade de alta prioridade'}
+
+**🟡 MÉDIA PRIORIDADE:**
+${mediumPriorityFeatures.length > 0 ? mediumPriorityFeatures.join('\n') : 'Nenhuma funcionalidade de média prioridade'}
+
+**🟢 BAIXA PRIORIDADE (implementar por último):**
+${lowPriorityFeatures.length > 0 ? lowPriorityFeatures.join('\n') : 'Nenhuma funcionalidade de baixa prioridade'}`;
+
+    // Build selected feature details by category
+    const featuresByCategory: Record<string, string[]> = {};
+    selectedFeatures.forEach(feature => {
+      if (!featuresByCategory[feature.category]) {
+        featuresByCategory[feature.category] = [];
+      }
+      featuresByCategory[feature.category].push(`- ${feature.name}: ${feature.description}`);
+    });
+    
+    const selectedFeatureDetails = Object.entries(featuresByCategory)
+      .map(([category, features]) => `\n### ${category}\n${features.join('\n')}`)
+      .join('\n');
+
+    const systemPrompt = `Você é um especialista em criar PRDs (Product Requirements Documents) para sistemas de intranet de escritórios de advocacia.
+
+Sua tarefa é criar um PRD COMPLETO e PROFISSIONAL em português brasileiro que serve como:
+1. Documentação do projeto para o cliente
+2. Contexto inicial para o Lovable.dev criar o sistema
+3. Referência para todas as etapas de implementação
+
+O PRD deve ser estruturado, detalhado e incluir TODAS as informações fornecidas pelo cliente.
+
+FORMATO OBRIGATÓRIO:
+# PRD - Product Requirements Document
+
+## 1. Visão Geral do Projeto
+(descrição do sistema e objetivos)
+
+## 2. Contexto do Escritório
+(detalhes sobre o escritório cliente)
+
+## 3. Perfis de Usuário e Permissões
+(quem usa o sistema e o que pode fazer)
+
+## 4. Requisitos Funcionais
+(lista de TODAS as funcionalidades organizadas por categoria)
+
+## 5. Requisitos Não-Funcionais
+(performance, segurança, LGPD, responsividade)
+
+## 6. Arquitetura Técnica
+(stack, banco de dados, autenticação)
+
+## 7. Roadmap de Implementação
+(fases ordenadas por prioridade)
+
+## 8. Critérios de Aceite
+(como validar o sistema)
+
+## 9. Prompt Inicial para Lovable.dev
+(um prompt otimizado para começar o projeto no Lovable)`;
+
+    const userPrompt = `Crie um PRD completo para o seguinte escritório de advocacia:
+
+========== DADOS DO ESCRITÓRIO ==========
+- Nome: ${effectiveClient.office_name}
+- Responsável: ${effectiveClient.full_name}
+- E-mail: ${effectiveClient.email}
+
+========== ESTRUTURA ==========
+- Advogados: ${effectiveClient.num_lawyers}
+- Funcionários: ${effectiveClient.num_employees}
+- Áreas de Atuação: ${effectiveClient.practice_areas || 'Diversas áreas'}
+${effectiveClient.website ? `- Website: ${effectiveClient.website}` : ''}
+${effectiveClient.logo_url ? `- Logo: ${effectiveClient.logo_url}` : ''}
+
+========== EXPERIÊNCIA COM IA ==========
+- Nível de Familiaridade: ${effectiveClient.ai_familiarity_level || 'Iniciante'}
+
+========== GESTÃO ATUAL ==========
+- Sistema de Gestão: ${effectiveClient.case_management_system || 'Nenhum'}
+
+========== FUNCIONALIDADES POR PRIORIDADE ==========
+${prioritizedFeatures}
+
+========== FUNCIONALIDADES DETALHADAS ==========
+${selectedFeatureDetails || 'Funcionalidades padrão'}
+
+========== FUNCIONALIDADES PERSONALIZADAS ==========
+${effectiveClient.custom_features || 'Nenhuma'}
+
+========== TAREFAS A AUTOMATIZAR ==========
+${effectiveClient.tasks_to_automate || 'Não especificado'}
+
+Crie um PRD completo e profissional seguindo a estrutura definida.`;
+
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-consulting-prompt", {
+        body: { systemPrompt, userPrompt },
+      });
+
+      if (error) {
+        console.error("[FragmentedPromptsGenerator] Error generating PRD:", error);
+        return "";
+      }
+
+      console.log("[FragmentedPromptsGenerator] PRD generated successfully");
+      return data?.prompt || "";
+    } catch (prdError) {
+      console.error("[FragmentedPromptsGenerator] Exception generating PRD:", prdError);
+      return "";
+    }
   };
 
   const generateFeaturePrompt = async (
