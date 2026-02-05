@@ -170,6 +170,96 @@ const CATEGORY_ORDER = [
 const PRIORITY_ORDER: Priority[] = ['alta', 'media', 'baixa'];
 
 // Helper function to chunk array
+
+// Generate PRD (Product Requirements Document) prompt
+function generatePRDPrompt(client: any, selectedFeatureDetails: string, prioritizedFeatures: string): { system: string; user: string } {
+  const systemPrompt = `Você é um especialista em criar PRDs (Product Requirements Documents) para sistemas de intranet de escritórios de advocacia.
+
+Sua tarefa é criar um PRD COMPLETO e PROFISSIONAL em português brasileiro que serve como:
+1. Documentação do projeto para o cliente
+2. Contexto inicial para o Lovable.dev criar o sistema
+3. Referência para todas as etapas de implementação
+
+O PRD deve ser estruturado, detalhado e incluir TODAS as informações fornecidas pelo cliente.
+
+FORMATO OBRIGATÓRIO:
+# PRD - Product Requirements Document
+
+## 1. Visão Geral do Projeto
+(descrição do sistema e objetivos)
+
+## 2. Contexto do Escritório
+(detalhes sobre o escritório cliente)
+
+## 3. Perfis de Usuário e Permissões
+(quem usa o sistema e o que pode fazer)
+
+## 4. Requisitos Funcionais
+(lista de TODAS as funcionalidades organizadas por categoria)
+
+## 5. Requisitos Não-Funcionais
+(performance, segurança, LGPD, responsividade)
+
+## 6. Arquitetura Técnica
+(stack, banco de dados, autenticação)
+
+## 7. Roadmap de Implementação
+(fases ordenadas por prioridade)
+
+## 8. Critérios de Aceite
+(como validar o sistema)
+
+## 9. Prompt Inicial para Lovable.dev
+(um prompt otimizado para começar o projeto no Lovable)`;
+
+  const userPrompt = `Crie um PRD completo para o seguinte escritório de advocacia:
+
+========== DADOS DO ESCRITÓRIO ==========
+- Nome: ${client.office_name}
+- Responsável: ${client.full_name}
+- E-mail: ${client.email}
+- Telefone: ${client.phone || 'Não informado'}
+- OAB: ${client.oab_number || 'Não informado'}
+- Website: ${client.website || 'Não possui'}
+- Ano de Fundação: ${client.foundation_year || 'Não informado'}
+
+========== ESTRUTURA ==========
+- Advogados: ${client.num_lawyers}
+- Funcionários: ${client.num_employees}
+- Áreas de Atuação: ${client.practice_areas || 'Diversas áreas'}
+- Cidade/Estado: ${client.cidade || 'Não informado'} / ${client.estado || 'Não informado'}
+
+========== EXPERIÊNCIA COM IA ==========
+- Nível de Familiaridade: ${client.ai_familiarity_level || 'Iniciante'}
+- Já usou IA: ${client.has_used_ai ? 'Sim' : 'Não'}
+- Já usou ChatGPT: ${client.has_used_chatgpt ? 'Sim' : 'Não'}
+- Frequência de Uso: ${client.ai_usage_frequency || 'Raramente'}
+- Confortável com tecnologia: ${client.comfortable_with_tech ? 'Sim' : 'Não'}
+- Dificuldades com IA: ${client.ai_difficulties || 'Nenhuma especificada'}
+
+========== GESTÃO ATUAL ==========
+- Sistema de Gestão: ${client.case_management_system || 'Nenhum'}
+- Fluxo de Processos: ${client.case_management_flow || 'Não descrito'}
+- Fluxo de Atendimento: ${client.client_service_flow || 'Não descrito'}
+
+========== FUNCIONALIDADES POR PRIORIDADE ==========
+${prioritizedFeatures}
+
+========== FUNCIONALIDADES DETALHADAS ==========
+${selectedFeatureDetails || 'Funcionalidades padrão'}
+
+========== FUNCIONALIDADES PERSONALIZADAS ==========
+${client.custom_features || 'Nenhuma'}
+
+========== TAREFAS A AUTOMATIZAR ==========
+${client.tasks_to_automate || 'Não especificado'}
+
+Crie um PRD completo e profissional seguindo a estrutura definida.`;
+
+  return { system: systemPrompt, user: userPrompt };
+}
+
+// Helper function to chunk array (original function)
 function chunkArray<T>(array: T[], size: number): T[][] {
   const chunks: T[][] = [];
   for (let i = 0; i < array.length; i += size) {
@@ -245,7 +335,7 @@ Seja específico e implemente de forma completa e funcional.`;
 }
 
 // Main function to generate fragmented prompts
-async function generateFragmentedPromptsForClient(client: any, supabase: any): Promise<EtapaPrompt[] | null> {
+async function generateFragmentedPromptsForClient(client: any, supabase: any, selectedFeatureDetails: string, prioritizedFeatures: string): Promise<EtapaPrompt[] | null> {
   try {
     const selectedFeatures = (client.selected_features || [])
       .map((id: number) => CONSULTING_FEATURES[id])
@@ -269,6 +359,61 @@ async function generateFragmentedPromptsForClient(client: any, supabase: any): P
 
     const generatedEtapas: EtapaPrompt[] = [];
     let etapaId = 1;
+
+    // ========== ETAPA 0 - PRD (PRODUCT REQUIREMENTS DOCUMENT) ==========
+    console.log('[auto-generate-client-plan] Generating PRD as Step 0...');
+    const prdPrompts = generatePRDPrompt(client, selectedFeatureDetails, prioritizedFeatures);
+    
+    let prdContent = '';
+    try {
+      const prdResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${Deno.env.get('LOVABLE_API_KEY')}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'google/gemini-2.5-flash',
+          messages: [
+            { role: 'system', content: prdPrompts.system },
+            { role: 'user', content: prdPrompts.user }
+          ],
+          max_tokens: 10000,
+          temperature: 0.7,
+        }),
+      });
+
+      if (prdResponse.ok) {
+        const prdData = await prdResponse.json();
+        prdContent = prdData.choices?.[0]?.message?.content || '';
+        console.log('[auto-generate-client-plan] PRD generated successfully, length:', prdContent.length);
+      } else {
+        console.error('[auto-generate-client-plan] Error generating PRD:', await prdResponse.text());
+      }
+    } catch (prdError) {
+      console.error('[auto-generate-client-plan] Exception generating PRD:', prdError);
+    }
+
+    // Add PRD as Step 0
+    generatedEtapas.push({
+      id: etapaId++,
+      titulo: "PRD - DOCUMENTAÇÃO DO PROJETO",
+      descricao: "Product Requirements Document completo com todos os requisitos e especificações do sistema",
+      prompt: prdContent || "PRD não gerado. Regenere as etapas para obter o documento completo.",
+      categoria: "prd",
+      prioridade: "alta",
+      funcionalidades: [
+        "Visão Geral do Projeto",
+        "Perfis de Usuário e Permissões",
+        "Requisitos Funcionais",
+        "Requisitos Não-Funcionais",
+        "Arquitetura Técnica",
+        "Roadmap de Implementação",
+        "Critérios de Aceite"
+      ],
+      ordem: 0,
+      concluida: false
+    });
 
     // ETAPA 1 - Estrutura Base (always first)
     generatedEtapas.push({
@@ -724,7 +869,7 @@ O primeiro prompt deve criar a base do sistema com autenticação, layout e estr
 
     // ========== GENERATE FRAGMENTED PROMPTS ==========
     console.log('[auto-generate-client-plan] Generating fragmented prompts...');
-    const fragmentedPromptsResult = await generateFragmentedPromptsForClient(client, supabase);
+    const fragmentedPromptsResult = await generateFragmentedPromptsForClient(client, supabase, selectedFeatureDetails, prioritizedFeatures);
     const hasFragmentedPrompts = fragmentedPromptsResult && fragmentedPromptsResult.length > 0;
     if (hasFragmentedPrompts) {
       console.log(`[auto-generate-client-plan] Generated ${fragmentedPromptsResult.length} fragmented prompt steps`);
