@@ -5,7 +5,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Zap, Loader2, ArrowLeft, CheckCircle, Clock } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Zap, Loader2, ArrowLeft, CheckCircle, Clock, Mail } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
@@ -45,6 +46,10 @@ export function ClientAuthPage() {
   const [activeTab, setActiveTab] = useState<"login" | "signup">("signup");
   const [loading, setLoading] = useState(false);
   const [signupSuccess, setSignupSuccess] = useState(false);
+  const [forgotPasswordOpen, setForgotPasswordOpen] = useState(false);
+  const [forgotPasswordEmail, setForgotPasswordEmail] = useState("");
+  const [forgotPasswordLoading, setForgotPasswordLoading] = useState(false);
+  const [resetEmailSent, setResetEmailSent] = useState(false);
   
   // Sign up form
   const [signUpData, setSignUpData] = useState({
@@ -227,6 +232,38 @@ export function ClientAuthPage() {
       toast.error("Erro ao fazer login. Tente novamente.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!forgotPasswordEmail || !z.string().email().safeParse(forgotPasswordEmail).success) {
+      toast.error("Por favor, insira um e-mail válido");
+      return;
+    }
+    
+    setForgotPasswordLoading(true);
+    
+    try {
+      const redirectUrl = `${window.location.origin}/consultoria/auth`;
+      
+      const { error } = await supabase.auth.resetPasswordForEmail(forgotPasswordEmail, {
+        redirectTo: redirectUrl,
+      });
+      
+      if (error) {
+        toast.error("Erro ao enviar e-mail de recuperação");
+        return;
+      }
+      
+      setResetEmailSent(true);
+      toast.success("E-mail de recuperação enviado!");
+    } catch (error) {
+      console.error("Password reset error:", error);
+      toast.error("Erro ao processar solicitação");
+    } finally {
+      setForgotPasswordLoading(false);
     }
   };
 
@@ -418,6 +455,20 @@ export function ClientAuthPage() {
                   )}
                 </div>
                 
+                <div className="flex justify-end">
+                  <Button
+                    type="button"
+                    variant="link"
+                    className="px-0 text-sm text-muted-foreground hover:text-primary"
+                    onClick={() => {
+                      setForgotPasswordEmail(signInData.email);
+                      setForgotPasswordOpen(true);
+                    }}
+                  >
+                    Esqueci minha senha
+                  </Button>
+                </div>
+                
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                   Entrar
@@ -431,6 +482,82 @@ export function ClientAuthPage() {
           Ao se cadastrar, você concorda com nossos termos de uso.
         </p>
       </div>
+      
+      {/* Forgot Password Dialog */}
+      <Dialog open={forgotPasswordOpen} onOpenChange={(open) => {
+        setForgotPasswordOpen(open);
+        if (!open) {
+          setResetEmailSent(false);
+          setForgotPasswordEmail("");
+        }
+      }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Recuperar Senha</DialogTitle>
+            <DialogDescription>
+              {resetEmailSent 
+                ? "Verifique sua caixa de entrada para redefinir sua senha."
+                : "Digite seu e-mail para receber o link de recuperação."
+              }
+            </DialogDescription>
+          </DialogHeader>
+          
+          {resetEmailSent ? (
+            <div className="flex flex-col items-center py-6 space-y-4">
+              <div className="w-16 h-16 rounded-full bg-green-500/20 flex items-center justify-center">
+                <Mail className="w-8 h-8 text-green-500" />
+              </div>
+              <p className="text-center text-sm text-muted-foreground">
+                Enviamos um link de recuperação para <strong>{forgotPasswordEmail}</strong>. 
+                Verifique também a pasta de spam.
+              </p>
+              <Button 
+                variant="outline" 
+                className="w-full"
+                onClick={() => {
+                  setForgotPasswordOpen(false);
+                  setResetEmailSent(false);
+                }}
+              >
+                Fechar
+              </Button>
+            </div>
+          ) : (
+            <form onSubmit={handleForgotPassword} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="forgot-email">E-mail</Label>
+                <Input
+                  id="forgot-email"
+                  type="email"
+                  value={forgotPasswordEmail}
+                  onChange={(e) => setForgotPasswordEmail(e.target.value)}
+                  placeholder="seu@email.com"
+                  disabled={forgotPasswordLoading}
+                />
+              </div>
+              
+              <div className="flex gap-2">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  className="flex-1"
+                  onClick={() => setForgotPasswordOpen(false)}
+                >
+                  Cancelar
+                </Button>
+                <Button 
+                  type="submit" 
+                  className="flex-1"
+                  disabled={forgotPasswordLoading}
+                >
+                  {forgotPasswordLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  Enviar Link
+                </Button>
+              </div>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
