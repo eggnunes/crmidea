@@ -1,108 +1,23 @@
 
-# Plano de Correcao SEO - Resolver Problemas de Redirecionamento e Indexacao
 
-## Diagnostico Completo Baseado nas Imagens do GSC
+# Plano de Implementacao - PRD como Primeira Etapa na Geracao de Prompts
 
-### Problema 1: Paginas com Redirecionamento (3 URLs)
-As seguintes URLs estao sendo vistas pelo Google como tendo redirecionamentos problematicos:
-- `http://rafaelegg.com/` (HTTP sem www)
-- `http://www.rafaelegg.com/` (HTTP com www)  
-- `https://www.rafaelegg.com/` (HTTPS com www)
+## Resumo
 
-**Causa**: O `public/_redirects` tem regras apenas para www, mas **falta a regra para HTTP sem www** (`http://rafaelegg.com` -> `https://rafaelegg.com`). A hospedagem pode nao estar fazendo essa conversao automaticamente.
-
-### Problema 2: Erro de Redirecionamento (1 URL)
-- `https://www.rafaelegg.com/consultoria` apresenta **erro** (nao apenas redirecionamento)
-
-**Causa**: Quando o Google tenta acessar essa URL com www, o redirecionamento pode estar falhando ou entrando em loop. Isso pode acontecer porque:
-1. A regra de redirect no `_redirects` nao esta cobrindo subpaginas corretamente
-2. O SPA fallback (`/*  /index.html  200`) pode estar interferindo
-
-### Problema 3: Detectada mas Nao Indexada (5 URLs)
-- `/bio`, `/blog`, `/consultoria`, `/ebook`, `/privacidade`
-- Todas mostram "N/D" (nunca rastreadas pelo Google)
-
-**Causa**: Como as URLs canonicas dependem dos redirecionamentos funcionando corretamente, o Google nao conseguiu rastrear essas paginas ainda. Uma vez corrigidos os redirecionamentos, o rastreamento sera possivel.
+O objetivo e modificar o sistema de geracao de prompts por etapas para que, antes de criar as etapas de implementacao, a IA primeiro gere um **PRD (Product Requirements Document)** completo baseado em TODAS as informacoes do formulario de diagnostico. Esse PRD sera incluido como **Etapa 0** (ou integrado na primeira etapa), facilitando a criacao do projeto no Lovable com uma documentacao completa de requisitos.
 
 ---
 
-## Solucoes Propostas
+## O Que e um PRD?
 
-### Fase 1: Corrigir Configuracao de Redirecionamentos
-
-**Arquivo: `public/_redirects`**
-
-Adicionar regras mais completas para cobrir TODOS os cenarios:
-
-```text
-# Forcar HTTPS em todas as requisicoes HTTP
-http://rafaelegg.com/* https://rafaelegg.com/:splat 301!
-http://www.rafaelegg.com/* https://rafaelegg.com/:splat 301!
-
-# Redirecionar www para nao-www (HTTPS)
-https://www.rafaelegg.com/* https://rafaelegg.com/:splat 301!
-
-# Arquivos estaticos
-/robots.txt    /robots.txt    200
-/sitemap.xml   /sitemap.xml   200
-/llm.html      /llm.html      200
-/favicon.ico   /favicon.ico   200
-/favicon.png   /favicon.png   200
-/og-image.png  /og-image.png  200
-
-# SPA fallback
-/*    /index.html   200
-```
-
-A mudanca principal e adicionar `http://rafaelegg.com/*` como regra separada.
-
-### Fase 2: Adicionar Canonical Explicito em Cada Pagina
-
-**Problema atual**: O `index.html` tem `<link rel="canonical" href="https://rafaelegg.com/" />` que e estatico e aponta sempre para a home, independentemente da pagina atual.
-
-**Solucao**: Cada pagina ja usa React Helmet para definir seu proprio canonical (o HomePage.tsx ja faz isso), mas precisamos garantir que TODAS as paginas publicas facam isso.
-
-Paginas a verificar/adicionar canonical:
-- `/blog` - BlogPage.tsx
-- `/bio` - BioLinkPage.tsx
-- `/ebook` - EbookCapturePage.tsx
-- `/consultoria` - PublicConsultingPage.tsx
-- `/privacidade` - PrivacyPolicyPage.tsx
-
-### Fase 3: Melhorar o index.html Base
-
-**Arquivo: `index.html`**
-
-O canonical no index.html deve ser dinamico ou removido para deixar o React Helmet gerenciar. Como nao podemos ter canonical dinamico no HTML estatico de um SPA, a melhor abordagem e:
-
-1. Manter o canonical base para a home (ja esta correto)
-2. Garantir que cada pagina React use o Helmet para sobrescrever
-
-### Fase 4: Adicionar Header HTTP de Redirect no Servidor
-
-**Arquivo: `public/_headers`**
-
-Adicionar headers que forcam o uso da versao canonica:
-
-```text
-https://www.rafaelegg.com/*
-  Link: <https://rafaelegg.com/:splat>; rel="canonical"
-  
-http://rafaelegg.com/*
-  Link: <https://rafaelegg.com/:splat>; rel="canonical"
-
-http://www.rafaelegg.com/*
-  Link: <https://rafaelegg.com/:splat>; rel="canonical"
-```
-
-### Fase 5: Criar Pagina 404 com Status HTTP Correto
-
-**Problema**: A rota `/*` no SPA retorna **status 200** para TODAS as URLs, incluindo paginas que nao existem. Isso confunde o Google.
-
-**Solucao**: No Lovable/Netlify, nao e possivel retornar 404 real para rotas SPA inexistentes. Porem, podemos:
-
-1. Usar `X-Robots-Tag: noindex` na pagina NotFound
-2. Melhorar a pagina NotFound para informar que e uma pagina inexistente
+O PRD (Product Requirements Document) e um documento que define:
+- **Visao do Produto**: O que o sistema faz e para quem
+- **Objetivos de Negocio**: Por que o cliente precisa desse sistema
+- **Requisitos Funcionais**: Lista detalhada de funcionalidades
+- **Requisitos Nao-Funcionais**: Performance, seguranca, usabilidade
+- **Personas/Usuarios**: Quem vai usar o sistema
+- **Arquitetura de Alto Nivel**: Estrutura basica do projeto
+- **Prioridades e Fases**: Como o projeto sera implementado
 
 ---
 
@@ -110,116 +25,296 @@ http://www.rafaelegg.com/*
 
 | Arquivo | Mudanca | Impacto |
 |---------|---------|---------|
-| `public/_redirects` | Adicionar regra `http://rafaelegg.com/*` | Critico - resolve "Pagina com redirecionamento" |
-| `public/_headers` | Adicionar headers Link canonical | Alto - ajuda Google entender versao canonica |
-| `src/pages/BlogPage.tsx` | Verificar/adicionar canonical correto | Medio |
-| `src/pages/BioLinkPage.tsx` | Verificar/adicionar canonical correto | Medio |
-| `src/pages/PublicConsultingPage.tsx` | Verificar/adicionar canonical correto | Medio |
-| `src/pages/EbookCapturePage.tsx` | Verificar/adicionar canonical correto | Medio |
-| `src/pages/PrivacyPolicyPage.tsx` | Verificar/adicionar canonical correto | Medio |
-| `src/pages/NotFound.tsx` | Adicionar meta noindex via Helmet | Baixo |
-| `index.html` | Remover canonical estatico (deixar Helmet gerenciar) | Medio |
+| `supabase/functions/auto-generate-client-plan/index.ts` | Adicionar geracao de PRD antes das etapas | Critico - etapa automatica |
+| `src/components/consulting/FragmentedPromptsGenerator.tsx` | Adicionar geracao de PRD como Etapa 0 | Critico - regeneracao manual |
+| `src/integrations/supabase/types.ts` | (Nao modificar - campo `fragmented_prompts` ja e JSONB) | N/A |
+
+---
+
+## Estrutura da Nova Etapa 0 - PRD
+
+A primeira etapa passara a conter um PRD completo que inclui:
+
+```text
+# PRD - Product Requirements Document
+## [Nome do Escritorio] - Sistema de Intranet
+
+### 1. Visao Geral do Projeto
+- Descricao do escritorio e contexto
+- Objetivos principais
+
+### 2. Stakeholders e Usuarios
+- Perfis de usuarios (advogados, funcionarios, gestores)
+- Permissoes por perfil
+
+### 3. Requisitos Funcionais
+- Lista de todas as funcionalidades organizadas por modulo
+- Detalhes de cada funcionalidade
+
+### 4. Requisitos Nao-Funcionais
+- Performance esperada
+- Seguranca (LGPD, dados sensiveis)
+- Responsividade e acessibilidade
+
+### 5. Arquitetura Tecnica
+- Stack tecnologica (React, Supabase, etc.)
+- Estrutura de banco de dados
+- Autenticacao e autorizacao
+
+### 6. Roadmap de Implementacao
+- Fases ordenadas por prioridade
+- Dependencias entre modulos
+
+### 7. Criterios de Aceite
+- Como validar cada funcionalidade
+```
+
+---
+
+## Fluxo de Implementacao
+
+```text
+1. Cliente preenche formulario de diagnostico
+         |
+         v
+2. Ao submeter, dispara auto-generate-client-plan
+         |
+         v
+3. [NOVO] IA gera PRD completo baseado em TODOS os dados do formulario
+         |
+         v
+4. PRD e salvo como Etapa 0 (ou integrado na Etapa 1)
+         |
+         v
+5. Etapas subsequentes sao geradas normalmente
+         |
+         v
+6. Cliente ve PRD + Etapas no dashboard
+```
 
 ---
 
 ## Secao Tecnica: Detalhes de Implementacao
 
-### 1. public/_redirects (Atualizado)
+### 1. Nova Funcao generatePRD no auto-generate-client-plan/index.ts
 
-```text
-# Forcar HTTPS e remover www - TODAS as combinacoes
-http://rafaelegg.com/* https://rafaelegg.com/:splat 301!
-http://www.rafaelegg.com/* https://rafaelegg.com/:splat 301!
-https://www.rafaelegg.com/* https://rafaelegg.com/:splat 301!
+Criar uma funcao que gera o PRD usando TODAS as informacoes do formulario:
 
-# Arquivos estaticos servidos diretamente
-/robots.txt    /robots.txt    200
-/sitemap.xml   /sitemap.xml   200
-/llm.html      /llm.html      200
-/favicon.ico   /favicon.ico   200
-/favicon.png   /favicon.png   200
-/og-image.png  /og-image.png  200
+```typescript
+function generatePRDPrompt(client: any, selectedFeatureDetails: string, prioritizedFeatures: string): { system: string; user: string } {
+  const systemPrompt = `Voce e um especialista em criar PRDs (Product Requirements Documents) para sistemas de intranet de escritorios de advocacia.
 
-# SPA fallback - todas as outras rotas
-/*    /index.html   200
+Sua tarefa e criar um PRD COMPLETO e PROFISSIONAL em portugues brasileiro que serve como:
+1. Documentacao do projeto para o cliente
+2. Contexto inicial para o Lovable.dev criar o sistema
+3. Referencia para todas as etapas de implementacao
+
+O PRD deve ser estruturado, detalhado e incluir TODAS as informacoes fornecidas pelo cliente.
+
+FORMATO OBRIGATORIO:
+# PRD - Product Requirements Document
+
+## 1. Visao Geral do Projeto
+(descricao do sistema e objetivos)
+
+## 2. Contexto do Escritorio
+(detalhes sobre o escritorio cliente)
+
+## 3. Perfis de Usuario e Permissoes
+(quem usa o sistema e o que pode fazer)
+
+## 4. Requisitos Funcionais
+(lista de TODAS as funcionalidades organizadas por categoria)
+
+## 5. Requisitos Nao-Funcionais
+(performance, seguranca, LGPD, responsividade)
+
+## 6. Arquitetura Tecnica
+(stack, banco de dados, autenticacao)
+
+## 7. Roadmap de Implementacao
+(fases ordenadas por prioridade)
+
+## 8. Criterios de Aceite
+(como validar o sistema)
+
+## 9. Prompt Inicial para Lovable.dev
+(um prompt otimizado para comecar o projeto no Lovable)`;
+
+  const userPrompt = `Crie um PRD completo para o seguinte escritorio de advocacia:
+
+========== DADOS DO ESCRITORIO ==========
+- Nome: ${client.office_name}
+- Responsavel: ${client.full_name}
+- E-mail: ${client.email}
+- Telefone: ${client.phone}
+- OAB: ${client.oab_number || 'Nao informado'}
+- Website: ${client.website || 'Nao possui'}
+- Ano de Fundacao: ${client.foundation_year || 'Nao informado'}
+
+========== ESTRUTURA ==========
+- Advogados: ${client.num_lawyers}
+- Funcionarios: ${client.num_employees}
+- Areas de Atuacao: ${client.practice_areas || 'Diversas areas'}
+- Cidade/Estado: ${client.cidade || 'Nao informado'} / ${client.estado || 'Nao informado'}
+
+========== EXPERIENCIA COM IA ==========
+- Nivel de Familiaridade: ${client.ai_familiarity_level || 'Iniciante'}
+- Ja usou IA: ${client.has_used_ai ? 'Sim' : 'Nao'}
+- Ja usou ChatGPT: ${client.has_used_chatgpt ? 'Sim' : 'Nao'}
+- Frequencia de Uso: ${client.ai_usage_frequency || 'Raramente'}
+- Confortavel com tecnologia: ${client.comfortable_with_tech ? 'Sim' : 'Nao'}
+- Dificuldades com IA: ${client.ai_difficulties || 'Nenhuma especificada'}
+
+========== GESTAO ATUAL ==========
+- Sistema de Gestao: ${client.case_management_system || 'Nenhum'}
+- Fluxo de Processos: ${client.case_management_flow || 'Nao descrito'}
+- Fluxo de Atendimento: ${client.client_service_flow || 'Nao descrito'}
+
+========== FUNCIONALIDADES POR PRIORIDADE ==========
+${prioritizedFeatures}
+
+========== FUNCIONALIDADES DETALHADAS ==========
+${selectedFeatureDetails || 'Funcionalidades padrao'}
+
+========== FUNCIONALIDADES PERSONALIZADAS ==========
+${client.custom_features || 'Nenhuma'}
+
+========== TAREFAS A AUTOMATIZAR ==========
+${client.tasks_to_automate || 'Nao especificado'}
+
+Crie um PRD completo e profissional seguindo a estrutura definida.`;
+
+  return { system: systemPrompt, user: userPrompt };
+}
 ```
 
-### 2. NotFound.tsx com noindex
+### 2. Modificacao na funcao generateFragmentedPromptsForClient
 
-```tsx
-import { Helmet } from "react-helmet";
+Antes de gerar as etapas, chamar a geracao do PRD e adiciona-lo como primeira etapa:
 
-const NotFound = () => {
-  return (
-    <>
-      <Helmet>
-        <title>Pagina nao encontrada - Rafael Egg</title>
-        <meta name="robots" content="noindex, nofollow" />
-      </Helmet>
-      <div className="flex min-h-screen items-center justify-center bg-muted">
-        <div className="text-center">
-          <h1 className="mb-4 text-4xl font-bold">404</h1>
-          <p className="mb-4 text-xl text-muted-foreground">Pagina nao encontrada</p>
-          <a href="/" className="text-primary underline hover:text-primary/90">
-            Voltar ao inicio
-          </a>
-        </div>
-      </div>
-    </>
-  );
+```typescript
+// Dentro de generateFragmentedPromptsForClient, ANTES de gerar a estrutura base:
+
+// ========== GERAR PRD PRIMEIRO ==========
+const prdPrompts = generatePRDPrompt(client, selectedFeatureDetails, prioritizedFeatures);
+const prdResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${Deno.env.get('LOVABLE_API_KEY')}`,
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    model: 'google/gemini-2.5-flash',
+    messages: [
+      { role: 'system', content: prdPrompts.system },
+      { role: 'user', content: prdPrompts.user }
+    ],
+    max_tokens: 10000,
+    temperature: 0.7,
+  }),
+});
+
+let prdContent = '';
+if (prdResponse.ok) {
+  const prdData = await prdResponse.json();
+  prdContent = prdData.choices?.[0]?.message?.content || '';
+}
+
+// Adicionar PRD como Etapa 0
+generatedEtapas.push({
+  id: etapaId++,
+  titulo: "PRD - DOCUMENTACAO DO PROJETO",
+  descricao: "Product Requirements Document completo com todos os requisitos e especificacoes do sistema",
+  prompt: prdContent || "PRD nao gerado. Regenere as etapas.",
+  categoria: "prd",
+  prioridade: "alta",
+  funcionalidades: [
+    "Visao Geral do Projeto",
+    "Perfis de Usuario",
+    "Requisitos Funcionais",
+    "Requisitos Nao-Funcionais",
+    "Arquitetura Tecnica",
+    "Roadmap de Implementacao"
+  ],
+  ordem: 0,
+  concluida: false
+});
+```
+
+### 3. Atualizacao da Estrutura de Categorias
+
+Adicionar a categoria "prd" no mapeamento de categorias:
+
+```typescript
+const CATEGORY_ORDER = [
+  { id: 'prd', name: 'PRD - Documentacao' },
+  { id: 'base', name: 'Estrutura Base' },
+  // ... demais categorias
+];
+```
+
+### 4. Atualizacao no Frontend (FragmentedPromptsGenerator.tsx)
+
+Adicionar a mesma logica de geracao de PRD quando o usuario clica em "Regenerar Etapas":
+
+```typescript
+const generatePRD = async (effectiveClient: ConsultingClient): Promise<string> => {
+  const systemPrompt = `Voce e um especialista em criar PRDs...`;
+  const userPrompt = `Crie um PRD completo para...`;
+  
+  const { data, error } = await supabase.functions.invoke("generate-consulting-prompt", {
+    body: { systemPrompt, userPrompt },
+  });
+  
+  return data?.prompt || "";
 };
-```
 
-### 3. index.html - Remover canonical estatico
-
-Remover a linha:
-```html
-<link rel="canonical" href="https://rafaelegg.com/" />
-```
-
-Deixar cada pagina React gerenciar seu proprio canonical via Helmet.
-
-### 4. Verificar paginas publicas
-
-Para cada pagina publica, garantir que tenha:
-```tsx
-<Helmet>
-  <link rel="canonical" href="https://rafaelegg.com/ROTA_ESPECIFICA" />
-</Helmet>
+// No inicio de generateFragmentedPrompts, antes de gerar estrutura base:
+const prdContent = await generatePRD(effectiveClient);
+generatedEtapas.push({
+  id: etapaId++,
+  titulo: "PRD - DOCUMENTACAO DO PROJETO",
+  descricao: "Product Requirements Document completo",
+  prompt: prdContent,
+  categoria: "prd",
+  prioridade: "alta",
+  funcionalidades: ["Documentacao completa do projeto"],
+  ordem: 0,
+  concluida: false
+});
 ```
 
 ---
 
-## Acoes Manuais no Google Search Console (Apos Deploy)
+## Visualizacao no Dashboard do Cliente
 
-1. **Inspecionar URL** para cada uma das 3 URLs com problema de redirecionamento:
-   - `https://www.rafaelegg.com/consultoria`
-   - Verificar se agora mostra redirecionamento 301 correto
+Com a implementacao, o cliente vera:
 
-2. **Validar Correcao** nos dois grupos de problemas:
-   - "Pagina com redirecionamento" - Clicar em "VALIDAR CORRECAO"
-   - "Erro de redirecionamento" - Clicar em "VALIDAR CORRECAO"
-
-3. **Solicitar Indexacao Manual** para as 5 paginas detectadas mas nao indexadas:
-   - Usar Inspecao de URL
-   - Clicar "SOLICITAR INDEXACAO"
+| Etapa | Titulo | Descricao |
+|-------|--------|-----------|
+| 0 | PRD - DOCUMENTACAO DO PROJETO | Product Requirements Document completo |
+| 1 | ESTRUTURA BASE | Autenticacao, dashboard, navegacao |
+| 2 | INTELIGENCIA ARTIFICIAL | Funcionalidades de IA selecionadas |
+| 3 | DOCUMENTOS | Modulos de documentos |
+| ... | ... | ... |
 
 ---
 
-## Expectativa de Resultados
+## Beneficios
 
-| Acao | Tempo Estimado |
-|------|----------------|
-| Validacao de correcao no GSC | 1-3 dias |
-| Primeira indexacao das paginas | 1-7 dias |
-| Aparecer em buscas por nome | 2-3 semanas |
-| Comecar a ranquear para termos competitivos | 1-3 meses |
+1. **Contexto Completo**: O Lovable.dev tera todas as informacoes do projeto na primeira etapa
+2. **Documentacao Profissional**: Cliente recebe um documento formal do projeto
+3. **Melhor Qualidade**: Prompts subsequentes podem referenciar o PRD
+4. **Transparencia**: Cliente ve exatamente o que sera implementado
+5. **Facilita Customizacao**: PRD pode ser editado antes de comecar
 
 ---
 
 ## Resumo das Mudancas
 
-1. **Redirect HTTP->HTTPS**: Adicionar regra para `http://rafaelegg.com/*`
-2. **Canonical dinamico**: Remover canonical do index.html e garantir em cada pagina React
-3. **NotFound com noindex**: Evitar que paginas 404 sejam indexadas
-4. **LLM.html no redirects**: Garantir que a pagina estatica seja servida corretamente
+1. **Edge Function**: Adicionar geracao de PRD antes das etapas fragmentadas
+2. **Frontend**: Incluir PRD na regeneracao manual de etapas
+3. **Estrutura**: PRD como Etapa 0 com categoria propria
+4. **UI**: Exibir PRD de forma destacada no dashboard
+
