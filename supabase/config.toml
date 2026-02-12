@@ -143,3 +143,9 @@ verify_jwt = false
 
 [functions.generate-whatsapp-draft]
 verify_jwt = false
+
+[functions.notify-client-approved]
+verify_jwt = true
+
+[functions.send-welcome-email]
+verify_jwt = true
