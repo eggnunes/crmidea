@@ -205,7 +205,22 @@ export function PendingClientApprovals() {
         });
       } catch (notifyError) {
         console.error('Error sending approval notification:', notifyError);
-        // Don't fail the whole operation if notification fails
+      }
+
+      // 5. Send welcome email with diagnostic form link
+      try {
+        await supabase.functions.invoke("send-welcome-email", {
+          body: {
+            clientName: client.full_name,
+            clientEmail: client.email,
+            officeName: client.office_name || 'Seu Escritório',
+            consultantId: user?.id,
+            clientId: client.user_id,
+            checkFormFilled: true,
+          },
+        });
+      } catch (welcomeError) {
+        console.error('Error sending welcome email:', welcomeError);
       }
 
       toast.success(`${client.full_name} aprovado com sucesso!`);
