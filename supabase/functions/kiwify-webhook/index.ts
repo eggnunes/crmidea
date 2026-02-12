@@ -275,7 +275,7 @@ function getProductWelcomeMessage(firstName: string, productName: string, produc
         `Não deixe esse benefício incrível sem uso! Sua intranet personalizada está esperando por você. 🚀\n\n` +
         `Qualquer dúvida, estou à disposição!\n\n` +
         `Vamos construir juntos a transformação digital do seu escritório!\n\n` +
-        `_Rafael Nogueira - IDEA_${transferNote}`;
+        `_Rafael Egg - IDEA_${transferNote}`;
     
     case 'mentoria_coletiva':
     case 'mentoria_individual':
