@@ -1830,6 +1830,7 @@ export type Database = {
       }
       consulting_sessions: {
         Row: {
+          ai_summary: string | null
           client_id: string
           created_at: string
           duration_minutes: number | null
@@ -1839,16 +1840,21 @@ export type Database = {
           id: string
           next_steps: string | null
           notes: string | null
+          recording_drive_id: string | null
+          recording_url: string | null
           session_date: string
           session_type: string | null
           status: string | null
           summary: string | null
+          summary_generated_at: string | null
           title: string
           topics: string[] | null
+          transcription: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          ai_summary?: string | null
           client_id: string
           created_at?: string
           duration_minutes?: number | null
@@ -1858,16 +1864,21 @@ export type Database = {
           id?: string
           next_steps?: string | null
           notes?: string | null
+          recording_drive_id?: string | null
+          recording_url?: string | null
           session_date: string
           session_type?: string | null
           status?: string | null
           summary?: string | null
+          summary_generated_at?: string | null
           title: string
           topics?: string[] | null
+          transcription?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          ai_summary?: string | null
           client_id?: string
           created_at?: string
           duration_minutes?: number | null
@@ -1877,12 +1888,16 @@ export type Database = {
           id?: string
           next_steps?: string | null
           notes?: string | null
+          recording_drive_id?: string | null
+          recording_url?: string | null
           session_date?: string
           session_type?: string | null
           status?: string | null
           summary?: string | null
+          summary_generated_at?: string | null
           title?: string
           topics?: string[] | null
+          transcription?: string | null
           updated_at?: string
           user_id?: string
         }
