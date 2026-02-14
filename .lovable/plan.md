@@ -1,163 +1,83 @@
 
-# Plano: Automacao de Gravacoes do Google Meet + Transcricao e Resumo com IA
+# Plano: Corrigir Conexao Google Calendar + Melhorar Matching de Gravacoes
 
-## Contexto Atual
+## Problemas Identificados
 
-- Voce ja tem o Google Calendar conectado via OAuth (com `GOOGLE_CLIENT_ID` e `GOOGLE_CLIENT_SECRET`)
-- A tabela `consulting_sessions` ja existe com campos como `summary`, `notes`, `next_steps`
-- Voce tem a chave do ElevenLabs configurada (`ELEVENLABS_API_KEY`) para transcricao de audio
-- Voce tem o Lovable AI (`LOVABLE_API_KEY`) para gerar resumos
+### 1. Redirect URI aponta para dominio errado
+O codigo forca o redirecionamento para `crmidea.lovable.app`, mas o usuario acessa via `rafaelegg.com`. Apos autenticar no Google, o usuario e redirecionado para um dominio onde nao tem sessao ativa, e a troca do codigo OAuth falha.
 
-## O Problema
+### 2. Metodo `getClaims` nao existe
+A funcao `google-calendar-auth` usa `supabase.auth.getClaims(token)` que nao e um metodo valido do Supabase. Deve usar `supabase.auth.getUser(token)`.
 
-Hoje, apos cada reuniao pelo Google Meet, voce precisa manualmente:
-1. Ir ate o Google Drive onde a gravacao foi salva
-2. Alterar as permissoes do arquivo para "leitor publico"
-3. Copiar o link
-4. Abrir o dashboard da consultoria do cliente
-5. Colar o link na sessao correspondente
+### 3. Matching de gravacoes impreciso
+Quando ha multiplas reunioes no mesmo dia, o sistema nao consegue distinguir qual gravacao pertence a qual cliente (usa apenas a data).
 
-Alem disso, nao existe transcricao nem resumo automatico das reunioes.
+## Correcoes
 
-## Solucao Proposta
+### Etapa 1 - Corrigir o redirect URI no frontend
 
-A solucao sera dividida em 3 partes:
+**Arquivo:** `src/hooks/useGoogleCalendar.tsx`
 
-### Parte 1 - Expandir o acesso ao Google Drive
+Mudar a funcao `getRedirectUri()` para usar `rafaelegg.com` como dominio canonico (em vez de `crmidea.lovable.app`). Isso garante que:
+- O Google redireciona para o dominio correto
+- A sessao do usuario esta presente apos o redirecionamento
+- A troca do codigo OAuth funciona
 
-Atualmente, a integracao com o Google usa apenas escopos de **Calendar**. Para acessar as gravacoes do Meet (que sao salvas automaticamente no Google Drive), precisaremos adicionar escopos do **Google Drive (somente leitura)**.
+### Etapa 2 - Corrigir a autenticacao na Edge Function
 
-**O que muda:** Ao reconectar o Google Calendar, o sistema pedira permissao adicional para ler arquivos do Google Drive. Isso permite localizar automaticamente as gravacoes do Meet.
+**Arquivo:** `supabase/functions/google-calendar-auth/index.ts`
 
-**Importante:** Voce precisara reconectar o Google Calendar uma unica vez para autorizar o novo escopo.
+Substituir `supabase.auth.getClaims(token)` por `supabase.auth.getUser(token)`. Este e o metodo correto para validar o JWT e obter o ID do usuario.
 
-### Parte 2 - Buscar gravacoes automaticamente
+### Etapa 3 - Melhorar matching de gravacoes
 
-Uma nova funcao backend sera criada para:
-1. Usar o token do Google ja armazenado para acessar o Google Drive
-2. Buscar arquivos de gravacao do Google Meet (que ficam na pasta "Meet Recordings" do Drive)
-3. Ao encontrar uma gravacao correspondente a uma sessao, automaticamente:
-   - Gerar um link compartilhavel (com permissao de leitor)
-   - Salvar o link na sessao de consultoria correspondente
+**Arquivo:** `supabase/functions/sync-meet-recordings/index.ts`
 
-A correspondencia entre gravacao e sessao sera feita pela **data da reuniao** e pelo **titulo do evento do Calendar** (que ja e sincronizado).
+Atualmente, o matching e feito apenas por data. Melhorar para usar:
+1. **Data + horario** - comparar a hora da gravacao com a hora da sessao (tolerancia de +/- 2 horas)
+2. **Nome do cliente no titulo** - verificar se o nome do cliente aparece no nome do arquivo da gravacao
+3. **Busca em subpastas** - alem da pasta "Meet Recordings", buscar tambem em pastas que contenham o nome do cliente
 
-### Parte 3 - Transcricao e Resumo com IA
+Quando ha multiplas reunioes no mesmo dia, o sistema vai:
+- Primeiro tentar match por nome do cliente no titulo do arquivo
+- Depois por proximidade de horario (a gravacao mais proxima da hora da sessao)
+- So usar match generico por data se nao encontrar match mais especifico
 
-O Google Meet, quando a gravacao esta ativada, tambem gera **transcricoes automaticas** que ficam salvas no Drive como arquivos de texto. O sistema ira:
+### Etapa 4 - Buscar gravacoes em pastas personalizadas
 
-1. Buscar a transcricao do Meet no Drive (arquivo `.txt` ou `.docx` gerado automaticamente)
-2. Se a transcricao do Meet nao estiver disponivel, usar o **ElevenLabs** (que ja esta configurado) para transcrever o audio da gravacao
-3. Com a transcricao em maos, usar o **Lovable AI** para gerar um resumo estruturado contendo:
-   - Topicos discutidos
-   - Decisoes tomadas
-   - Proximos passos
-   - Pontos de atencao
-4. Salvar a transcricao e o resumo na sessao de consultoria
+**Arquivo:** `supabase/functions/sync-meet-recordings/index.ts`
 
-### Interface no Dashboard
+Adicionar busca em pastas do Drive que contenham o nome do cliente. Isso permite encontrar gravacoes que voce moveu para pastas organizadas por cliente.
 
-Na aba "Atas de Reuniao" do detalhe de cada cliente, cada sessao passara a exibir:
-- Link para a gravacao (com botao para abrir no Google Drive)
-- Botao "Buscar Gravacao" para importar manualmente a gravacao de uma sessao especifica
-- Botao "Sincronizar Gravacoes" para buscar todas as gravacoes pendentes de uma vez
-- Transcricao completa da reuniao (expansivel)
-- Resumo gerado pela IA (com topicos, decisoes e proximos passos)
-- Botao para regenerar o resumo se necessario
+O sistema vai:
+1. Buscar na pasta "Meet Recordings" (padrao do Google Meet)
+2. Buscar em pastas cujo nome contenha o nome do cliente
+3. Combinar os resultados e fazer o matching
 
-## Etapas de Implementacao
+## O que voce precisa fazer no Google Console
 
-### 1. Alterar o banco de dados
+Apos a implementacao, voce precisara garantir que o redirect URI correto esta cadastrado no Google Cloud Console:
 
-Adicionar novas colunas a tabela `consulting_sessions`:
-- `recording_url` (texto) - Link publico da gravacao no Google Drive
-- `recording_drive_id` (texto) - ID do arquivo no Google Drive
-- `transcription` (texto longo) - Transcricao completa da reuniao
-- `ai_summary` (texto longo) - Resumo gerado pela IA (separado do campo `summary` manual)
-- `summary_generated_at` (timestamp) - Quando o resumo foi gerado
+1. Acesse https://console.cloud.google.com
+2. Va em "APIs e Servicos" > "Credenciais"
+3. Clique na credencial OAuth do projeto
+4. Em "URIs de redirecionamento autorizados", verifique se consta:
+   `https://rafaelegg.com/metodo-idea/calendario?google_callback=true`
+5. Se nao constar, adicione e salve
 
-### 2. Expandir os escopos OAuth do Google
+## Resumo das alteracoes
 
-Atualizar a funcao `google-calendar-auth` para incluir o escopo:
-- `https://www.googleapis.com/auth/drive.readonly` (leitura do Drive)
+| Arquivo | Alteracao |
+|---------|-----------|
+| `src/hooks/useGoogleCalendar.tsx` | Corrigir redirect URI para `rafaelegg.com` |
+| `supabase/functions/google-calendar-auth/index.ts` | Trocar `getClaims` por `getUser` |
+| `supabase/functions/sync-meet-recordings/index.ts` | Melhorar matching (horario + nome) e buscar em subpastas |
 
-### 3. Criar funcao backend "sync-meet-recordings"
+## Resultado esperado
 
-Nova funcao que:
-- Recebe o ID do cliente ou da sessao
-- Usa a API do Google Drive para buscar gravacoes na pasta "Meet Recordings"
-- Faz a correspondencia por data/titulo
-- Configura permissao de compartilhamento publico (leitor)
-- Salva o link na sessao
-
-### 4. Criar funcao backend "transcribe-meeting"
-
-Nova funcao que:
-- Recebe o ID da sessao
-- Busca a transcricao do Meet no Drive (se disponivel)
-- Se nao houver transcricao, baixa o audio e usa ElevenLabs para transcrever
-- Salva a transcricao na sessao
-
-### 5. Criar funcao backend "summarize-meeting"
-
-Nova funcao que:
-- Recebe a transcricao da reuniao
-- Usa o Lovable AI (Gemini) para gerar um resumo estruturado
-- Salva o resumo na sessao
-
-### 6. Atualizar o componente ConsultingSessionsManager
-
-- Adicionar coluna/badge de gravacao em cada sessao
-- Adicionar botoes de sincronizacao e transcricao
-- Exibir transcricao e resumo expandiveis
-- Botao para regenerar resumo
-
-### 7. Atualizar a area do cliente
-
-Na area que o cliente acessa, tambem exibir:
-- Link para assistir a gravacao
-- Resumo da reuniao (somente leitura)
-
-## Fluxo Automatico Simplificado
-
-```text
-Voce faz reuniao no Meet
-        |
-        v
-Gravacao salva no Drive automaticamente
-        |
-        v
-No dashboard, clica "Sincronizar Gravacoes"
-        |
-        v
-Sistema busca gravacoes no Drive
-        |
-        v
-Encontra correspondencia por data/titulo
-        |
-        v
-Gera link publico + busca transcricao
-        |
-        v
-IA gera resumo estruturado
-        |
-        v
-Tudo aparece na aba "Reunioes" do cliente
-```
-
-## Observacao Importante
-
-Para que funcione, voce precisara:
-1. **Reconectar o Google Calendar** uma vez (para autorizar o acesso ao Drive)
-2. Manter a **gravacao ativa** nas reunioes do Google Meet
-3. Idealmente, ativar a **transcricao automatica** no Google Meet (nas configuracoes do Google Workspace) para obter melhores resultados
-
-## Resumo dos Arquivos que Serao Criados/Modificados
-
-- **Banco de dados**: Adicionar 5 colunas a `consulting_sessions`
-- **`supabase/functions/google-calendar-auth/index.ts`**: Adicionar escopo do Drive
-- **`supabase/functions/sync-meet-recordings/index.ts`**: Nova funcao (buscar gravacoes)
-- **`supabase/functions/transcribe-meeting/index.ts`**: Nova funcao (transcricao)
-- **`supabase/functions/summarize-meeting/index.ts`**: Nova funcao (resumo IA)
-- **`src/components/consulting/ConsultingSessionsManager.tsx`**: Atualizar UI
-- **`supabase/config.toml`**: Registrar novas funcoes
+1. Voce clica em "Conectar Google Calendar"
+2. E redirecionado para o Google, autoriza o acesso (Calendar + Drive)
+3. E redirecionado de volta para `rafaelegg.com/metodo-idea/calendario`
+4. O sistema troca o codigo OAuth por tokens e salva no banco
+5. Aparece "Conectado ao Google Calendar"
+6. Ao clicar "Sincronizar Gravacoes", o sistema encontra a gravacao correta de cada cliente, mesmo com multiplas reunioes no mesmo dia
