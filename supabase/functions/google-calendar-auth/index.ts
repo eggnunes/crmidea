@@ -30,10 +30,10 @@ serve(async (req) => {
 
     // Verify the JWT and get the user ID from the token
     const token = authHeader.replace('Bearer ', '');
-    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
+    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
     
-    if (claimsError || !claimsData?.claims) {
-      console.error('[google-calendar-auth] Auth error:', claimsError);
+    if (userError || !user) {
+      console.error('[google-calendar-auth] Auth error:', userError);
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -41,7 +41,7 @@ serve(async (req) => {
     }
 
     // Use the user ID from the verified JWT token, NOT from request body
-    const authenticatedUserId = claimsData.claims.sub as string;
+    const authenticatedUserId = user.id;
     
     const { action, code, redirectUri } = await req.json();
     console.log(`[google-calendar-auth] Action: ${action}, userId: ${authenticatedUserId}`);
