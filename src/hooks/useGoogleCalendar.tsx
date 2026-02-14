@@ -48,10 +48,7 @@ export function useGoogleCalendar() {
   // Always use the published domain for Google OAuth to avoid redirect_uri mismatch.
   // If the app is running on a preview URL, we still force the published URL.
   const getRedirectUri = () => {
-    const publishedDomain = 'https://crmidea.lovable.app';
-    const origin = typeof window !== 'undefined' ? window.location.origin : publishedDomain;
-    const base = origin === publishedDomain ? origin : publishedDomain;
-    return `${base}/metodo-idea/calendario?google_callback=true`;
+    return 'https://rafaelegg.com/metodo-idea/calendario?google_callback=true';
   };
 
   const getAuthUrl = async () => {
