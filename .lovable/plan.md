@@ -1,320 +1,149 @@
 
 
-# Plano de Implementacao - PRD como Primeira Etapa na Geracao de Prompts
+# Plano: Pre-rendering para SEO - Fazer o Google Indexar o Site
 
-## Resumo
+## O Problema
 
-O objetivo e modificar o sistema de geracao de prompts por etapas para que, antes de criar as etapas de implementacao, a IA primeiro gere um **PRD (Product Requirements Document)** completo baseado em TODAS as informacoes do formulario de diagnostico. Esse PRD sera incluido como **Etapa 0** (ou integrado na primeira etapa), facilitando a criacao do projeto no Lovable com uma documentacao completa de requisitos.
-
----
-
-## O Que e um PRD?
-
-O PRD (Product Requirements Document) e um documento que define:
-- **Visao do Produto**: O que o sistema faz e para quem
-- **Objetivos de Negocio**: Por que o cliente precisa desse sistema
-- **Requisitos Funcionais**: Lista detalhada de funcionalidades
-- **Requisitos Nao-Funcionais**: Performance, seguranca, usabilidade
-- **Personas/Usuarios**: Quem vai usar o sistema
-- **Arquitetura de Alto Nivel**: Estrutura basica do projeto
-- **Prioridades e Fases**: Como o projeto sera implementado
-
----
-
-## Arquivos a Modificar
-
-| Arquivo | Mudanca | Impacto |
-|---------|---------|---------|
-| `supabase/functions/auto-generate-client-plan/index.ts` | Adicionar geracao de PRD antes das etapas | Critico - etapa automatica |
-| `src/components/consulting/FragmentedPromptsGenerator.tsx` | Adicionar geracao de PRD como Etapa 0 | Critico - regeneracao manual |
-| `src/integrations/supabase/types.ts` | (Nao modificar - campo `fragmented_prompts` ja e JSONB) | N/A |
-
----
-
-## Estrutura da Nova Etapa 0 - PRD
-
-A primeira etapa passara a conter um PRD completo que inclui:
+O site e construido em React (JavaScript). Quando o Google visita uma pagina, ele recebe um HTML praticamente vazio:
 
 ```text
-# PRD - Product Requirements Document
-## [Nome do Escritorio] - Sistema de Intranet
-
-### 1. Visao Geral do Projeto
-- Descricao do escritorio e contexto
-- Objetivos principais
-
-### 2. Stakeholders e Usuarios
-- Perfis de usuarios (advogados, funcionarios, gestores)
-- Permissoes por perfil
-
-### 3. Requisitos Funcionais
-- Lista de todas as funcionalidades organizadas por modulo
-- Detalhes de cada funcionalidade
-
-### 4. Requisitos Nao-Funcionais
-- Performance esperada
-- Seguranca (LGPD, dados sensiveis)
-- Responsividade e acessibilidade
-
-### 5. Arquitetura Tecnica
-- Stack tecnologica (React, Supabase, etc.)
-- Estrutura de banco de dados
-- Autenticacao e autorizacao
-
-### 6. Roadmap de Implementacao
-- Fases ordenadas por prioridade
-- Dependencias entre modulos
-
-### 7. Criterios de Aceite
-- Como validar cada funcionalidade
+<div id="root"></div>
+<script src="/src/main.tsx"></script>
 ```
 
----
+O Google precisa:
+1. Baixar o JavaScript (~500KB+)
+2. Executar o React
+3. Esperar chamadas ao banco de dados (blog posts, etc.)
+4. So entao "ver" o conteudo
 
-## Fluxo de Implementacao
+Na pratica, o Google frequentemente desiste antes de completar esse processo, especialmente para conteudo que depende de chamadas a APIs.
+
+## A Solucao: Pre-rendering com Edge Function
+
+Criar uma funcao no backend que detecta quando um **bot de busca** (Googlebot, Bingbot, etc.) acessa o site e serve uma versao **HTML estatica pre-renderizada** das paginas publicas importantes, com todo o conteudo ja inserido no HTML.
+
+Usuarios normais continuam recebendo o site React normal.
 
 ```text
-1. Cliente preenche formulario de diagnostico
-         |
-         v
-2. Ao submeter, dispara auto-generate-client-plan
-         |
-         v
-3. [NOVO] IA gera PRD completo baseado em TODOS os dados do formulario
-         |
-         v
-4. PRD e salvo como Etapa 0 (ou integrado na Etapa 1)
-         |
-         v
-5. Etapas subsequentes sao geradas normalmente
-         |
-         v
-6. Cliente ve PRD + Etapas no dashboard
+Visitante normal  -->  index.html (React SPA)  -->  Experiencia interativa
+Googlebot         -->  HTML estatico completo   -->  Conteudo indexavel
 ```
 
----
+## Paginas que serao pre-renderizadas
 
-## Secao Tecnica: Detalhes de Implementacao
+1. **Pagina inicial** (`/`) - Apresentacao, produtos, FAQ
+2. **Blog - listagem** (`/blog`) - Lista de todos os artigos
+3. **Blog - cada artigo** (`/blog/:slug`) - Conteudo completo do artigo
+4. **Consultoria** (`/consultoria`) - Pagina de vendas da consultoria
+5. **Consultoria economia** (`/consultoria/economia`)
 
-### 1. Nova Funcao generatePRD no auto-generate-client-plan/index.ts
+## Etapas de Implementacao
 
-Criar uma funcao que gera o PRD usando TODAS as informacoes do formulario:
+### 1. Criar Edge Function "prerender-page"
 
-```typescript
-function generatePRDPrompt(client: any, selectedFeatureDetails: string, prioritizedFeatures: string): { system: string; user: string } {
-  const systemPrompt = `Voce e um especialista em criar PRDs (Product Requirements Documents) para sistemas de intranet de escritorios de advocacia.
+Uma funcao backend que:
+- Recebe o caminho da pagina (ex: `/blog/ia-revolucionando-advocacia-2025`)
+- Busca os dados necessarios no banco (titulo, conteudo, meta tags)
+- Gera HTML completo com todo o conteudo, meta tags, dados estruturados (JSON-LD), Open Graph
+- Retorna esse HTML para o bot
 
-Sua tarefa e criar um PRD COMPLETO e PROFISSIONAL em portugues brasileiro que serve como:
-1. Documentacao do projeto para o cliente
-2. Contexto inicial para o Lovable.dev criar o sistema
-3. Referencia para todas as etapas de implementacao
+### 2. Criar Edge Function "bot-detector"
 
-O PRD deve ser estruturado, detalhado e incluir TODAS as informacoes fornecidas pelo cliente.
+Uma funcao que:
+- Analisa o User-Agent da requisicao
+- Detecta bots: Googlebot, Bingbot, Yandex, PerplexityBot, GPTBot, etc.
+- Se for bot: redireciona para a versao pre-renderizada
+- Se for usuario normal: serve o SPA React normalmente
 
-FORMATO OBRIGATORIO:
-# PRD - Product Requirements Document
+### 3. Templates HTML estaticos
 
-## 1. Visao Geral do Projeto
-(descricao do sistema e objetivos)
+Para cada tipo de pagina, sera criado um template HTML com:
+- Tags `<title>` e `<meta description>` corretas
+- Open Graph e Twitter Cards
+- Dados estruturados JSON-LD (Schema.org)
+- Conteudo textual completo visivel no HTML
+- Tags semanticas (`<article>`, `<h1>`, `<h2>`, `<nav>`, `<main>`, `<footer>`)
+- Links internos entre paginas
 
-## 2. Contexto do Escritorio
-(detalhes sobre o escritorio cliente)
+### 4. Conteudo dinamico do blog
 
-## 3. Perfis de Usuario e Permissoes
-(quem usa o sistema e o que pode fazer)
+Para artigos do blog, a funcao vai:
+- Consultar o banco de dados para obter o artigo pelo slug
+- Renderizar o conteudo Markdown como HTML
+- Inserir no template com todas as meta tags corretas
+- Incluir links para artigos relacionados (link building interno)
 
-## 4. Requisitos Funcionais
-(lista de TODAS as funcionalidades organizadas por categoria)
+### 5. Atualizacao do robots.txt
 
-## 5. Requisitos Nao-Funcionais
-(performance, seguranca, LGPD, responsividade)
+Simplificar e otimizar o robots.txt para garantir acesso completo dos bots as paginas publicas.
 
-## 6. Arquitetura Tecnica
-(stack, banco de dados, autenticacao)
+### 6. Atualizacao do sitemap.xml
 
-## 7. Roadmap de Implementacao
-(fases ordenadas por prioridade)
+Gerar o sitemap dinamicamente a partir dos artigos do banco de dados, para que novos artigos sejam automaticamente incluidos.
 
-## 8. Criterios de Aceite
-(como validar o sistema)
+## Detalhes Tecnicos
 
-## 9. Prompt Inicial para Lovable.dev
-(um prompt otimizado para comecar o projeto no Lovable)`;
+### Estrutura das Edge Functions
 
-  const userPrompt = `Crie um PRD completo para o seguinte escritorio de advocacia:
-
-========== DADOS DO ESCRITORIO ==========
-- Nome: ${client.office_name}
-- Responsavel: ${client.full_name}
-- E-mail: ${client.email}
-- Telefone: ${client.phone}
-- OAB: ${client.oab_number || 'Nao informado'}
-- Website: ${client.website || 'Nao possui'}
-- Ano de Fundacao: ${client.foundation_year || 'Nao informado'}
-
-========== ESTRUTURA ==========
-- Advogados: ${client.num_lawyers}
-- Funcionarios: ${client.num_employees}
-- Areas de Atuacao: ${client.practice_areas || 'Diversas areas'}
-- Cidade/Estado: ${client.cidade || 'Nao informado'} / ${client.estado || 'Nao informado'}
-
-========== EXPERIENCIA COM IA ==========
-- Nivel de Familiaridade: ${client.ai_familiarity_level || 'Iniciante'}
-- Ja usou IA: ${client.has_used_ai ? 'Sim' : 'Nao'}
-- Ja usou ChatGPT: ${client.has_used_chatgpt ? 'Sim' : 'Nao'}
-- Frequencia de Uso: ${client.ai_usage_frequency || 'Raramente'}
-- Confortavel com tecnologia: ${client.comfortable_with_tech ? 'Sim' : 'Nao'}
-- Dificuldades com IA: ${client.ai_difficulties || 'Nenhuma especificada'}
-
-========== GESTAO ATUAL ==========
-- Sistema de Gestao: ${client.case_management_system || 'Nenhum'}
-- Fluxo de Processos: ${client.case_management_flow || 'Nao descrito'}
-- Fluxo de Atendimento: ${client.client_service_flow || 'Nao descrito'}
-
-========== FUNCIONALIDADES POR PRIORIDADE ==========
-${prioritizedFeatures}
-
-========== FUNCIONALIDADES DETALHADAS ==========
-${selectedFeatureDetails || 'Funcionalidades padrao'}
-
-========== FUNCIONALIDADES PERSONALIZADAS ==========
-${client.custom_features || 'Nenhuma'}
-
-========== TAREFAS A AUTOMATIZAR ==========
-${client.tasks_to_automate || 'Nao especificado'}
-
-Crie um PRD completo e profissional seguindo a estrutura definida.`;
-
-  return { system: systemPrompt, user: userPrompt };
-}
+```text
+supabase/functions/
+  prerender/index.ts        -- Funcao principal que gera HTML para bots
 ```
 
-### 2. Modificacao na funcao generateFragmentedPromptsForClient
+### Deteccao de bots (dentro da funcao)
 
-Antes de gerar as etapas, chamar a geracao do PRD e adiciona-lo como primeira etapa:
+A funcao verifica o header User-Agent para identificar:
+- Googlebot, Googlebot-Mobile
+- Bingbot, MSNBot
+- YandexBot
+- Facebot (Facebook crawler)
+- LinkedInBot
+- Twitterbot
+- PerplexityBot, GPTBot, Claude-Web
 
-```typescript
-// Dentro de generateFragmentedPromptsForClient, ANTES de gerar a estrutura base:
+### HTML gerado (exemplo para artigo do blog)
 
-// ========== GERAR PRD PRIMEIRO ==========
-const prdPrompts = generatePRDPrompt(client, selectedFeatureDetails, prioritizedFeatures);
-const prdResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-  method: 'POST',
-  headers: {
-    'Authorization': `Bearer ${Deno.env.get('LOVABLE_API_KEY')}`,
-    'Content-Type': 'application/json',
-  },
-  body: JSON.stringify({
-    model: 'google/gemini-2.5-flash',
-    messages: [
-      { role: 'system', content: prdPrompts.system },
-      { role: 'user', content: prdPrompts.user }
-    ],
-    max_tokens: 10000,
-    temperature: 0.7,
-  }),
-});
+O HTML gerado tera a estrutura completa com conteudo real, nao depende de JavaScript:
 
-let prdContent = '';
-if (prdResponse.ok) {
-  const prdData = await prdResponse.json();
-  prdContent = prdData.choices?.[0]?.message?.content || '';
-}
-
-// Adicionar PRD como Etapa 0
-generatedEtapas.push({
-  id: etapaId++,
-  titulo: "PRD - DOCUMENTACAO DO PROJETO",
-  descricao: "Product Requirements Document completo com todos os requisitos e especificacoes do sistema",
-  prompt: prdContent || "PRD nao gerado. Regenere as etapas.",
-  categoria: "prd",
-  prioridade: "alta",
-  funcionalidades: [
-    "Visao Geral do Projeto",
-    "Perfis de Usuario",
-    "Requisitos Funcionais",
-    "Requisitos Nao-Funcionais",
-    "Arquitetura Tecnica",
-    "Roadmap de Implementacao"
-  ],
-  ordem: 0,
-  concluida: false
-});
+```text
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <title>Titulo do Artigo | Rafael Egg</title>
+  <meta name="description" content="...">
+  <meta property="og:title" content="...">
+  <script type="application/ld+json">{ dados estruturados }</script>
+</head>
+<body>
+  <header><nav>...</nav></header>
+  <main>
+    <article>
+      <h1>Titulo do Artigo</h1>
+      <p>Conteudo completo do artigo em HTML puro...</p>
+    </article>
+  </main>
+  <footer>...</footer>
+</body>
+</html>
 ```
 
-### 3. Atualizacao da Estrutura de Categorias
+### Integracao com o frontend
 
-Adicionar a categoria "prd" no mapeamento de categorias:
+Adicionar no `index.html` uma tag `<noscript>` com conteudo basico para crawlers que nao executam JavaScript, e meta tags adicionais para melhorar a indexacao.
 
-```typescript
-const CATEGORY_ORDER = [
-  { id: 'prd', name: 'PRD - Documentacao' },
-  { id: 'base', name: 'Estrutura Base' },
-  // ... demais categorias
-];
-```
+## Resultado Esperado
 
-### 4. Atualizacao no Frontend (FragmentedPromptsGenerator.tsx)
+- O Google vai conseguir ler **todo o conteudo** do site sem precisar executar JavaScript
+- Artigos do blog serao indexados com titulo, descricao e conteudo completo
+- A pagina de consultoria aparecera nos resultados de busca
+- Dados estruturados (JSON-LD) serao lidos corretamente
+- Novos artigos do blog serao automaticamente indexaveis
 
-Adicionar a mesma logica de geracao de PRD quando o usuario clica em "Regenerar Etapas":
+## Proximos Passos Apos Implementacao
 
-```typescript
-const generatePRD = async (effectiveClient: ConsultingClient): Promise<string> => {
-  const systemPrompt = `Voce e um especialista em criar PRDs...`;
-  const userPrompt = `Crie um PRD completo para...`;
-  
-  const { data, error } = await supabase.functions.invoke("generate-consulting-prompt", {
-    body: { systemPrompt, userPrompt },
-  });
-  
-  return data?.prompt || "";
-};
-
-// No inicio de generateFragmentedPrompts, antes de gerar estrutura base:
-const prdContent = await generatePRD(effectiveClient);
-generatedEtapas.push({
-  id: etapaId++,
-  titulo: "PRD - DOCUMENTACAO DO PROJETO",
-  descricao: "Product Requirements Document completo",
-  prompt: prdContent,
-  categoria: "prd",
-  prioridade: "alta",
-  funcionalidades: ["Documentacao completa do projeto"],
-  ordem: 0,
-  concluida: false
-});
-```
-
----
-
-## Visualizacao no Dashboard do Cliente
-
-Com a implementacao, o cliente vera:
-
-| Etapa | Titulo | Descricao |
-|-------|--------|-----------|
-| 0 | PRD - DOCUMENTACAO DO PROJETO | Product Requirements Document completo |
-| 1 | ESTRUTURA BASE | Autenticacao, dashboard, navegacao |
-| 2 | INTELIGENCIA ARTIFICIAL | Funcionalidades de IA selecionadas |
-| 3 | DOCUMENTOS | Modulos de documentos |
-| ... | ... | ... |
-
----
-
-## Beneficios
-
-1. **Contexto Completo**: O Lovable.dev tera todas as informacoes do projeto na primeira etapa
-2. **Documentacao Profissional**: Cliente recebe um documento formal do projeto
-3. **Melhor Qualidade**: Prompts subsequentes podem referenciar o PRD
-4. **Transparencia**: Cliente ve exatamente o que sera implementado
-5. **Facilita Customizacao**: PRD pode ser editado antes de comecar
-
----
-
-## Resumo das Mudancas
-
-1. **Edge Function**: Adicionar geracao de PRD antes das etapas fragmentadas
-2. **Frontend**: Incluir PRD na regeneracao manual de etapas
-3. **Estrutura**: PRD como Etapa 0 com categoria propria
-4. **UI**: Exibir PRD de forma destacada no dashboard
+1. Reenviar o sitemap no Google Search Console
+2. Solicitar re-indexacao das paginas principais
+3. Aguardar 2-4 semanas para o Google processar as mudancas
+4. Monitorar o Google Search Console para verificar melhoria na cobertura
 
