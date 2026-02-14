@@ -155,3 +155,12 @@ verify_jwt = false
 
 [functions.prerender]
 verify_jwt = false
+
+[functions.sync-meet-recordings]
+verify_jwt = false
+
+[functions.transcribe-meeting]
+verify_jwt = false
+
+[functions.summarize-meeting]
+verify_jwt = false
