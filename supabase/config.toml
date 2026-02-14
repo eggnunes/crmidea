@@ -152,3 +152,6 @@ verify_jwt = true
 
 [functions.send-bulk-whatsapp]
 verify_jwt = false
+
+[functions.prerender]
+verify_jwt = false
