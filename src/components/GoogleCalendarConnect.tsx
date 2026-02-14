@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,14 +8,15 @@ import { useGoogleCalendar } from '@/hooks/useGoogleCalendar';
 export function GoogleCalendarConnect() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { isConnected, loading, connect, disconnect, handleCallback } = useGoogleCalendar();
+  const callbackProcessed = useRef(false);
 
   useEffect(() => {
     const code = searchParams.get('code');
     const isGoogleCallback = searchParams.get('google_callback');
 
-    if (code && isGoogleCallback) {
+    if (code && isGoogleCallback && !callbackProcessed.current) {
+      callbackProcessed.current = true;
       handleCallback(code).then(() => {
-        // Clear URL params after handling
         searchParams.delete('code');
         searchParams.delete('google_callback');
         searchParams.delete('scope');
