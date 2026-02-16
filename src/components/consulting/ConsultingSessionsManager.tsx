@@ -26,7 +26,7 @@ import {
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   Calendar, Plus, Video, Users, Clock, FileText, Loader2,
-  RefreshCw, ExternalLink, FileAudio, Brain, ChevronDown
+  RefreshCw, ExternalLink, FileAudio, Brain, ChevronDown, Download
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -81,6 +81,7 @@ export function ConsultingSessionsManager({ clientId }: ConsultingSessionsManage
   const [syncing, setSyncing] = useState(false);
   const [transcribing, setTranscribing] = useState<string | null>(null);
   const [summarizing, setSummarizing] = useState<string | null>(null);
+  const [importing, setImporting] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
     session_date: "",
@@ -249,6 +250,26 @@ export function ConsultingSessionsManager({ clientId }: ConsultingSessionsManage
     }
   };
 
+  const batchImportTranscripts = async () => {
+    setImporting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('batch-import-transcripts', {
+        body: { clientId },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success(
+        `${data.transcriptions} transcrição(ões) importada(s), ${data.summaries} resumo(s) gerado(s)`
+      );
+      fetchSessions();
+    } catch (error: any) {
+      console.error('Error importing transcripts:', error);
+      toast.error(error.message || 'Erro ao importar transcrições');
+    } finally {
+      setImporting(false);
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -263,6 +284,10 @@ export function ConsultingSessionsManager({ clientId }: ConsultingSessionsManage
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={batchImportTranscripts} disabled={importing}>
+              {importing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
+              Importar Transcrições e Resumos
+            </Button>
             <Button variant="outline" onClick={syncRecordings} disabled={syncing}>
               {syncing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
               Sincronizar Gravações

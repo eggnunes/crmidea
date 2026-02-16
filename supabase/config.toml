@@ -164,3 +164,6 @@ verify_jwt = false
 
 [functions.summarize-meeting]
 verify_jwt = false
+
+[functions.batch-import-transcripts]
+verify_jwt = false
