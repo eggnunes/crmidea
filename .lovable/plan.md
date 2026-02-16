@@ -1,48 +1,69 @@
 
 
-# Plano: Corrigir o Dashboard da Sueli Dias
+# Importar Transcrições do Google Drive e Gerar Resumos Automaticamente
 
-## Problema Real
+## Situacao Atual
 
-Quando a Sueli faz login com `suelip.dias123@gmail.com`, o sistema:
+- Existem **muitas sessoes duplicadas** no banco (ex: Victor Hugo com 8 registros para a mesma data)
+- **Nenhuma sessao** tem transcrição ou resumo ainda
+- **Nenhuma sessao** tem gravação vinculada
+- As transcricoes do Google Meet estao na pasta "Meet Recordings" no Google Drive
+- As gravacoes de video estao em pastas com nomes dos clientes dentro de "Minha Mentoria/Turma dois/Consultoria"
 
-1. Encontra o perfil dela na tabela `client_profiles` (user_id `63413909...`)
-2. Mas esse perfil tem o email `advadvocacia82@gmail.com` (email errado)
-3. Usa esse email errado para buscar os dados na tabela `consulting_clients`
-4. Encontra o registro de `advadvocacia82@gmail.com` que esta **vazio** (sem prompts, sem plano, sem etapas)
-5. O registro correto, com todos os dados, esta em `suelip.dias123@gmail.com`
+## Etapas do Plano
 
-## Correcoes no Banco de Dados
+### Etapa 1 - Limpar sessoes duplicadas no banco de dados
 
-### 1. Atualizar o email no perfil da Sueli
+Antes de importar, preciso remover os registros duplicados. Existem sessoes com mesmo titulo, mesma data e mesmo cliente repetidas ate 8 vezes. Vou manter apenas uma de cada.
 
-Alterar o campo `email` na tabela `client_profiles` de `advadvocacia82@gmail.com` para `suelip.dias123@gmail.com`. Assim, quando ela logar, o dashboard buscara os dados no registro correto.
+### Etapa 2 - Criar Edge Function `batch-import-transcripts`
 
-### 2. Remover o registro duplicado vazio
+Nova funcao backend que faz tudo automaticamente:
 
-Deletar o registro `consulting_clients` com email `advadvocacia82@gmail.com` (ID `3a79034f...`), que nao tem prompts nem plano de implementacao. O registro correto com todos os dados (`suelip.dias123@gmail.com`, ID `89fd4209...`) permanece intacto.
+1. Busca a pasta "Meet Recordings" no Google Drive
+2. Lista todos os arquivos de transcricao (`.txt`, `.sbv`, `.vtt` ou documentos Google) dessa pasta
+3. Para cada arquivo de transcricao:
+   - Extrai a data de criacao do arquivo
+   - Tenta associar a uma sessao existente no banco (por data + nome do cliente no titulo)
+   - Se encontrar correspondencia, baixa o conteudo da transcricao
+   - Salva o texto na coluna `transcription` da sessao
+4. Para cada sessao que recebeu transcricao, gera um resumo estruturado com IA (Lovable AI / Gemini)
+5. Salva o resumo na coluna `ai_summary`
 
-## Correcao no Codigo
+**Arquivo:** `supabase/functions/batch-import-transcripts/index.ts`
 
-### 3. Tornar a busca mais resiliente
+Logica de matching:
+- Compara a data de criacao do arquivo com a data da sessao (mesmo dia)
+- Busca o nome do cliente no titulo do arquivo da transcricao
+- Se houver apenas uma sessao naquele dia, associa automaticamente
 
-**Arquivo:** `src/pages/ClientDashboardPage.tsx`
+### Etapa 3 - Adicionar botao na interface
 
-Adicionar uma busca alternativa: se nao encontrar dados pelo email do perfil, tentar tambem pelo email de login do usuario (que vem do `auth.users`). Isso previne que problemas semelhantes ocorram com outros clientes no futuro.
+**Arquivo:** `src/components/consulting/ConsultingSessionsManager.tsx`
 
-A logica sera:
-1. Buscar consulting_clients pelo email do perfil (comportamento atual)
-2. Se nao encontrar, buscar pelo email de login do usuario
-3. Usar o primeiro resultado que tiver dados
+Adicionar um botao "Importar Transcricoes e Resumos" que:
+- Chama a nova funcao `batch-import-transcripts`
+- Mostra progresso (quantas transcricoes encontradas, quantos resumos gerados)
+- Atualiza a lista de sessoes ao finalizar
 
-## Resumo
+Tambem adicionar um botao global na pagina de consultoria para importar para TODOS os clientes de uma vez.
 
-| Acao | Detalhe |
-|------|---------|
-| Corrigir email do perfil | `advadvocacia82@gmail.com` -> `suelip.dias123@gmail.com` |
-| Remover registro vazio | Deletar consulting_clients `advadvocacia82@gmail.com` |
-| Melhorar busca no codigo | Fallback para email de login se email do perfil nao retornar dados |
+### Etapa 4 - Sincronizar gravacoes de video
+
+Antes das transcricoes, rodar o `sync-meet-recordings` para vincular os videos das pastas dos clientes (Minha Mentoria/Turma dois/Consultoria/[NomeCliente]) as sessoes. Isso complementa a importacao.
+
+## Resumo tecnico dos arquivos
+
+| Arquivo | Acao |
+|---------|------|
+| Banco de dados | Remover sessoes duplicadas |
+| `supabase/functions/batch-import-transcripts/index.ts` | Nova funcao - importar transcricoes do Drive + gerar resumos com IA |
+| `src/components/consulting/ConsultingSessionsManager.tsx` | Adicionar botoes "Importar Transcricoes" |
 
 ## Resultado esperado
 
-A Sueli faz login com `suelip.dias123@gmail.com`, o dashboard busca os dados com esse email, e todas as etapas, prompts e plano de implementacao aparecem normalmente.
+Ao clicar no botao, o sistema vai:
+1. Buscar todas as transcricoes no Google Drive
+2. Associar cada transcricao a reuniao correta de cada cliente
+3. Gerar resumos automaticos com IA para cada reuniao transcrita
+4. Exibir tudo no dashboard de cada cliente (transcricao + resumo)
