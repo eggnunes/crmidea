@@ -189,10 +189,12 @@ export function ClientDashboardPage() {
         }
 
         // Fetch consulting client data (generated prompt)
-        // IMPORTANT: Some clients may have duplicated consulting_clients rows (same email/user_id).
-        // Using maybeSingle() would fail with "multiple rows" and the dashboard would look empty.
-        // We always pick the most recent record.
-        const { data: clientData, error: clientError } = await supabase
+        // Strategy: try profile email first, then fallback to auth login email
+        let clientData: any = null;
+        let clientError: any = null;
+
+        // 1. Try with profile email
+        const { data: clientByProfile, error: errProfile } = await supabase
           .from("consulting_clients")
           .select("id, generated_prompt, status, created_at, implementation_plan, fragmented_prompts")
           .eq("email", profileData.email)
@@ -200,6 +202,33 @@ export function ClientDashboardPage() {
           .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle();
+
+        if (clientByProfile) {
+          clientData = clientByProfile;
+        } else {
+          // 2. Fallback: try with the user's login email (in case profile email is out of sync)
+          const { data: { user: authUser } } = await supabase.auth.getUser();
+          const loginEmail = authUser?.email;
+          
+          if (loginEmail && loginEmail.toLowerCase() !== profileData.email.toLowerCase()) {
+            console.log("Profile email didn't match, trying login email:", loginEmail);
+            const { data: clientByLogin, error: errLogin } = await supabase
+              .from("consulting_clients")
+              .select("id, generated_prompt, status, created_at, implementation_plan, fragmented_prompts")
+              .eq("email", loginEmail)
+              .eq("user_id", profileData.consultant_id)
+              .order("created_at", { ascending: false })
+              .limit(1)
+              .maybeSingle();
+
+            if (clientByLogin) {
+              clientData = clientByLogin;
+            }
+            clientError = errLogin || errProfile;
+          } else {
+            clientError = errProfile;
+          }
+        }
 
         if (clientError) {
           console.error("Error fetching consulting client:", clientError);
@@ -214,7 +243,7 @@ export function ClientDashboardPage() {
           });
           setConsultingClient(clientData);
         } else {
-          console.log("No consulting client found for email:", profileData.email);
+          console.log("No consulting client found for profile email:", profileData.email);
         }
 
         // Fetch consulting sessions
