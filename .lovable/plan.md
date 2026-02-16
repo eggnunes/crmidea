@@ -1,43 +1,48 @@
 
 
-# Corrigir chamada duplicada do callback OAuth do Google Calendar
+# Plano: Corrigir o Dashboard da Sueli Dias
 
-## Problema
+## Problema Real
 
-Quando voce retorna do Google apos autorizar, o `useEffect` do React dispara **multiplas vezes** (comportamento normal do React 18 com StrictMode). Cada disparo tenta trocar o mesmo codigo OAuth por tokens. A primeira chamada funciona, mas as seguintes falham com `invalid_grant` porque o codigo ja foi usado.
+Quando a Sueli faz login com `suelip.dias123@gmail.com`, o sistema:
 
-Resultado: os tokens sao salvos com sucesso e o tick verde aparece, mas o erro da chamada duplicada tambem aparece como toast.
+1. Encontra o perfil dela na tabela `client_profiles` (user_id `63413909...`)
+2. Mas esse perfil tem o email `advadvocacia82@gmail.com` (email errado)
+3. Usa esse email errado para buscar os dados na tabela `consulting_clients`
+4. Encontra o registro de `advadvocacia82@gmail.com` que esta **vazio** (sem prompts, sem plano, sem etapas)
+5. O registro correto, com todos os dados, esta em `suelip.dias123@gmail.com`
 
-## Evidencia
+## Correcoes no Banco de Dados
 
-Os logs mostram exatamente isso:
-- 4 chamadas de `exchange-code` no mesmo segundo
-- 2 retornaram "Tokens stored successfully"
-- 2 retornaram "invalid_grant: Bad Request"
+### 1. Atualizar o email no perfil da Sueli
 
-O banco de dados confirma que os tokens estao salvos e validos (expiracao em 1 hora).
+Alterar o campo `email` na tabela `client_profiles` de `advadvocacia82@gmail.com` para `suelip.dias123@gmail.com`. Assim, quando ela logar, o dashboard buscara os dados no registro correto.
 
-## Correcao
+### 2. Remover o registro duplicado vazio
 
-Adicionar uma variavel `useRef` como guard para garantir que o `handleCallback` seja chamado **apenas uma vez**, mesmo que o `useEffect` dispare multiplas vezes.
+Deletar o registro `consulting_clients` com email `advadvocacia82@gmail.com` (ID `3a79034f...`), que nao tem prompts nem plano de implementacao. O registro correto com todos os dados (`suelip.dias123@gmail.com`, ID `89fd4209...`) permanece intacto.
 
-## Arquivo a ser modificado
+## Correcao no Codigo
 
-**`src/components/GoogleCalendarConnect.tsx`**
+### 3. Tornar a busca mais resiliente
 
-Adicionar:
-- `import { useEffect, useRef }` no lugar de `import { useEffect }`
-- `const callbackProcessed = useRef(false)` para controlar se o callback ja foi processado
-- Verificar `if (!callbackProcessed.current)` antes de chamar `handleCallback`
-- Setar `callbackProcessed.current = true` imediatamente ao entrar no bloco
+**Arquivo:** `src/pages/ClientDashboardPage.tsx`
 
-Isso impede que chamadas duplicadas acontecam, eliminando o toast de erro.
+Adicionar uma busca alternativa: se nao encontrar dados pelo email do perfil, tentar tambem pelo email de login do usuario (que vem do `auth.users`). Isso previne que problemas semelhantes ocorram com outros clientes no futuro.
+
+A logica sera:
+1. Buscar consulting_clients pelo email do perfil (comportamento atual)
+2. Se nao encontrar, buscar pelo email de login do usuario
+3. Usar o primeiro resultado que tiver dados
+
+## Resumo
+
+| Acao | Detalhe |
+|------|---------|
+| Corrigir email do perfil | `advadvocacia82@gmail.com` -> `suelip.dias123@gmail.com` |
+| Remover registro vazio | Deletar consulting_clients `advadvocacia82@gmail.com` |
+| Melhorar busca no codigo | Fallback para email de login se email do perfil nao retornar dados |
 
 ## Resultado esperado
 
-Ao conectar o Google Calendar, voce vera apenas o tick verde "Conectado ao Google Calendar" sem nenhuma mensagem de erro.
-
-## Nota importante
-
-Sua conexao ja esta funcionando. Se voce recarregar a pagina do calendario agora, vera que o Google Calendar esta conectado normalmente. Esta correcao e apenas para eliminar a mensagem de erro falsa que aparece durante o processo de conexao.
-
+A Sueli faz login com `suelip.dias123@gmail.com`, o dashboard busca os dados com esse email, e todas as etapas, prompts e plano de implementacao aparecem normalmente.
