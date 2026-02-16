@@ -156,34 +156,56 @@ serve(async (req) => {
   }
 
   try {
-    const authHeader = req.headers.get('authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-    const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    
+    // Try auth header first, fall back to userId in body
+    let userId: string | null = null;
+    const authHeader = req.headers.get('authorization');
+    if (authHeader?.startsWith('Bearer ')) {
+      const token = authHeader.replace('Bearer ', '');
+      const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+      if (!authError && user) userId = user.id;
     }
 
     const body = await req.json().catch(() => ({}));
-    const { clientId } = body;
+    
+    // Allow passing userId directly for admin/batch operations
+    if (!userId && body.userId) {
+      userId = body.userId;
+    }
 
-    console.log(`[batch-import] Starting for userId=${user.id}, clientId=${clientId || 'ALL'}`);
+    if (!userId) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    const { clientId, action } = body;
 
-    const accessToken = await getValidAccessToken(supabase, user.id);
+    console.log(`[batch-import] Starting for userId=${userId}, clientId=${clientId || 'ALL'}, action=${action || 'import'}`);
+
+    const accessToken = await getValidAccessToken(supabase, userId);
+
+    // Debug mode: list Drive folders
+    if (action === 'list-folders') {
+      const url = new URL('https://www.googleapis.com/drive/v3/files');
+      url.searchParams.set('q', "mimeType='application/vnd.google-apps.folder' and trashed=false");
+      url.searchParams.set('fields', 'files(id,name,parents)');
+      url.searchParams.set('pageSize', '100');
+      url.searchParams.set('orderBy', 'name');
+      const res = await fetch(url.toString(), { headers: { Authorization: `Bearer ${accessToken}` } });
+      const rawText = await res.text();
+      console.log(`[batch-import] Drive API status: ${res.status}, response: ${rawText.substring(0, 2000)}`);
+      const data = JSON.parse(rawText);
+      return new Response(JSON.stringify({ status: res.status, folders: data.files || [], error: data.error || null }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     // Get sessions that need transcription or summary
     let sessQuery = supabase
       .from('consulting_sessions')
       .select('*, consulting_clients!client_id(full_name)')
-      .eq('user_id', user.id);
+      .eq('user_id', userId);
 
     if (clientId) {
       sessQuery = sessQuery.eq('client_id', clientId);
