@@ -12,6 +12,8 @@ const GOOGLE_CLIENT_ID = Deno.env.get('GOOGLE_CLIENT_ID')!;
 const GOOGLE_CLIENT_SECRET = Deno.env.get('GOOGLE_CLIENT_SECRET')!;
 const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY')!;
 
+const PREPOSITIONS = new Set(['de', 'da', 'do', 'dos', 'das', 'e']);
+
 async function getValidAccessToken(supabase: any, userId: string): Promise<string> {
   const { data: tokenData, error } = await supabase
     .from('google_calendar_tokens')
@@ -150,6 +152,42 @@ function normalizeForMatch(str: string): string {
     .trim();
 }
 
+/**
+ * Extract significant name parts from a client's full name.
+ * Returns { firstName, surname, allParts } where surname is the last
+ * non-preposition word and firstName is the first word.
+ */
+function extractNameParts(fullName: string): { firstName: string; surname: string; allParts: string[] } {
+  const normalized = normalizeForMatch(fullName);
+  const parts = normalized.split(/\s+/).filter(p => p.length > 0);
+  const significantParts = parts.filter(p => !PREPOSITIONS.has(p) && p.length > 2);
+
+  const firstName = significantParts[0] || '';
+  const surname = significantParts.length > 1 ? significantParts[significantParts.length - 1] : '';
+
+  return { firstName, surname, allParts: significantParts };
+}
+
+/**
+ * Strict matching: file name must contain at least 2 significant parts
+ * of the client's name. This avoids false positives from single common
+ * names like "Ana" or "Luiz" while still matching partial names like
+ * "Adriana Gomes" for client "Adriana Gomes Silva".
+ */
+function fileMatchesClient(fileName: string, clientName: string): boolean {
+  const normalizedFile = normalizeForMatch(fileName);
+  const { allParts } = extractNameParts(clientName);
+
+  // Need at least 2 significant parts in the client name
+  if (allParts.length < 2) return false;
+
+  // Count how many significant parts appear in the file name
+  const matchingParts = allParts.filter(part => normalizedFile.includes(part));
+
+  // Require at least 2 matching parts
+  return matchingParts.length >= 2;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -158,7 +196,6 @@ serve(async (req) => {
   try {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     
-    // Try auth header first, fall back to userId in body
     let userId: string | null = null;
     const authHeader = req.headers.get('authorization');
     if (authHeader?.startsWith('Bearer ')) {
@@ -168,24 +205,39 @@ serve(async (req) => {
     }
 
     const body = await req.json().catch(() => ({}));
-    
-    // Allow passing userId directly for admin/batch operations
-    if (!userId && body.userId) {
-      userId = body.userId;
-    }
+    if (!userId && body.userId) userId = body.userId;
 
     if (!userId) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-    const { clientId, action } = body;
 
-    console.log(`[batch-import] Starting for userId=${userId}, clientId=${clientId || 'ALL'}, action=${action || 'import'}`);
+    const { clientId, action } = body;
+    console.log(`[batch-import] userId=${userId}, clientId=${clientId || 'ALL'}, action=${action || 'import'}`);
+
+    // ===== ACTION: clean =====
+    if (action === 'clean') {
+      let cleanQuery = supabase
+        .from('consulting_sessions')
+        .update({ transcription: null, ai_summary: null, summary_generated_at: null })
+        .eq('user_id', userId);
+
+      if (clientId) cleanQuery = cleanQuery.eq('client_id', clientId);
+
+      const { data, error } = await cleanQuery.select('id');
+      if (error) throw error;
+
+      const count = data?.length || 0;
+      console.log(`[batch-import] Cleaned ${count} sessions`);
+      return new Response(JSON.stringify({ cleaned: count, message: `${count} sessões limpas` }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     const accessToken = await getValidAccessToken(supabase, userId);
 
-    // Debug mode: list Drive folders
+    // ===== ACTION: list-folders =====
     if (action === 'list-folders') {
       const url = new URL('https://www.googleapis.com/drive/v3/files');
       url.searchParams.set('q', "mimeType='application/vnd.google-apps.folder' and trashed=false");
@@ -193,23 +245,40 @@ serve(async (req) => {
       url.searchParams.set('pageSize', '100');
       url.searchParams.set('orderBy', 'name');
       const res = await fetch(url.toString(), { headers: { Authorization: `Bearer ${accessToken}` } });
-      const rawText = await res.text();
-      console.log(`[batch-import] Drive API status: ${res.status}, response: ${rawText.substring(0, 2000)}`);
-      const data = JSON.parse(rawText);
-      return new Response(JSON.stringify({ status: res.status, folders: data.files || [], error: data.error || null }), {
+      const data = await res.json();
+      return new Response(JSON.stringify({ folders: data.files || [], error: data.error || null }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // Get sessions that need transcription or summary
+    // ===== ACTION: list-files =====
+    if (action === 'list-files') {
+      const meetFolderId = await findFolderByName(accessToken, 'Meet Recordings');
+      if (!meetFolderId) {
+        return new Response(JSON.stringify({ error: 'Pasta "Meet Recordings" não encontrada' }), {
+          status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const files = await listFilesInFolder(accessToken, meetFolderId,
+        "(mimeType='text/plain' or mimeType='application/vnd.google-apps.document' or mimeType='text/vtt' or mimeType='application/x-subrip')");
+
+      return new Response(JSON.stringify({
+        folderId: meetFolderId,
+        totalFiles: files.length,
+        files: files.map((f: any) => ({ id: f.id, name: f.name, createdTime: f.createdTime, mimeType: f.mimeType })),
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // ===== ACTION: import (default) =====
     let sessQuery = supabase
       .from('consulting_sessions')
       .select('*, consulting_clients!client_id(full_name)')
       .eq('user_id', userId);
 
-    if (clientId) {
-      sessQuery = sessQuery.eq('client_id', clientId);
-    }
+    if (clientId) sessQuery = sessQuery.eq('client_id', clientId);
 
     const { data: sessions, error: sessErr } = await sessQuery;
     if (sessErr) throw sessErr;
@@ -222,7 +291,6 @@ serve(async (req) => {
 
     console.log(`[batch-import] Found ${sessions.length} sessions`);
 
-    // Find Meet Recordings folder
     const meetFolderId = await findFolderByName(accessToken, 'Meet Recordings');
     if (!meetFolderId) {
       return new Response(JSON.stringify({ error: 'Pasta "Meet Recordings" não encontrada no Google Drive' }), {
@@ -230,91 +298,66 @@ serve(async (req) => {
       });
     }
 
-    console.log(`[batch-import] Meet Recordings folder: ${meetFolderId}`);
-
-    // List all transcript files in Meet Recordings
     const transcriptFiles = await listFilesInFolder(accessToken, meetFolderId,
       "(mimeType='text/plain' or mimeType='application/vnd.google-apps.document' or mimeType='text/vtt' or mimeType='application/x-subrip')");
 
-    console.log(`[batch-import] Found ${transcriptFiles.length} transcript files in Meet Recordings`);
+    console.log(`[batch-import] Found ${transcriptFiles.length} transcript files`);
 
     let transcriptionsImported = 0;
     let summariesGenerated = 0;
     const results: any[] = [];
+    const skipped: any[] = [];
 
-    // For each session without transcription, try to find a matching transcript
+    // Import transcriptions with STRICT matching
     const sessionsNeedingTranscript = sessions.filter((s: any) => !s.transcription);
-    
+
     for (const session of sessionsNeedingTranscript) {
-      const sessionDate = new Date(session.session_date);
-      const sessionDateStr = sessionDate.toISOString().split('T')[0];
       const clientName = (session.consulting_clients as any)?.full_name || '';
-      const normalizedClient = normalizeForMatch(clientName);
+      if (!clientName) {
+        skipped.push({ session: session.title, reason: 'no_client_name' });
+        continue;
+      }
 
-      // Find transcripts created on the same day
-      const sameDayTranscripts = transcriptFiles.filter((f: any) => {
-        const fDateStr = new Date(f.createdTime).toISOString().split('T')[0];
-        return fDateStr === sessionDateStr;
-      });
-
-      if (sameDayTranscripts.length === 0) continue;
-
+      // Try to match ANY file by client name (no date restriction for flexibility)
       let match = null;
 
-      // Priority 1: Client name in file name
-      if (normalizedClient) {
-        const clientParts = normalizedClient.split(/\s+/).filter((p: string) => p.length > 2);
-        match = sameDayTranscripts.find((f: any) => {
-          const normalizedFile = normalizeForMatch(f.name);
-          return clientParts.some((part: string) => normalizedFile.includes(part));
-        });
-      }
-
-      // Priority 2: Closest time match
-      if (!match && sameDayTranscripts.length > 1) {
-        const sessionTime = sessionDate.getTime();
-        let bestDiff = Infinity;
-        for (const f of sameDayTranscripts) {
-          const fTime = new Date(f.createdTime).getTime();
-          const diff = Math.abs(fTime - sessionTime);
-          if (diff < 4 * 60 * 60 * 1000 && diff < bestDiff) {
-            bestDiff = diff;
-            match = f;
-          }
+      for (const f of transcriptFiles) {
+        if (fileMatchesClient(f.name, clientName)) {
+          match = f;
+          break;
         }
       }
 
-      // Priority 3: Only one transcript that day
-      if (!match && sameDayTranscripts.length === 1) {
-        match = sameDayTranscripts[0];
+      if (!match) {
+        skipped.push({ session: session.title, client: clientName, reason: 'no_matching_file' });
+        continue;
       }
 
-      if (match) {
-        try {
-          console.log(`[batch-import] Matched "${session.title}" → "${match.name}"`);
-          const content = await downloadFileContent(accessToken, match.id, match.mimeType);
+      try {
+        console.log(`[batch-import] MATCH: "${clientName}" → "${match.name}"`);
+        const content = await downloadFileContent(accessToken, match.id, match.mimeType);
 
-          if (content && content.trim().length > 50) {
-            await supabase
-              .from('consulting_sessions')
-              .update({ transcription: content })
-              .eq('id', session.id);
+        if (content && content.trim().length > 50) {
+          await supabase
+            .from('consulting_sessions')
+            .update({ transcription: content })
+            .eq('id', session.id);
 
-            session.transcription = content;
-            transcriptionsImported++;
-            results.push({ session: session.title, action: 'transcription', file: match.name });
+          session.transcription = content;
+          transcriptionsImported++;
+          results.push({ session: session.title, client: clientName, action: 'transcription', file: match.name });
 
-            // Remove matched file to avoid reuse
-            const idx = transcriptFiles.findIndex((f: any) => f.id === match.id);
-            if (idx >= 0) transcriptFiles.splice(idx, 1);
-          }
-        } catch (e) {
-          console.warn(`[batch-import] Error downloading transcript for "${session.title}":`, e);
+          // Remove matched file to avoid reuse
+          const idx = transcriptFiles.findIndex((f: any) => f.id === match.id);
+          if (idx >= 0) transcriptFiles.splice(idx, 1);
         }
+      } catch (e) {
+        console.warn(`[batch-import] Error downloading for "${session.title}":`, e);
+        results.push({ session: session.title, action: 'transcription_error', error: String(e) });
       }
     }
 
-    // Now generate AI summaries for all sessions that have transcription but no summary
+    // Generate AI summaries
     const sessionsNeedingSummary = sessions.filter((s: any) => s.transcription && !s.ai_summary);
 
     for (const session of sessionsNeedingSummary) {
@@ -342,13 +385,14 @@ serve(async (req) => {
       }
     }
 
-    console.log(`[batch-import] Done: ${transcriptionsImported} transcriptions, ${summariesGenerated} summaries`);
+    console.log(`[batch-import] Done: ${transcriptionsImported} transcriptions, ${summariesGenerated} summaries, ${skipped.length} skipped`);
 
     return new Response(JSON.stringify({
       transcriptions: transcriptionsImported,
       summaries: summariesGenerated,
       totalSessions: sessions.length,
       details: results,
+      skipped,
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
