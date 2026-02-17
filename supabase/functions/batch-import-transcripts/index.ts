@@ -11,8 +11,14 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const GOOGLE_CLIENT_ID = Deno.env.get('GOOGLE_CLIENT_ID')!;
 const GOOGLE_CLIENT_SECRET = Deno.env.get('GOOGLE_CLIENT_SECRET')!;
 const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY')!;
+const ELEVENLABS_API_KEY = Deno.env.get('ELEVENLABS_API_KEY') || '';
 
 const PREPOSITIONS = new Set(['de', 'da', 'do', 'dos', 'das', 'e']);
+const TEXT_MIME_FILTER = "(mimeType='text/plain' or mimeType='application/vnd.google-apps.document' or mimeType='text/vtt' or mimeType='application/x-subrip')";
+const RECORDING_MIME_FILTER = "(mimeType='video/mp4' or mimeType='video/webm' or mimeType='audio/mpeg' or mimeType='audio/mp4' or mimeType='audio/webm' or mimeType='audio/x-m4a' or mimeType='video/x-matroska')";
+const MAX_STT_TRANSCRIPTIONS = 3; // max recordings to transcribe per run to avoid timeout
+
+// ==================== Google Drive Helpers ====================
 
 async function getValidAccessToken(supabase: any, userId: string): Promise<string> {
   const { data: tokenData, error } = await supabase
@@ -51,7 +57,7 @@ async function findFolderByName(accessToken: string, folderName: string, parentI
   const q = parentId
     ? `mimeType='application/vnd.google-apps.folder' and name='${folderName.replace(/'/g, "\\'")}' and '${parentId}' in parents and trashed=false`
     : `mimeType='application/vnd.google-apps.folder' and name='${folderName.replace(/'/g, "\\'")}' and trashed=false`;
-  
+
   const url = new URL('https://www.googleapis.com/drive/v3/files');
   url.searchParams.set('q', q);
   url.searchParams.set('fields', 'files(id,name)');
@@ -62,15 +68,41 @@ async function findFolderByName(accessToken: string, folderName: string, parentI
   return data.files?.[0]?.id || null;
 }
 
+async function findFolderByNameContains(accessToken: string, searchTerm: string, parentId: string): Promise<{ id: string; name: string } | null> {
+  const q = `mimeType='application/vnd.google-apps.folder' and name contains '${searchTerm.replace(/'/g, "\\'")}' and '${parentId}' in parents and trashed=false`;
+
+  const url = new URL('https://www.googleapis.com/drive/v3/files');
+  url.searchParams.set('q', q);
+  url.searchParams.set('fields', 'files(id,name)');
+  url.searchParams.set('pageSize', '10');
+
+  const res = await fetch(url.toString(), { headers: { Authorization: `Bearer ${accessToken}` } });
+  const data = await res.json();
+  return data.files?.[0] ? { id: data.files[0].id, name: data.files[0].name } : null;
+}
+
+async function listSubfolders(accessToken: string, parentId: string): Promise<any[]> {
+  const q = `mimeType='application/vnd.google-apps.folder' and '${parentId}' in parents and trashed=false`;
+  const url = new URL('https://www.googleapis.com/drive/v3/files');
+  url.searchParams.set('q', q);
+  url.searchParams.set('fields', 'files(id,name)');
+  url.searchParams.set('pageSize', '100');
+  url.searchParams.set('orderBy', 'name');
+
+  const res = await fetch(url.toString(), { headers: { Authorization: `Bearer ${accessToken}` } });
+  const data = await res.json();
+  return data.files || [];
+}
+
 async function listFilesInFolder(accessToken: string, folderId: string, mimeFilter?: string): Promise<any[]> {
   let q = `'${folderId}' in parents and trashed=false`;
   if (mimeFilter) q += ` and ${mimeFilter}`;
 
   const url = new URL('https://www.googleapis.com/drive/v3/files');
   url.searchParams.set('q', q);
-  url.searchParams.set('fields', 'files(id,name,createdTime,mimeType,webViewLink)');
+  url.searchParams.set('fields', 'files(id,name,createdTime,mimeType,webViewLink,size)');
   url.searchParams.set('pageSize', '200');
-  url.searchParams.set('orderBy', 'createdTime desc');
+  url.searchParams.set('orderBy', 'createdTime asc');
 
   const res = await fetch(url.toString(), { headers: { Authorization: `Bearer ${accessToken}` } });
   const data = await res.json();
@@ -89,6 +121,45 @@ async function downloadFileContent(accessToken: string, fileId: string, mimeType
   if (!res.ok) throw new Error(`Failed to download file ${fileId}: ${res.status}`);
   return await res.text();
 }
+
+async function downloadFileAsBlob(accessToken: string, fileId: string): Promise<{ blob: Blob; size: number }> {
+  const url = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`;
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+  if (!res.ok) throw new Error(`Failed to download recording ${fileId}: ${res.status}`);
+  const blob = await res.blob();
+  return { blob, size: blob.size };
+}
+
+// ==================== ElevenLabs STT ====================
+
+async function transcribeWithElevenLabs(audioBlob: Blob, fileName: string): Promise<string> {
+  const formData = new FormData();
+  formData.append('file', audioBlob, fileName);
+  formData.append('model_id', 'scribe_v2');
+  formData.append('language_code', 'por');
+  formData.append('diarize', 'true');
+  formData.append('tag_audio_events', 'false');
+
+  console.log(`[batch-import] Sending ${fileName} (${(audioBlob.size / 1024 / 1024).toFixed(1)}MB) to ElevenLabs STT...`);
+
+  const response = await fetch('https://api.elevenlabs.io/v1/speech-to-text', {
+    method: 'POST',
+    headers: { 'xi-api-key': ELEVENLABS_API_KEY },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    console.error(`[batch-import] ElevenLabs STT error: ${response.status}`, errText);
+    throw new Error(`ElevenLabs STT failed: ${response.status}`);
+  }
+
+  const result = await response.json();
+  console.log(`[batch-import] ElevenLabs STT success for ${fileName}: ${result.text?.length || 0} chars`);
+  return result.text || '';
+}
+
+// ==================== AI Summary ====================
 
 async function generateAISummary(transcription: string, clientName: string, sessionTitle: string): Promise<string> {
   const prompt = `Você é um assistente especializado em consultoria de IA para advogados. Analise a transcrição desta reunião de consultoria e gere um resumo estruturado em português brasileiro.
@@ -145,6 +216,8 @@ Seja conciso mas completo. Use bullet points. Mantenha o foco em ações prátic
   return aiData.choices?.[0]?.message?.content || '';
 }
 
+// ==================== Name Matching ====================
+
 function normalizeForMatch(str: string): string {
   return str.toLowerCase()
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
@@ -152,11 +225,6 @@ function normalizeForMatch(str: string): string {
     .trim();
 }
 
-/**
- * Extract significant name parts from a client's full name.
- * Returns { firstName, surname, allParts } where surname is the last
- * non-preposition word and firstName is the first word.
- */
 function extractNameParts(fullName: string): { firstName: string; surname: string; allParts: string[] } {
   const normalized = normalizeForMatch(fullName);
   const parts = normalized.split(/\s+/).filter(p => p.length > 0);
@@ -168,25 +236,87 @@ function extractNameParts(fullName: string): { firstName: string; surname: strin
   return { firstName, surname, allParts: significantParts };
 }
 
-/**
- * Strict matching: file name must contain at least 2 significant parts
- * of the client's name. This avoids false positives from single common
- * names like "Ana" or "Luiz" while still matching partial names like
- * "Adriana Gomes" for client "Adriana Gomes Silva".
- */
 function fileMatchesClient(fileName: string, clientName: string): boolean {
   const normalizedFile = normalizeForMatch(fileName);
   const { allParts } = extractNameParts(clientName);
 
-  // Need at least 2 significant parts in the client name
   if (allParts.length < 2) return false;
 
-  // Count how many significant parts appear in the file name
   const matchingParts = allParts.filter(part => normalizedFile.includes(part));
-
-  // Require at least 2 matching parts
   return matchingParts.length >= 2;
 }
+
+// ==================== Navigate to Consultoria Folder ====================
+
+async function findAllFoldersByName(accessToken: string, folderName: string): Promise<{ id: string; name: string }[]> {
+  const q = `mimeType='application/vnd.google-apps.folder' and name contains '${folderName.replace(/'/g, "\\'")}' and trashed=false`;
+  const url = new URL('https://www.googleapis.com/drive/v3/files');
+  url.searchParams.set('q', q);
+  url.searchParams.set('fields', 'files(id,name)');
+  url.searchParams.set('pageSize', '20');
+  const res = await fetch(url.toString(), { headers: { Authorization: `Bearer ${accessToken}` } });
+  const data = await res.json();
+  return data.files || [];
+}
+
+async function findConsultoriaFolder(accessToken: string): Promise<string | null> {
+  // Find ALL folders containing "Mentoria" and check each for Turma > Consultoria
+  const mentoriaFolders = await findAllFoldersByName(accessToken, 'Mentoria');
+  console.log(`[batch-import] Found ${mentoriaFolders.length} folders containing "Mentoria"`);
+
+  for (const mentoria of mentoriaFolders) {
+    console.log(`[batch-import] Checking "${mentoria.name}" (${mentoria.id})...`);
+
+    // Look for "Turma" subfolder
+    const turmaFolder = await findFolderByNameContains(accessToken, 'Turma', mentoria.id);
+    if (turmaFolder) {
+      console.log(`[batch-import] Found "${turmaFolder.name}" inside "${mentoria.name}"`);
+      const consultoriaId = await findFolderByName(accessToken, 'Consultoria', turmaFolder.id);
+      if (consultoriaId) {
+        console.log(`[batch-import] Found "Consultoria" at ${consultoriaId}`);
+        return consultoriaId;
+      }
+      const consultoriaAlt = await findFolderByNameContains(accessToken, 'Consultoria', turmaFolder.id);
+      if (consultoriaAlt) {
+        console.log(`[batch-import] Found "${consultoriaAlt.name}" at ${consultoriaAlt.id}`);
+        return consultoriaAlt.id;
+      }
+    }
+
+    // Try "Consultoria" directly inside this mentoria folder
+    const directConsultoria = await findFolderByName(accessToken, 'Consultoria', mentoria.id);
+    if (directConsultoria) {
+      console.log(`[batch-import] Found "Consultoria" directly in "${mentoria.name}": ${directConsultoria}`);
+      return directConsultoria;
+    }
+  }
+
+  console.log('[batch-import] Could not find "Consultoria" folder');
+  return null;
+}
+
+/** Collect all text and recording files from a folder AND its subfolders (1 level deep) */
+async function collectFilesRecursive(accessToken: string, folderId: string): Promise<{ textFiles: any[]; recordingFiles: any[] }> {
+  const [textFiles, recordingFiles, subfolders] = await Promise.all([
+    listFilesInFolder(accessToken, folderId, TEXT_MIME_FILTER),
+    listFilesInFolder(accessToken, folderId, RECORDING_MIME_FILTER),
+    listSubfolders(accessToken, folderId),
+  ]);
+
+  // Also check subfolders (e.g. "Vídeos das reuniões", "Gravação das reuniões")
+  for (const sub of subfolders) {
+    const [subText, subRec] = await Promise.all([
+      listFilesInFolder(accessToken, sub.id, TEXT_MIME_FILTER),
+      listFilesInFolder(accessToken, sub.id, RECORDING_MIME_FILTER),
+    ]);
+    textFiles.push(...subText);
+    recordingFiles.push(...subRec);
+  }
+
+  return { textFiles, recordingFiles };
+}
+
+// ==================== Main Handler ====================
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -195,7 +325,7 @@ serve(async (req) => {
 
   try {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-    
+
     let userId: string | null = null;
     const authHeader = req.headers.get('authorization');
     if (authHeader?.startsWith('Bearer ')) {
@@ -237,16 +367,61 @@ serve(async (req) => {
 
     const accessToken = await getValidAccessToken(supabase, userId);
 
-    // ===== ACTION: list-folders =====
-    if (action === 'list-folders') {
-      const url = new URL('https://www.googleapis.com/drive/v3/files');
-      url.searchParams.set('q', "mimeType='application/vnd.google-apps.folder' and trashed=false");
-      url.searchParams.set('fields', 'files(id,name,parents)');
-      url.searchParams.set('pageSize', '100');
-      url.searchParams.set('orderBy', 'name');
-      const res = await fetch(url.toString(), { headers: { Authorization: `Bearer ${accessToken}` } });
-      const data = await res.json();
-      return new Response(JSON.stringify({ folders: data.files || [], error: data.error || null }), {
+    // ===== ACTION: explore-path =====
+    if (action === 'explore-path') {
+      const path: string[] = body.path || [];
+      let currentFolderId: string | null = body.folderId || null;
+
+      // Navigate the path level by level
+      for (const folderName of path) {
+        if (!currentFolderId) {
+          currentFolderId = await findFolderByName(accessToken, folderName);
+        } else {
+          // Try exact match first, then contains
+          let nextId = await findFolderByName(accessToken, folderName, currentFolderId);
+          if (!nextId) {
+            const found = await findFolderByNameContains(accessToken, folderName, currentFolderId);
+            nextId = found?.id || null;
+          }
+          currentFolderId = nextId;
+        }
+
+        if (!currentFolderId) {
+          return new Response(JSON.stringify({
+            error: `Pasta "${folderName}" não encontrada no caminho`,
+            path_so_far: path.slice(0, path.indexOf(folderName)),
+          }), {
+            status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+      }
+
+      if (!currentFolderId) {
+        // No path given, list root
+        const url = new URL('https://www.googleapis.com/drive/v3/files');
+        url.searchParams.set('q', "mimeType='application/vnd.google-apps.folder' and 'root' in parents and trashed=false");
+        url.searchParams.set('fields', 'files(id,name)');
+        url.searchParams.set('pageSize', '50');
+        const res = await fetch(url.toString(), { headers: { Authorization: `Bearer ${accessToken}` } });
+        const data = await res.json();
+        return new Response(JSON.stringify({ path: [], folders: data.files || [], files: [] }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const [subfolders, textFiles, recordingFiles] = await Promise.all([
+        listSubfolders(accessToken, currentFolderId),
+        listFilesInFolder(accessToken, currentFolderId, TEXT_MIME_FILTER),
+        listFilesInFolder(accessToken, currentFolderId, RECORDING_MIME_FILTER),
+      ]);
+
+      return new Response(JSON.stringify({
+        path,
+        folderId: currentFolderId,
+        subfolders: subfolders.map((f: any) => ({ id: f.id, name: f.name })),
+        textFiles: textFiles.map((f: any) => ({ id: f.id, name: f.name, mimeType: f.mimeType, createdTime: f.createdTime, size: f.size })),
+        recordingFiles: recordingFiles.map((f: any) => ({ id: f.id, name: f.name, mimeType: f.mimeType, createdTime: f.createdTime, size: f.size })),
+      }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
@@ -260,8 +435,7 @@ serve(async (req) => {
         });
       }
 
-      const files = await listFilesInFolder(accessToken, meetFolderId,
-        "(mimeType='text/plain' or mimeType='application/vnd.google-apps.document' or mimeType='text/vtt' or mimeType='application/x-subrip')");
+      const files = await listFilesInFolder(accessToken, meetFolderId, TEXT_MIME_FILTER);
 
       return new Response(JSON.stringify({
         folderId: meetFolderId,
@@ -275,7 +449,7 @@ serve(async (req) => {
     // ===== ACTION: import (default) =====
     let sessQuery = supabase
       .from('consulting_sessions')
-      .select('*, consulting_clients!client_id(full_name)')
+      .select('*, consulting_clients!client_id(id, full_name)')
       .eq('user_id', userId);
 
     if (clientId) sessQuery = sessQuery.eq('client_id', clientId);
@@ -291,73 +465,230 @@ serve(async (req) => {
 
     console.log(`[batch-import] Found ${sessions.length} sessions`);
 
+    // Gather files from Meet Recordings
     const meetFolderId = await findFolderByName(accessToken, 'Meet Recordings');
-    if (!meetFolderId) {
-      return new Response(JSON.stringify({ error: 'Pasta "Meet Recordings" não encontrada no Google Drive' }), {
-        status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    let meetTranscriptFiles: any[] = [];
+    if (meetFolderId) {
+      meetTranscriptFiles = await listFilesInFolder(accessToken, meetFolderId, TEXT_MIME_FILTER);
+      console.log(`[batch-import] Found ${meetTranscriptFiles.length} transcript files in Meet Recordings`);
     }
 
-    const transcriptFiles = await listFilesInFolder(accessToken, meetFolderId,
-      "(mimeType='text/plain' or mimeType='application/vnd.google-apps.document' or mimeType='text/vtt' or mimeType='application/x-subrip')");
-
-    console.log(`[batch-import] Found ${transcriptFiles.length} transcript files`);
+    // Gather client folders from Consultoria (accept body.consultoriaFolderId to skip slow search)
+    const consultoriaFolderId = body.consultoriaFolderId || await findConsultoriaFolder(accessToken);
+    let clientFolders: any[] = [];
+    if (consultoriaFolderId) {
+      console.log(`[batch-import] Using Consultoria folder: ${consultoriaFolderId}`);
+      clientFolders = await listSubfolders(accessToken, consultoriaFolderId);
+      console.log(`[batch-import] Found ${clientFolders.length} client folders in Consultoria`);
+    }
 
     let transcriptionsImported = 0;
     let summariesGenerated = 0;
+    let sttTranscriptions = 0;
     const results: any[] = [];
     const skipped: any[] = [];
 
-    // Import transcriptions with STRICT matching
-    const sessionsNeedingTranscript = sessions.filter((s: any) => !s.transcription);
+    // Group sessions by client
+    const sessionsByClient = new Map<string, any[]>();
+    for (const session of sessions) {
+      const clientIdKey = session.client_id;
+      if (!sessionsByClient.has(clientIdKey)) {
+        sessionsByClient.set(clientIdKey, []);
+      }
+      sessionsByClient.get(clientIdKey)!.push(session);
+    }
 
-    for (const session of sessionsNeedingTranscript) {
-      const clientName = (session.consulting_clients as any)?.full_name || '';
+    // Process each client
+    for (const [clientIdKey, clientSessions] of sessionsByClient) {
+      const clientName = (clientSessions[0]?.consulting_clients as any)?.full_name || '';
       if (!clientName) {
-        skipped.push({ session: session.title, reason: 'no_client_name' });
+        skipped.push({ client_id: clientIdKey, reason: 'no_client_name' });
         continue;
       }
 
-      // Try to match ANY file by client name (no date restriction for flexibility)
-      let match = null;
+      // Get sessions that need transcription, sorted by date
+      const needsTranscript = clientSessions
+        .filter((s: any) => !s.transcription)
+        .sort((a: any, b: any) => new Date(a.session_date).getTime() - new Date(b.session_date).getTime());
 
-      for (const f of transcriptFiles) {
+      if (needsTranscript.length === 0) continue;
+
+      console.log(`[batch-import] Client "${clientName}": ${needsTranscript.length} sessions need transcription`);
+
+      // Collect all available files for this client
+      const availableFiles: { file: any; source: string; type: 'text' | 'recording' }[] = [];
+
+      // Source 1: Meet Recordings (text files matching client name)
+      for (const f of meetTranscriptFiles) {
         if (fileMatchesClient(f.name, clientName)) {
-          match = f;
+          availableFiles.push({ file: f, source: 'meet_recordings', type: 'text' });
+        }
+      }
+
+      // Source 2: Consultoria client folder
+      let clientFolder: any = null;
+      for (const folder of clientFolders) {
+        if (fileMatchesClient(folder.name, clientName)) {
+          clientFolder = folder;
           break;
         }
       }
 
-      if (!match) {
-        skipped.push({ session: session.title, client: clientName, reason: 'no_matching_file' });
+      if (clientFolder) {
+        console.log(`[batch-import] Found Consultoria folder "${clientFolder.name}" for "${clientName}"`);
+
+        // Get text and recording files recursively (including subfolders like "Vídeos das reuniões")
+        const { textFiles, recordingFiles } = await collectFilesRecursive(accessToken, clientFolder.id);
+        for (const f of textFiles) {
+          availableFiles.push({ file: f, source: 'consultoria', type: 'text' });
+        }
+        for (const f of recordingFiles) {
+          availableFiles.push({ file: f, source: 'consultoria', type: 'recording' });
+        }
+
+        console.log(`[batch-import] Consultoria folder "${clientFolder.name}": ${textFiles.length} text, ${recordingFiles.length} recordings (incl. subfolders)`);
+      }
+
+      if (availableFiles.length === 0) {
+        skipped.push({ client: clientName, sessions: needsTranscript.length, reason: 'no_files_found' });
         continue;
       }
 
-      try {
-        console.log(`[batch-import] MATCH: "${clientName}" → "${match.name}"`);
-        const content = await downloadFileContent(accessToken, match.id, match.mimeType);
+      // Sort files by createdTime (oldest first) - prioritize text over recordings
+      availableFiles.sort((a, b) => {
+        // Text files first
+        if (a.type !== b.type) return a.type === 'text' ? -1 : 1;
+        return new Date(a.file.createdTime).getTime() - new Date(b.file.createdTime).getTime();
+      });
 
-        if (content && content.trim().length > 50) {
-          await supabase
-            .from('consulting_sessions')
-            .update({ transcription: content })
-            .eq('id', session.id);
+      // Separate text and recording files
+      const textFilesForClient = availableFiles.filter(f => f.type === 'text');
+      const recordingFilesForClient = availableFiles.filter(f => f.type === 'recording');
 
-          session.transcription = content;
-          transcriptionsImported++;
-          results.push({ session: session.title, client: clientName, action: 'transcription', file: match.name });
+      // Associate: first use text files, then recordings for remaining sessions
+      let sessionIdx = 0;
 
-          // Remove matched file to avoid reuse
-          const idx = transcriptFiles.findIndex((f: any) => f.id === match.id);
-          if (idx >= 0) transcriptFiles.splice(idx, 1);
+      // Step 1: Assign text transcriptions
+      for (const entry of textFilesForClient) {
+        if (sessionIdx >= needsTranscript.length) break;
+        const session = needsTranscript[sessionIdx];
+
+        try {
+          const content = await downloadFileContent(accessToken, entry.file.id, entry.file.mimeType);
+          if (content && content.trim().length > 50) {
+            await supabase
+              .from('consulting_sessions')
+              .update({ transcription: content })
+              .eq('id', session.id);
+
+            session.transcription = content;
+            transcriptionsImported++;
+            sessionIdx++;
+            results.push({
+              session: session.title,
+              client: clientName,
+              action: 'transcription',
+              source: entry.source,
+              file: entry.file.name,
+            });
+
+            // Remove from Meet Recordings pool
+            if (entry.source === 'meet_recordings') {
+              const idx = meetTranscriptFiles.findIndex((f: any) => f.id === entry.file.id);
+              if (idx >= 0) meetTranscriptFiles.splice(idx, 1);
+            }
+          }
+        } catch (e) {
+          console.warn(`[batch-import] Error downloading text for "${session.title}":`, e);
+          results.push({ session: session.title, action: 'transcription_error', error: String(e) });
         }
-      } catch (e) {
-        console.warn(`[batch-import] Error downloading for "${session.title}":`, e);
-        results.push({ session: session.title, action: 'transcription_error', error: String(e) });
+      }
+
+      // Step 2: Assign recordings (transcribe via ElevenLabs)
+      for (const entry of recordingFilesForClient) {
+        if (sessionIdx >= needsTranscript.length) break;
+        if (sttTranscriptions >= MAX_STT_TRANSCRIPTIONS) {
+          skipped.push({
+            client: clientName,
+            session: needsTranscript[sessionIdx]?.title,
+            reason: 'stt_limit_reached',
+            file: entry.file.name,
+          });
+          continue;
+        }
+
+        const session = needsTranscript[sessionIdx];
+        const fileSize = parseInt(entry.file.size || '0', 10);
+
+        if (fileSize > 100 * 1024 * 1024) {
+          console.warn(`[batch-import] Skipping "${entry.file.name}" (${(fileSize / 1024 / 1024).toFixed(0)}MB > 100MB limit)`);
+          skipped.push({
+            session: session.title,
+            client: clientName,
+            reason: 'file_too_large',
+            file: entry.file.name,
+            size_mb: Math.round(fileSize / 1024 / 1024),
+          });
+          continue;
+        }
+
+        try {
+          console.log(`[batch-import] Downloading recording "${entry.file.name}" for STT...`);
+          const { blob } = await downloadFileAsBlob(accessToken, entry.file.id);
+
+          const transcription = await transcribeWithElevenLabs(blob, entry.file.name);
+
+          if (transcription && transcription.trim().length > 50) {
+            await supabase
+              .from('consulting_sessions')
+              .update({ transcription })
+              .eq('id', session.id);
+
+            session.transcription = transcription;
+            transcriptionsImported++;
+            sttTranscriptions++;
+            sessionIdx++;
+            results.push({
+              session: session.title,
+              client: clientName,
+              action: 'stt_transcription',
+              source: entry.source,
+              file: entry.file.name,
+              size_mb: Math.round(blob.size / 1024 / 1024),
+            });
+          } else {
+            skipped.push({
+              session: session.title,
+              client: clientName,
+              reason: 'stt_empty_result',
+              file: entry.file.name,
+            });
+          }
+        } catch (e) {
+          console.warn(`[batch-import] Error transcribing "${entry.file.name}":`, e);
+          results.push({
+            session: session.title,
+            client: clientName,
+            action: 'stt_error',
+            error: String(e),
+            file: entry.file.name,
+          });
+        }
+      }
+
+      // Remaining sessions without match
+      for (let i = sessionIdx; i < needsTranscript.length; i++) {
+        if (!needsTranscript[i].transcription) {
+          skipped.push({
+            session: needsTranscript[i].title,
+            client: clientName,
+            reason: 'no_remaining_files',
+          });
+        }
       }
     }
 
-    // Generate AI summaries
+    // Generate AI summaries for all sessions that have transcription but no summary
     const sessionsNeedingSummary = sessions.filter((s: any) => s.transcription && !s.ai_summary);
 
     for (const session of sessionsNeedingSummary) {
@@ -366,7 +697,7 @@ serve(async (req) => {
         console.log(`[batch-import] Generating summary for "${session.title}"`);
 
         const summary = await generateAISummary(session.transcription, clientName, session.title);
-        
+
         if (summary) {
           await supabase
             .from('consulting_sessions')
@@ -385,12 +716,16 @@ serve(async (req) => {
       }
     }
 
-    console.log(`[batch-import] Done: ${transcriptionsImported} transcriptions, ${summariesGenerated} summaries, ${skipped.length} skipped`);
+    const hasMore = sttTranscriptions >= MAX_STT_TRANSCRIPTIONS;
+
+    console.log(`[batch-import] Done: ${transcriptionsImported} transcriptions (${sttTranscriptions} via STT), ${summariesGenerated} summaries, ${skipped.length} skipped, hasMore=${hasMore}`);
 
     return new Response(JSON.stringify({
       transcriptions: transcriptionsImported,
+      stt_transcriptions: sttTranscriptions,
       summaries: summariesGenerated,
       totalSessions: sessions.length,
+      has_more: hasMore,
       details: results,
       skipped,
     }), {
