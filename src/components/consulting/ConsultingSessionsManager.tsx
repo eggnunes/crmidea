@@ -398,6 +398,25 @@ export function ConsultingSessionsManager({ clientId }: ConsultingSessionsManage
                     />
                   </div>
 
+                  {/* AI Summary (read-only) */}
+                  {selectedSession?.ai_summary && (
+                    <div>
+                      <Label className="flex items-center gap-2">
+                        <Brain className="w-4 h-4 text-purple-500" />
+                        Resumo Gerado por IA
+                      </Label>
+                      <div className="mt-1 p-3 rounded-md bg-muted border text-sm prose prose-sm dark:prose-invert max-w-none max-h-64 overflow-y-auto">
+                        <div dangerouslySetInnerHTML={{
+                          __html: selectedSession.ai_summary
+                            .replace(/^### (.*)/gm, '<h4>$1</h4>')
+                            .replace(/^## (.*)/gm, '<h3>$1</h3>')
+                            .replace(/^- (.*)/gm, '<li>$1</li>')
+                            .replace(/\n\n/g, '<br/>')
+                        }} />
+                      </div>
+                    </div>
+                  )}
+
                   <div className="flex justify-end gap-2 pt-4">
                     <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
                       Cancelar

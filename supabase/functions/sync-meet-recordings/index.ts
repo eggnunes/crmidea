@@ -79,7 +79,7 @@ serve(async (req) => {
     // Get sessions to sync (include client name for matching)
     let query = supabase
       .from('consulting_sessions')
-      .select('*, consulting_clients!client_id(name)')
+      .select('*, consulting_clients!client_id(full_name)')
       .eq('user_id', user.id)
       .is('recording_url', null);
 
@@ -121,7 +121,7 @@ serve(async (req) => {
     console.log(`[sync-meet-recordings] Found ${recordings.length} recordings in Meet Recordings`);
 
     // 2. Search client-specific folders
-    const clientNames = [...new Set(sessions.map((s: any) => s.consulting_clients?.name).filter(Boolean))] as string[];
+    const clientNames = [...new Set(sessions.map((s: any) => s.consulting_clients?.full_name).filter(Boolean))] as string[];
     
     for (const clientName of clientNames) {
       try {
@@ -173,7 +173,7 @@ serve(async (req) => {
     for (const session of sessions) {
       const sessionDate = new Date(session.session_date);
       const sessionDateStr = sessionDate.toISOString().split('T')[0];
-      const clientName = (session.consulting_clients?.name || '').toLowerCase();
+      const clientName = (session.consulting_clients?.full_name || '').toLowerCase();
 
       // Filter recordings from same day
       const sameDayRecs = recordings.filter((rec: any) => {
