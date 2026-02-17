@@ -1,69 +1,59 @@
 
 
-# Importar Transcrições do Google Drive e Gerar Resumos Automaticamente
+# Corrigir Importacao de Transcricoes - Matching por Nome do Cliente
 
-## Situacao Atual
+## Problema Identificado
 
-- Existem **muitas sessoes duplicadas** no banco (ex: Victor Hugo com 8 registros para a mesma data)
-- **Nenhuma sessao** tem transcrição ou resumo ainda
-- **Nenhuma sessao** tem gravação vinculada
-- As transcricoes do Google Meet estao na pasta "Meet Recordings" no Google Drive
-- As gravacoes de video estao em pastas com nomes dos clientes dentro de "Minha Mentoria/Turma dois/Consultoria"
+A logica atual de associacao (matching) entre arquivos do Google Drive e sessoes de clientes esta incorreta. O codigo atual:
 
-## Etapas do Plano
+1. Divide o nome do cliente em partes (ex: "Ana Cristina de Almeida" -> ["ana", "cristina", "almeida"])
+2. Aceita match se **qualquer** parte com mais de 2 caracteres aparecer no nome do arquivo
+3. Isso causa matches falsos: "Ana" casa com arquivo de outro cliente, "Luiz" casa com arquivo errado, etc.
 
-### Etapa 1 - Limpar sessoes duplicadas no banco de dados
+## Plano de Correcao
 
-Antes de importar, preciso remover os registros duplicados. Existem sessoes com mesmo titulo, mesma data e mesmo cliente repetidas ate 8 vezes. Vou manter apenas uma de cada.
+### Passo 1 - Limpar dados incorretos
 
-### Etapa 2 - Criar Edge Function `batch-import-transcripts`
+Apagar as transcricoes e resumos importados incorretamente nas 6 sessoes afetadas (set `transcription = NULL`, `ai_summary = NULL`, `summary_generated_at = NULL`).
 
-Nova funcao backend que faz tudo automaticamente:
+### Passo 2 - Corrigir logica de matching
 
-1. Busca a pasta "Meet Recordings" no Google Drive
-2. Lista todos os arquivos de transcricao (`.txt`, `.sbv`, `.vtt` ou documentos Google) dessa pasta
-3. Para cada arquivo de transcricao:
-   - Extrai a data de criacao do arquivo
-   - Tenta associar a uma sessao existente no banco (por data + nome do cliente no titulo)
-   - Se encontrar correspondencia, baixa o conteudo da transcricao
-   - Salva o texto na coluna `transcription` da sessao
-4. Para cada sessao que recebeu transcricao, gera um resumo estruturado com IA (Lovable AI / Gemini)
-5. Salva o resumo na coluna `ai_summary`
+Reescrever a funcao de matching no `batch-import-transcripts/index.ts` com regras mais rigorosas:
 
-**Arquivo:** `supabase/functions/batch-import-transcripts/index.ts`
+- **Regra principal**: O nome do arquivo DEVE conter o **sobrenome** do cliente (ultima parte significativa do nome, ignorando preposicoes como "de", "da", "dos")
+- **Validacao extra**: Alem do sobrenome, exigir pelo menos mais uma parte do nome (primeiro nome ou nome do meio) para confirmar
+- **Remover fallbacks perigosos**: Eliminar a Prioridade 2 (proximidade de horario) e Prioridade 3 (unico arquivo do dia) que causam matches errados
+- Adicionar uma nova action `list-files` para debug, listando os arquivos encontrados no Drive antes de associar
 
-Logica de matching:
-- Compara a data de criacao do arquivo com a data da sessao (mesmo dia)
-- Busca o nome do cliente no titulo do arquivo da transcricao
-- Se houver apenas uma sessao naquele dia, associa automaticamente
+### Passo 3 - Adicionar action de limpeza
 
-### Etapa 3 - Adicionar botao na interface
+Adicionar uma action `clean` na edge function que limpa transcricoes/resumos existentes para permitir re-importacao.
 
-**Arquivo:** `src/components/consulting/ConsultingSessionsManager.tsx`
+### Passo 4 - Re-executar
 
-Adicionar um botao "Importar Transcricoes e Resumos" que:
-- Chama a nova funcao `batch-import-transcripts`
-- Mostra progresso (quantas transcricoes encontradas, quantos resumos gerados)
-- Atualiza a lista de sessoes ao finalizar
+1. Executar action `clean` para limpar dados errados
+2. Executar action `list-files` para ver os arquivos disponiveis e seus nomes
+3. Executar a importacao com a logica corrigida
+4. Verificar os resultados
 
-Tambem adicionar um botao global na pagina de consultoria para importar para TODOS os clientes de uma vez.
+## Detalhes Tecnicos
 
-### Etapa 4 - Sincronizar gravacoes de video
+### Arquivo modificado
+- `supabase/functions/batch-import-transcripts/index.ts`
 
-Antes das transcricoes, rodar o `sync-meet-recordings` para vincular os videos das pastas dos clientes (Minha Mentoria/Turma dois/Consultoria/[NomeCliente]) as sessoes. Isso complementa a importacao.
+### Nova logica de matching (pseudocodigo)
 
-## Resumo tecnico dos arquivos
+```text
+Para cada sessao sem transcricao:
+  1. Extrair sobrenome do cliente (ignorando "de", "da", "dos", "das", "do")
+  2. Para cada arquivo do mesmo dia:
+     - Normalizar nome do arquivo
+     - Verificar se contem o SOBRENOME do cliente
+     - Se sim, verificar se contem tambem o PRIMEIRO NOME
+     - So aceitar match se ambos estiverem presentes
+  3. Se nenhum match, pular (NAO usar fallbacks de horario ou arquivo unico)
+```
 
-| Arquivo | Acao |
-|---------|------|
-| Banco de dados | Remover sessoes duplicadas |
-| `supabase/functions/batch-import-transcripts/index.ts` | Nova funcao - importar transcricoes do Drive + gerar resumos com IA |
-| `src/components/consulting/ConsultingSessionsManager.tsx` | Adicionar botoes "Importar Transcricoes" |
+### Nova action `clean`
+Limpa `transcription`, `ai_summary` e `summary_generated_at` de todas as sessoes (ou de um cliente especifico se `clientId` for informado).
 
-## Resultado esperado
-
-Ao clicar no botao, o sistema vai:
-1. Buscar todas as transcricoes no Google Drive
-2. Associar cada transcricao a reuniao correta de cada cliente
-3. Gerar resumos automaticos com IA para cada reuniao transcrita
-4. Exibir tudo no dashboard de cada cliente (transcricao + resumo)
