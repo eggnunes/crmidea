@@ -16,7 +16,7 @@ const ELEVENLABS_API_KEY = Deno.env.get('ELEVENLABS_API_KEY') || '';
 const PREPOSITIONS = new Set(['de', 'da', 'do', 'dos', 'das', 'e']);
 const TEXT_MIME_FILTER = "(mimeType='text/plain' or mimeType='application/vnd.google-apps.document' or mimeType='text/vtt' or mimeType='application/x-subrip')";
 const RECORDING_MIME_FILTER = "(mimeType='video/mp4' or mimeType='video/webm' or mimeType='audio/mpeg' or mimeType='audio/mp4' or mimeType='audio/webm' or mimeType='audio/x-m4a' or mimeType='video/x-matroska')";
-const MAX_STT_TRANSCRIPTIONS = 3; // max recordings to transcribe per run to avoid timeout
+const MAX_STT_TRANSCRIPTIONS = 1; // max recordings to transcribe per run (large files need time)
 
 // ==================== Google Drive Helpers ====================
 
@@ -122,40 +122,90 @@ async function downloadFileContent(accessToken: string, fileId: string, mimeType
   return await res.text();
 }
 
-async function downloadFileAsBlob(accessToken: string, fileId: string): Promise<{ blob: Blob; size: number }> {
-  const url = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`;
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
-  if (!res.ok) throw new Error(`Failed to download recording ${fileId}: ${res.status}`);
-  const blob = await res.blob();
-  return { blob, size: blob.size };
-}
+/** Stream a recording from Google Drive directly to ElevenLabs STT without buffering the whole file in memory */
+async function streamTranscribeFromDrive(accessToken: string, fileId: string, fileName: string, fileSizeMB: number): Promise<string> {
+  console.log(`[batch-import] Streaming "${fileName}" (${fileSizeMB}MB) from Drive to ElevenLabs STT...`);
 
-// ==================== ElevenLabs STT ====================
-
-async function transcribeWithElevenLabs(audioBlob: Blob, fileName: string): Promise<string> {
-  const formData = new FormData();
-  formData.append('file', audioBlob, fileName);
-  formData.append('model_id', 'scribe_v2');
-  formData.append('language_code', 'por');
-  formData.append('diarize', 'true');
-  formData.append('tag_audio_events', 'false');
-
-  console.log(`[batch-import] Sending ${fileName} (${(audioBlob.size / 1024 / 1024).toFixed(1)}MB) to ElevenLabs STT...`);
-
-  const response = await fetch('https://api.elevenlabs.io/v1/speech-to-text', {
-    method: 'POST',
-    headers: { 'xi-api-key': ELEVENLABS_API_KEY },
-    body: formData,
-  });
-
-  if (!response.ok) {
-    const errText = await response.text();
-    console.error(`[batch-import] ElevenLabs STT error: ${response.status}`, errText);
-    throw new Error(`ElevenLabs STT failed: ${response.status}`);
+  // Step 1: Start downloading from Google Drive as a stream
+  const driveUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`;
+  const driveResp = await fetch(driveUrl, { headers: { Authorization: `Bearer ${accessToken}` } });
+  if (!driveResp.ok || !driveResp.body) {
+    throw new Error(`Failed to download recording ${fileId}: ${driveResp.status}`);
   }
 
-  const result = await response.json();
-  console.log(`[batch-import] ElevenLabs STT success for ${fileName}: ${result.text?.length || 0} chars`);
+  // Step 2: Build multipart/form-data body manually with streaming
+  const boundary = '----ElevenLabsBoundary' + Date.now();
+  const encoder = new TextEncoder();
+
+  const fields: Record<string, string> = {
+    model_id: 'scribe_v2',
+    language_code: 'por',
+    diarize: 'true',
+    tag_audio_events: 'false',
+  };
+
+  let preamble = '';
+  for (const [key, value] of Object.entries(fields)) {
+    preamble += `--${boundary}\r\n`;
+    preamble += `Content-Disposition: form-data; name="${key}"\r\n\r\n`;
+    preamble += `${value}\r\n`;
+  }
+  const ext = fileName.split('.').pop()?.toLowerCase() || 'mp4';
+  const mimeMap: Record<string, string> = {
+    mp4: 'video/mp4', webm: 'video/webm', mp3: 'audio/mpeg',
+    m4a: 'audio/mp4', mkv: 'video/x-matroska', wav: 'audio/wav',
+  };
+  const contentType = mimeMap[ext] || 'application/octet-stream';
+  preamble += `--${boundary}\r\n`;
+  preamble += `Content-Disposition: form-data; name="file"; filename="${fileName}"\r\n`;
+  preamble += `Content-Type: ${contentType}\r\n\r\n`;
+
+  const epilogue = `\r\n--${boundary}--\r\n`;
+  const preambleBytes = encoder.encode(preamble);
+  const epilogueBytes = encoder.encode(epilogue);
+  const driveReader = driveResp.body.getReader();
+
+  let phase: 'preamble' | 'file' | 'epilogue' | 'done' = 'preamble';
+
+  const combinedStream = new ReadableStream({
+    async pull(controller) {
+      if (phase === 'preamble') {
+        controller.enqueue(preambleBytes);
+        phase = 'file';
+        return;
+      }
+      if (phase === 'file') {
+        const { done, value } = await driveReader.read();
+        if (done) {
+          controller.enqueue(epilogueBytes);
+          phase = 'done';
+          return;
+        }
+        controller.enqueue(value);
+        return;
+      }
+      controller.close();
+    },
+  });
+
+  // Step 3: Send to ElevenLabs with streaming body
+  const sttResp = await fetch('https://api.elevenlabs.io/v1/speech-to-text', {
+    method: 'POST',
+    headers: {
+      'xi-api-key': ELEVENLABS_API_KEY,
+      'Content-Type': `multipart/form-data; boundary=${boundary}`,
+    },
+    body: combinedStream,
+  });
+
+  if (!sttResp.ok) {
+    const errText = await sttResp.text();
+    console.error(`[batch-import] ElevenLabs STT error: ${sttResp.status}`, errText);
+    throw new Error(`ElevenLabs STT failed (${sttResp.status}): ${errText.substring(0, 200)}`);
+  }
+
+  const result = await sttResp.json();
+  console.log(`[batch-import] ElevenLabs STT success for "${fileName}": ${result.text?.length || 0} chars`);
   return result.text || '';
 }
 
@@ -487,6 +537,7 @@ serve(async (req) => {
     let sttTranscriptions = 0;
     const results: any[] = [];
     const skipped: any[] = [];
+    const allPendingRecordings: any[] = [];
 
     // Group sessions by client
     const sessionsByClient = new Map<string, any[]>();
@@ -604,77 +655,38 @@ serve(async (req) => {
         }
       }
 
-      // Step 2: Assign recordings (transcribe via ElevenLabs)
+      // Step 2: Queue recordings for async transcription (via transcribe-recording function)
+      const pendingRecordings: any[] = [];
       for (const entry of recordingFilesForClient) {
         if (sessionIdx >= needsTranscript.length) break;
-        if (sttTranscriptions >= MAX_STT_TRANSCRIPTIONS) {
-          skipped.push({
-            client: clientName,
-            session: needsTranscript[sessionIdx]?.title,
-            reason: 'stt_limit_reached',
-            file: entry.file.name,
-          });
-          continue;
-        }
 
         const session = needsTranscript[sessionIdx];
         const fileSize = parseInt(entry.file.size || '0', 10);
+        const fileSizeMB = Math.round(fileSize / 1024 / 1024);
 
-        if (fileSize > 100 * 1024 * 1024) {
-          console.warn(`[batch-import] Skipping "${entry.file.name}" (${(fileSize / 1024 / 1024).toFixed(0)}MB > 100MB limit)`);
+        if (fileSize > 1000 * 1024 * 1024) {
           skipped.push({
             session: session.title,
             client: clientName,
-            reason: 'file_too_large',
+            reason: 'file_too_large_1gb',
             file: entry.file.name,
-            size_mb: Math.round(fileSize / 1024 / 1024),
+            size_mb: fileSizeMB,
           });
           continue;
         }
 
-        try {
-          console.log(`[batch-import] Downloading recording "${entry.file.name}" for STT...`);
-          const { blob } = await downloadFileAsBlob(accessToken, entry.file.id);
-
-          const transcription = await transcribeWithElevenLabs(blob, entry.file.name);
-
-          if (transcription && transcription.trim().length > 50) {
-            await supabase
-              .from('consulting_sessions')
-              .update({ transcription })
-              .eq('id', session.id);
-
-            session.transcription = transcription;
-            transcriptionsImported++;
-            sttTranscriptions++;
-            sessionIdx++;
-            results.push({
-              session: session.title,
-              client: clientName,
-              action: 'stt_transcription',
-              source: entry.source,
-              file: entry.file.name,
-              size_mb: Math.round(blob.size / 1024 / 1024),
-            });
-          } else {
-            skipped.push({
-              session: session.title,
-              client: clientName,
-              reason: 'stt_empty_result',
-              file: entry.file.name,
-            });
-          }
-        } catch (e) {
-          console.warn(`[batch-import] Error transcribing "${entry.file.name}":`, e);
-          results.push({
-            session: session.title,
-            client: clientName,
-            action: 'stt_error',
-            error: String(e),
-            file: entry.file.name,
-          });
-        }
+        pendingRecordings.push({
+          sessionId: session.id,
+          sessionTitle: session.title,
+          client: clientName,
+          fileId: entry.file.id,
+          fileName: entry.file.name,
+          sizeMB: fileSizeMB,
+          source: entry.source,
+        });
+        sessionIdx++;
       }
+      allPendingRecordings.push(...pendingRecordings);
 
       // Remaining sessions without match
       for (let i = sessionIdx; i < needsTranscript.length; i++) {
@@ -716,18 +728,19 @@ serve(async (req) => {
       }
     }
 
-    const hasMore = sttTranscriptions >= MAX_STT_TRANSCRIPTIONS;
-
-    console.log(`[batch-import] Done: ${transcriptionsImported} transcriptions (${sttTranscriptions} via STT), ${summariesGenerated} summaries, ${skipped.length} skipped, hasMore=${hasMore}`);
+    console.log(`[batch-import] Done: ${transcriptionsImported} transcriptions, ${summariesGenerated} summaries, ${allPendingRecordings.length} recordings pending, ${skipped.length} skipped`);
 
     return new Response(JSON.stringify({
       transcriptions: transcriptionsImported,
-      stt_transcriptions: sttTranscriptions,
       summaries: summariesGenerated,
       totalSessions: sessions.length,
-      has_more: hasMore,
+      pending_recordings: allPendingRecordings,
+      pending_count: allPendingRecordings.length,
       details: results,
       skipped,
+      message: allPendingRecordings.length > 0
+        ? `${allPendingRecordings.length} gravações encontradas para transcrever. Use a function "transcribe-recording" para processar cada uma individualmente.`
+        : 'Importação concluída.',
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
