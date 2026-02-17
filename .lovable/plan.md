@@ -1,59 +1,95 @@
 
 
-# Corrigir Importacao de Transcricoes - Matching por Nome do Cliente
+# Buscar Transcricoes E Gravar Reunioes na Pasta "Consultoria" do Drive
 
-## Problema Identificado
+## Problema
 
-A logica atual de associacao (matching) entre arquivos do Google Drive e sessoes de clientes esta incorreta. O codigo atual:
+A funcao atual busca apenas arquivos de texto (transcricoes prontas). Porem, muitos clientes tem reunioes gravadas (arquivos de video/audio como .mp4, .webm) que nao possuem transcricao associada. O sistema precisa:
 
-1. Divide o nome do cliente em partes (ex: "Ana Cristina de Almeida" -> ["ana", "cristina", "almeida"])
-2. Aceita match se **qualquer** parte com mais de 2 caracteres aparecer no nome do arquivo
-3. Isso causa matches falsos: "Ana" casa com arquivo de outro cliente, "Luiz" casa com arquivo errado, etc.
+1. Buscar transcricoes prontas (txt, Google Docs, vtt, srt)
+2. Se nao encontrar transcricao, buscar a gravacao da reuniao (mp4, webm, etc.)
+3. Transcrever a gravacao usando ElevenLabs Scribe v2 (ja configurado no projeto com secret `ELEVENLABS_API_KEY`)
+4. Gerar resumo com IA (Gemini) a partir da transcricao
 
-## Plano de Correcao
+## Plano de Implementacao
 
-### Passo 1 - Limpar dados incorretos
+### Passo 1 - Limpar dados existentes
 
-Apagar as transcricoes e resumos importados incorretamente nas 6 sessoes afetadas (set `transcription = NULL`, `ai_summary = NULL`, `summary_generated_at = NULL`).
+Executar action `clean` para garantir fresh start.
 
-### Passo 2 - Corrigir logica de matching
+### Passo 2 - Atualizar Edge Function `batch-import-transcripts`
 
-Reescrever a funcao de matching no `batch-import-transcripts/index.ts` com regras mais rigorosas:
+Modificar `supabase/functions/batch-import-transcripts/index.ts`:
 
-- **Regra principal**: O nome do arquivo DEVE conter o **sobrenome** do cliente (ultima parte significativa do nome, ignorando preposicoes como "de", "da", "dos")
-- **Validacao extra**: Alem do sobrenome, exigir pelo menos mais uma parte do nome (primeiro nome ou nome do meio) para confirmar
-- **Remover fallbacks perigosos**: Eliminar a Prioridade 2 (proximidade de horario) e Prioridade 3 (unico arquivo do dia) que causam matches errados
-- Adicionar uma nova action `list-files` para debug, listando os arquivos encontrados no Drive antes de associar
+#### 2.1 - Adicionar action `explore-path`
+Para debugar a estrutura de pastas do Drive, navegando nivel por nivel (ex: `["Minha Mentoria", "Turma 2", "Consultoria"]`).
 
-### Passo 3 - Adicionar action de limpeza
+#### 2.2 - Buscar na pasta "Consultoria" alem de "Meet Recordings"
+- Navegar ate "Minha Mentoria" > subpasta com "Turma" ou "Consultoria" > "Consultoria"
+- Listar subpastas de clientes
+- Usar `fileMatchesClient` para associar pasta ao cliente cadastrado
 
-Adicionar uma action `clean` na edge function que limpa transcricoes/resumos existentes para permitir re-importacao.
+#### 2.3 - Buscar TODOS os tipos de arquivo
+Dentro de cada pasta de cliente, buscar em duas etapas:
 
-### Passo 4 - Re-executar
+```text
+Etapa 1: Transcricoes prontas
+  - mimeType: text/plain, Google Docs, text/vtt, application/x-subrip
+  - Se encontrou -> usar diretamente
 
-1. Executar action `clean` para limpar dados errados
-2. Executar action `list-files` para ver os arquivos disponiveis e seus nomes
-3. Executar a importacao com a logica corrigida
-4. Verificar os resultados
+Etapa 2: Gravacoes (se nao achou transcricao)
+  - mimeType: video/mp4, video/webm, audio/mpeg, audio/mp4, audio/webm
+  - Se encontrou -> transcrever via ElevenLabs STT
+  - ElevenLabs endpoint: POST https://api.elevenlabs.io/v1/speech-to-text
+  - Modelo: scribe_v2, idioma: por, diarize: true
+  - Limite: 100MB por arquivo (ja tratado no codigo existente)
+```
+
+#### 2.4 - Associar arquivos a sessoes por ordem cronologica
+- Ordenar arquivos por `createdTime` (mais antigo primeiro)
+- Ordenar sessoes sem transcricao do cliente por `session_date` (mais antiga primeiro)
+- Associar 1-para-1
+
+#### 2.5 - Gerar resumos com IA
+Para cada sessao que recebeu transcricao (seja de arquivo texto ou de gravacao transcrita), gerar resumo com Gemini via Lovable AI Gateway (ja implementado).
+
+### Passo 3 - Executar
+
+1. Usar `explore-path` para confirmar estrutura de pastas
+2. Executar importacao completa
+3. Verificar resultados
 
 ## Detalhes Tecnicos
 
 ### Arquivo modificado
 - `supabase/functions/batch-import-transcripts/index.ts`
 
-### Nova logica de matching (pseudocodigo)
+### Fluxo completo de import
 
 ```text
-Para cada sessao sem transcricao:
-  1. Extrair sobrenome do cliente (ignorando "de", "da", "dos", "das", "do")
-  2. Para cada arquivo do mesmo dia:
-     - Normalizar nome do arquivo
-     - Verificar se contem o SOBRENOME do cliente
-     - Se sim, verificar se contem tambem o PRIMEIRO NOME
-     - So aceitar match se ambos estiverem presentes
-  3. Se nenhum match, pular (NAO usar fallbacks de horario ou arquivo unico)
+Para cada cliente cadastrado com sessoes sem transcricao:
+  1. Buscar em "Meet Recordings" por arquivos de texto com nome do cliente
+  2. Buscar pasta do cliente em "Consultoria" (match por nome)
+  3. Dentro da pasta do cliente:
+     a. Buscar transcricoes prontas (txt, docs, vtt, srt)
+     b. Se nao encontrou transcricao, buscar gravacoes (mp4, webm, audio)
+     c. Se encontrou gravacao:
+        - Baixar o arquivo via Drive API
+        - Verificar tamanho (< 100MB)
+        - Enviar para ElevenLabs STT (scribe_v2, portugues, com diarizacao)
+        - Salvar transcricao resultante
+  4. Associar arquivos encontrados as sessoes por ordem cronologica
+  5. Gerar resumo com IA para cada sessao que recebeu transcricao
 ```
 
-### Nova action `clean`
-Limpa `transcription`, `ai_summary` e `summary_generated_at` de todas as sessoes (ou de um cliente especifico se `clientId` for informado).
+### Consideracoes importantes
+- ElevenLabs tem limite de 100MB por arquivo. Gravacoes maiores serao puladas com log de aviso
+- A transcricao via ElevenLabs pode demorar varios minutos por arquivo. O processo total pode levar bastante tempo
+- Arquivos de video grandes podem causar timeout na Edge Function (limite ~150s). Se necessario, processar em lotes menores
+- Para evitar timeout, processar no maximo 3-5 gravacoes por execucao, com opcao de re-executar para continuar
+
+### Tratamento de timeout
+- Adicionar contador de gravacoes transcritas via ElevenLabs
+- Apos 3 transcricoes de audio/video, parar e retornar resultado parcial com flag `has_more: true`
+- Permitir re-execucao para continuar de onde parou (sessoes ja com transcricao sao puladas automaticamente)
 
