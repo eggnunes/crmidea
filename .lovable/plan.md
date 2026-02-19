@@ -1,95 +1,82 @@
 
+## Diagnóstico do Problema
 
-# Buscar Transcricoes E Gravar Reunioes na Pasta "Consultoria" do Drive
+**O que está acontecendo:**
+A reunião da Sueli Dias tem um arquivo de texto gerado pelo **Tactiq AI** (extensão de navegador que cria transcrições automáticas) salvo na mesma pasta do Google Drive. O sistema está importando esse arquivo de texto em vez de baixar e transcrever a gravação de vídeo real da reunião.
 
-## Problema
-
-A funcao atual busca apenas arquivos de texto (transcricoes prontas). Porem, muitos clientes tem reunioes gravadas (arquivos de video/audio como .mp4, .webm) que nao possuem transcricao associada. O sistema precisa:
-
-1. Buscar transcricoes prontas (txt, Google Docs, vtt, srt)
-2. Se nao encontrar transcricao, buscar a gravacao da reuniao (mp4, webm, etc.)
-3. Transcrever a gravacao usando ElevenLabs Scribe v2 (ja configurado no projeto com secret `ELEVENLABS_API_KEY`)
-4. Gerar resumo com IA (Gemini) a partir da transcricao
-
-## Plano de Implementacao
-
-### Passo 1 - Limpar dados existentes
-
-Executar action `clean` para garantir fresh start.
-
-### Passo 2 - Atualizar Edge Function `batch-import-transcripts`
-
-Modificar `supabase/functions/batch-import-transcripts/index.ts`:
-
-#### 2.1 - Adicionar action `explore-path`
-Para debugar a estrutura de pastas do Drive, navegando nivel por nivel (ex: `["Minha Mentoria", "Turma 2", "Consultoria"]`).
-
-#### 2.2 - Buscar na pasta "Consultoria" alem de "Meet Recordings"
-- Navegar ate "Minha Mentoria" > subpasta com "Turma" ou "Consultoria" > "Consultoria"
-- Listar subpastas de clientes
-- Usar `fileMatchesClient` para associar pasta ao cliente cadastrado
-
-#### 2.3 - Buscar TODOS os tipos de arquivo
-Dentro de cada pasta de cliente, buscar em duas etapas:
-
-```text
-Etapa 1: Transcricoes prontas
-  - mimeType: text/plain, Google Docs, text/vtt, application/x-subrip
-  - Se encontrou -> usar diretamente
-
-Etapa 2: Gravacoes (se nao achou transcricao)
-  - mimeType: video/mp4, video/webm, audio/mpeg, audio/mp4, audio/webm
-  - Se encontrou -> transcrever via ElevenLabs STT
-  - ElevenLabs endpoint: POST https://api.elevenlabs.io/v1/speech-to-text
-  - Modelo: scribe_v2, idioma: por, diarize: true
-  - Limite: 100MB por arquivo (ja tratado no codigo existente)
+A transcrição salva começa com:
+```
+01:08:19.501,01:08:22.501
+advocacia adv: Olá, estou transcrevendo esta chamada com minha extensão Tactiq AI.
 ```
 
-#### 2.4 - Associar arquivos a sessoes por ordem cronologica
-- Ordenar arquivos por `createdTime` (mais antigo primeiro)
-- Ordenar sessoes sem transcricao do cliente por `session_date` (mais antiga primeiro)
-- Associar 1-para-1
-
-#### 2.5 - Gerar resumos com IA
-Para cada sessao que recebeu transcricao (seja de arquivo texto ou de gravacao transcrita), gerar resumo com Gemini via Lovable AI Gateway (ja implementado).
-
-### Passo 3 - Executar
-
-1. Usar `explore-path` para confirmar estrutura de pastas
-2. Executar importacao completa
-3. Verificar resultados
-
-## Detalhes Tecnicos
-
-### Arquivo modificado
-- `supabase/functions/batch-import-transcripts/index.ts`
-
-### Fluxo completo de import
-
-```text
-Para cada cliente cadastrado com sessoes sem transcricao:
-  1. Buscar em "Meet Recordings" por arquivos de texto com nome do cliente
-  2. Buscar pasta do cliente em "Consultoria" (match por nome)
-  3. Dentro da pasta do cliente:
-     a. Buscar transcricoes prontas (txt, docs, vtt, srt)
-     b. Se nao encontrou transcricao, buscar gravacoes (mp4, webm, audio)
-     c. Se encontrou gravacao:
-        - Baixar o arquivo via Drive API
-        - Verificar tamanho (< 100MB)
-        - Enviar para ElevenLabs STT (scribe_v2, portugues, com diarizacao)
-        - Salvar transcricao resultante
-  4. Associar arquivos encontrados as sessoes por ordem cronologica
-  5. Gerar resumo com IA para cada sessao que recebeu transcricao
+**Causa raiz no código (`batch-import-transcripts/index.ts`, linha 608-613):**
+A função ordena os arquivos dando **prioridade a arquivos de texto** sobre gravações:
+```typescript
+availableFiles.sort((a, b) => {
+  // Text files first  ← ESTE É O PROBLEMA
+  if (a.type !== b.type) return a.type === 'text' ? -1 : 1;
+  ...
+});
 ```
 
-### Consideracoes importantes
-- ElevenLabs tem limite de 100MB por arquivo. Gravacoes maiores serao puladas com log de aviso
-- A transcricao via ElevenLabs pode demorar varios minutos por arquivo. O processo total pode levar bastante tempo
-- Arquivos de video grandes podem causar timeout na Edge Function (limite ~150s). Se necessario, processar em lotes menores
-- Para evitar timeout, processar no maximo 3-5 gravacoes por execucao, com opcao de re-executar para continuar
+Isso faz com que qualquer `.txt`, `.vtt` ou `.doc` salvo pelo Tactiq seja usado como transcrição antes da gravação real.
 
-### Tratamento de timeout
-- Adicionar contador de gravacoes transcritas via ElevenLabs
-- Apos 3 transcricoes de audio/video, parar e retornar resultado parcial com flag `has_more: true`
-- Permitir re-execucao para continuar de onde parou (sessoes ja com transcricao sao puladas automaticamente)
+**Além disso:** Como a sessão já tem `transcription` (do Tactiq), o `transcribe-recording` pula o processamento da gravação real (linha 134):
+```typescript
+if (session.transcription) {
+  console.log('Session already has transcription, skipping STT');
+  ...
+}
+```
 
+---
+
+## Solução Completa
+
+### 1. Filtrar arquivos do Tactiq na função `batch-import-transcripts`
+
+Adicionar uma função de detecção que identifica se um arquivo de texto é gerado pelo Tactiq (baseado no conteúdo típico do Tactiq como "Tactiq AI", "tactiq.io", etc.) e **ignora esses arquivos** durante a importação. Somente arquivos de texto que pareçam atas manuais (escritas pelo consultor) devem ser usados.
+
+**Lógica:** Ao baixar um arquivo de texto, verificar se o conteúdo contém marcas do Tactiq antes de salvar como transcrição.
+
+### 2. Inverter a prioridade: Gravações antes de textos automáticos
+
+Para reuniões que têm uma gravação de vídeo disponível, **priorizar a transcrição via ElevenLabs** (da gravação real) em vez de importar arquivos de texto automáticos. Arquivos de texto manuais (atas) só devem ser usados quando não houver gravação.
+
+**Nova ordem de prioridade:**
+1. Gravação de vídeo/áudio → transcrever com ElevenLabs Scribe v2 (transcrição real)
+2. Arquivo de texto manual (sem marcas de ferramentas automáticas) → importar diretamente
+3. Nenhum arquivo → sessão sem transcrição
+
+### 3. Limpar a transcrição errada da Sueli e reprocessar
+
+Adicionar uma ação para **limpar** a transcrição/resumo incorreto da sessão específica da Sueli e iniciar o reprocessamento correto via a gravação de vídeo que já está vinculada (`recording_drive_id: 1sCYdC1rOOhRctEaJEpbbGbDEC4JpWghd`).
+
+### 4. Forçar reprocessamento no `transcribe-recording`
+
+Adicionar um parâmetro `force: true` à função `transcribe-recording` que permite **sobrescrever** uma transcrição existente, iniciando o processamento do vídeo mesmo se já houver texto salvo.
+
+### 5. Melhorar a UI — Botão "Retranscrever" com opção de forçar
+
+No `ConsultingSessionsManager`, adicionar um botão **"Retranscrever (forçar)"** para sessões que já têm transcrição mas que precisam ser refeitas a partir da gravação real.
+
+---
+
+## Arquivos que serão alterados
+
+| Arquivo | O que muda |
+|---|---|
+| `supabase/functions/batch-import-transcripts/index.ts` | Filtrar Tactiq, inverter prioridade (gravação antes de texto) |
+| `supabase/functions/transcribe-recording/index.ts` | Suportar parâmetro `force: true` para sobrescrever transcrições |
+| `src/components/consulting/ConsultingSessionsManager.tsx` | Botão "Retranscrever" que passa `force: true` para sessões já transcritas |
+
+---
+
+## Resultado Esperado
+
+Após a correção:
+- Sessões com gravação de vídeo → transcrição real feita pelo ElevenLabs do áudio da reunião
+- Arquivos do Tactiq → ignorados automaticamente
+- Ata manual (escrita pelo consultor) → ainda importada normalmente quando não há gravação
+- A sessão da Sueli será limpa e reprocessada a partir do vídeo real
