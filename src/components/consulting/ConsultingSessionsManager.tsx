@@ -82,6 +82,7 @@ export function ConsultingSessionsManager({ clientId }: ConsultingSessionsManage
   const [transcribing, setTranscribing] = useState<string | null>(null);
   const [summarizing, setSummarizing] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
+  const [autoProcessing, setAutoProcessing] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
     session_date: "",
@@ -102,16 +103,78 @@ export function ConsultingSessionsManager({ clientId }: ConsultingSessionsManage
 
       if (error) throw error;
       setSessions((data as ConsultingSession[]) || []);
+      return (data as ConsultingSession[]) || [];
     } catch (error) {
       console.error('Error fetching sessions:', error);
       toast.error('Erro ao carregar reuniões');
+      return [];
     } finally {
       setLoading(false);
     }
   };
 
+  /** Auto-process: sync recordings → then transcribe+summarize any pending sessions */
+  const autoProcess = async () => {
+    if (!user?.id || autoProcessing) return;
+    setAutoProcessing(true);
+    try {
+      // Step 1: Sync recordings from Google Drive
+      const { data: syncData } = await supabase.functions.invoke('sync-meet-recordings', {
+        body: { clientId },
+      });
+      const syncedCount = syncData?.synced || 0;
+
+      // Step 2: Reload sessions after sync
+      const updatedSessions = await fetchSessions();
+
+      // Step 3: Find sessions with recording_drive_id but no transcription → transcribe + summarize
+      const pendingTranscription = updatedSessions.filter(
+        (s) => s.recording_drive_id && !s.transcription
+      );
+
+      for (const session of pendingTranscription) {
+        try {
+          await supabase.functions.invoke('transcribe-recording', {
+            body: {
+              userId: user.id,
+              sessionId: session.id,
+              fileId: session.recording_drive_id,
+              force: false,
+            },
+          });
+        } catch (e) {
+          console.warn(`[auto-process] Failed to transcribe session "${session.title}":`, e);
+        }
+      }
+
+      // Step 4: Also find sessions with transcription but no summary
+      const pendingSummary = updatedSessions.filter(
+        (s) => s.transcription && !s.ai_summary
+      );
+      for (const session of pendingSummary) {
+        try {
+          await supabase.functions.invoke('summarize-meeting', { body: { sessionId: session.id } });
+        } catch (e) {
+          console.warn(`[auto-process] Failed to summarize session "${session.title}":`, e);
+        }
+      }
+
+      if (syncedCount > 0 || pendingTranscription.length > 0 || pendingSummary.length > 0) {
+        // Refresh after processing
+        await fetchSessions();
+        if (syncedCount > 0) toast.success(`${syncedCount} gravação(ões) sincronizada(s) automaticamente`);
+        if (pendingTranscription.length > 0) toast.info(`Transcrição e resumo gerados para ${pendingTranscription.length} reunião(ões)`);
+      }
+    } catch (e) {
+      console.warn('[auto-process] Error during auto-processing:', e);
+    } finally {
+      setAutoProcessing(false);
+    }
+  };
+
   useEffect(() => {
     fetchSessions();
+    autoProcess();
   }, [clientId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -289,17 +352,23 @@ export function ConsultingSessionsManager({ clientId }: ConsultingSessionsManage
             <CardTitle className="flex items-center gap-2">
               <Calendar className="w-5 h-5" />
               Reuniões de Consultoria
+              {autoProcessing && (
+                <span className="flex items-center gap-1 text-xs font-normal text-muted-foreground">
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  Sincronizando e processando...
+                </span>
+              )}
             </CardTitle>
             <CardDescription>
               Gerencie as sessões, gravações e resumos de reunião
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={batchImportTranscripts} disabled={importing}>
+            <Button variant="outline" onClick={batchImportTranscripts} disabled={importing || autoProcessing}>
               {importing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
               Importar Transcrições e Resumos
             </Button>
-            <Button variant="outline" onClick={syncRecordings} disabled={syncing}>
+            <Button variant="outline" onClick={syncRecordings} disabled={syncing || autoProcessing}>
               {syncing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
               Sincronizar Gravações
             </Button>
