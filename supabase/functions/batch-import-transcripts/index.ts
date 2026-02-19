@@ -109,6 +109,30 @@ async function listFilesInFolder(accessToken: string, folderId: string, mimeFilt
   return data.files || [];
 }
 
+// ==================== Tactiq Detection ====================
+
+/** Signatures that indicate an auto-generated transcript (Tactiq, Otter, etc.) */
+const AUTO_TRANSCRIPT_SIGNATURES = [
+  'tactiq',
+  'tactiq.io',
+  'tactiq ai',
+  'transcrevendo esta chamada com minha extensão',
+  'otter.ai',
+  'fireflies.ai',
+  // VTT/SRT timestamp patterns like "00:00:00.000 --> 00:00:05.000"
+];
+
+function isTactiqOrAutoTranscript(content: string): boolean {
+  const lower = content.toLowerCase().substring(0, 3000); // check first 3KB only
+  for (const sig of AUTO_TRANSCRIPT_SIGNATURES) {
+    if (lower.includes(sig)) return true;
+  }
+  // Detect VTT/SRT format: lines like "00:00:01.000,00:00:05.000" or "00:00:01.000 --> 00:00:05.000"
+  const vttPattern = /\d{2}:\d{2}:\d{2}[.,]\d{3}[\s,]*(?:-->|,)\s*\d{2}:\d{2}:\d{2}/m;
+  if (vttPattern.test(content.substring(0, 2000))) return true;
+  return false;
+}
+
 async function downloadFileContent(accessToken: string, fileId: string, mimeType: string): Promise<string> {
   let url: string;
   if (mimeType === 'application/vnd.google-apps.document') {
@@ -605,57 +629,24 @@ serve(async (req) => {
         continue;
       }
 
-      // Sort files by createdTime (oldest first) - prioritize text over recordings
+      // Sort files by createdTime (oldest first) - RECORDINGS HAVE PRIORITY over text files
       availableFiles.sort((a, b) => {
-        // Text files first
-        if (a.type !== b.type) return a.type === 'text' ? -1 : 1;
+        // Recordings first (real audio → ElevenLabs STT is the gold standard)
+        if (a.type !== b.type) return a.type === 'recording' ? -1 : 1;
         return new Date(a.file.createdTime).getTime() - new Date(b.file.createdTime).getTime();
       });
 
-      // Separate text and recording files
+      // Separate files
       const textFilesForClient = availableFiles.filter(f => f.type === 'text');
       const recordingFilesForClient = availableFiles.filter(f => f.type === 'recording');
 
-      // Associate: first use text files, then recordings for remaining sessions
+      // Sessions that have a recording assigned (won't receive text import)
+      const sessionsWithRecording = new Set<string>();
+
+      // Associate: recordings first, then manual text files for remaining sessions
       let sessionIdx = 0;
 
-      // Step 1: Assign text transcriptions
-      for (const entry of textFilesForClient) {
-        if (sessionIdx >= needsTranscript.length) break;
-        const session = needsTranscript[sessionIdx];
-
-        try {
-          const content = await downloadFileContent(accessToken, entry.file.id, entry.file.mimeType);
-          if (content && content.trim().length > 50) {
-            await supabase
-              .from('consulting_sessions')
-              .update({ transcription: content })
-              .eq('id', session.id);
-
-            session.transcription = content;
-            transcriptionsImported++;
-            sessionIdx++;
-            results.push({
-              session: session.title,
-              client: clientName,
-              action: 'transcription',
-              source: entry.source,
-              file: entry.file.name,
-            });
-
-            // Remove from Meet Recordings pool
-            if (entry.source === 'meet_recordings') {
-              const idx = meetTranscriptFiles.findIndex((f: any) => f.id === entry.file.id);
-              if (idx >= 0) meetTranscriptFiles.splice(idx, 1);
-            }
-          }
-        } catch (e) {
-          console.warn(`[batch-import] Error downloading text for "${session.title}":`, e);
-          results.push({ session: session.title, action: 'transcription_error', error: String(e) });
-        }
-      }
-
-      // Step 2: Queue recordings for async transcription (via transcribe-recording function)
+      // Step 1: Queue recordings for async transcription (PRIORITY — real audio)
       const pendingRecordings: any[] = [];
       for (const entry of recordingFilesForClient) {
         if (sessionIdx >= needsTranscript.length) break;
@@ -684,15 +675,62 @@ serve(async (req) => {
           sizeMB: fileSizeMB,
           source: entry.source,
         });
+        sessionsWithRecording.add(session.id);
         sessionIdx++;
       }
       allPendingRecordings.push(...pendingRecordings);
 
-      // Remaining sessions without match
-      for (let i = sessionIdx; i < needsTranscript.length; i++) {
-        if (!needsTranscript[i].transcription) {
+      // Step 2: For sessions WITHOUT a recording, try manual text files (skip Tactiq/auto)
+      for (const entry of textFilesForClient) {
+        if (sessionIdx >= needsTranscript.length) break;
+
+        // Find the next session that doesn't already have a recording queued
+        const session = needsTranscript.find((s, idx) => idx >= sessionIdx - pendingRecordings.length && !sessionsWithRecording.has(s.id));
+        if (!session) break;
+
+        try {
+          const content = await downloadFileContent(accessToken, entry.file.id, entry.file.mimeType);
+          if (!content || content.trim().length < 50) continue;
+
+          // Skip auto-generated transcripts (Tactiq, Otter, etc.)
+          if (isTactiqOrAutoTranscript(content)) {
+            console.log(`[batch-import] Skipping auto-transcript file "${entry.file.name}" (Tactiq/auto-generated)`);
+            results.push({
+              session: session.title,
+              client: clientName,
+              action: 'skipped_auto_transcript',
+              file: entry.file.name,
+            });
+            continue;
+          }
+
+          await supabase
+            .from('consulting_sessions')
+            .update({ transcription: content })
+            .eq('id', session.id);
+
+          session.transcription = content;
+          transcriptionsImported++;
+          sessionsWithRecording.add(session.id); // mark as handled
+          results.push({
+            session: session.title,
+            client: clientName,
+            action: 'transcription_manual_text',
+            source: entry.source,
+            file: entry.file.name,
+          });
+        } catch (e) {
+          console.warn(`[batch-import] Error downloading text for "${session.title}":`, e);
+          results.push({ session: session.title, action: 'transcription_error', error: String(e) });
+        }
+      }
+
+      // Remaining sessions without any match
+      for (let i = 0; i < needsTranscript.length; i++) {
+        const s = needsTranscript[i];
+        if (!sessionsWithRecording.has(s.id) && !s.transcription) {
           skipped.push({
-            session: needsTranscript[i].title,
+            session: s.title,
             client: clientName,
             reason: 'no_remaining_files',
           });

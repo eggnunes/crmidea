@@ -108,7 +108,7 @@ Deno.serve(async (req) => {
   try {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     const body = await req.json();
-    const { userId, sessionId, fileId, fileName } = body;
+    const { userId, sessionId, fileId, fileName, force } = body;
 
     if (!userId || !sessionId || !fileId) {
       return new Response(JSON.stringify({ error: 'userId, sessionId, and fileId are required' }), {
@@ -131,8 +131,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (session.transcription) {
-      console.log('[transcribe-recording] Session already has transcription, skipping STT');
+    if (session.transcription && !force) {
+      console.log('[transcribe-recording] Session already has transcription, skipping STT (use force=true to override)');
       // Just generate summary if missing
       if (!session.ai_summary) {
         const clientName = (session.consulting_clients as any)?.full_name || '';
@@ -150,6 +150,15 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ success: true, action: 'already_complete' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
+    }
+
+    if (session.transcription && force) {
+      console.log('[transcribe-recording] force=true: clearing existing transcription and reprocessing from recording...');
+      await supabase.from('consulting_sessions').update({
+        transcription: null,
+        ai_summary: null,
+        summary_generated_at: null,
+      }).eq('id', sessionId);
     }
 
     const accessToken = await getValidAccessToken(supabase, userId);

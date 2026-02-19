@@ -26,7 +26,7 @@ import {
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   Calendar, Plus, Video, Users, Clock, FileText, Loader2,
-  RefreshCw, ExternalLink, FileAudio, Brain, ChevronDown, Download
+  RefreshCw, ExternalLink, FileAudio, Brain, ChevronDown, Download, RotateCcw
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -214,15 +214,26 @@ export function ConsultingSessionsManager({ clientId }: ConsultingSessionsManage
     }
   };
 
-  const transcribeSession = async (sessionId: string) => {
+  const transcribeSession = async (sessionId: string, force = false) => {
     setTranscribing(sessionId);
     try {
-      const { data, error } = await supabase.functions.invoke('transcribe-meeting', {
-        body: { sessionId },
+      const session = sessions.find(s => s.id === sessionId);
+      if (!session?.recording_drive_id && !session?.recording_url) {
+        toast.error('Nenhuma gravação vinculada a esta sessão');
+        return;
+      }
+      const { data, error } = await supabase.functions.invoke('transcribe-recording', {
+        body: {
+          userId: user?.id,
+          sessionId,
+          fileId: session.recording_drive_id,
+          fileName: session.recording_drive_id ? undefined : session.recording_url?.split('/').pop(),
+          force,
+        },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      toast.success('Transcrição concluída!');
+      toast.success(force ? 'Retranscrição concluída com nova gravação!' : 'Transcrição concluída!');
       fetchSessions();
     } catch (error: any) {
       console.error('Error transcribing:', error);
@@ -532,17 +543,31 @@ export function ConsultingSessionsManager({ clientId }: ConsultingSessionsManage
                           Assistir Gravação
                         </Button>
                       )}
-                      {session.recording_url && !session.transcription && (
+                      {session.recording_drive_id && !session.transcription && (
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => transcribeSession(session.id)}
+                          onClick={() => transcribeSession(session.id, false)}
                           disabled={transcribing === session.id}
                         >
                           {transcribing === session.id
                             ? <Loader2 className="w-3 h-3 mr-1 animate-spin" />
                             : <FileAudio className="w-3 h-3 mr-1" />}
                           Transcrever
+                        </Button>
+                      )}
+                      {session.recording_drive_id && session.transcription && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => transcribeSession(session.id, true)}
+                          disabled={transcribing === session.id}
+                          title="Descarta a transcrição atual e reprocessa a partir da gravação real"
+                        >
+                          {transcribing === session.id
+                            ? <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                            : <RotateCcw className="w-3 h-3 mr-1" />}
+                          Retranscrever
                         </Button>
                       )}
                       {session.transcription && (
