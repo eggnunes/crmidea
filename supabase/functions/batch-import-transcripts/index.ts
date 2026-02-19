@@ -539,12 +539,16 @@ serve(async (req) => {
 
     console.log(`[batch-import] Found ${sessions.length} sessions`);
 
-    // Gather files from Meet Recordings
+    // Gather files from Meet Recordings (both text AND recordings)
     const meetFolderId = await findFolderByName(accessToken, 'Meet Recordings');
     let meetTranscriptFiles: any[] = [];
+    let meetRecordingFiles: any[] = [];
     if (meetFolderId) {
-      meetTranscriptFiles = await listFilesInFolder(accessToken, meetFolderId, TEXT_MIME_FILTER);
-      console.log(`[batch-import] Found ${meetTranscriptFiles.length} transcript files in Meet Recordings`);
+      [meetTranscriptFiles, meetRecordingFiles] = await Promise.all([
+        listFilesInFolder(accessToken, meetFolderId, TEXT_MIME_FILTER),
+        listFilesInFolder(accessToken, meetFolderId, RECORDING_MIME_FILTER),
+      ]);
+      console.log(`[batch-import] Meet Recordings: ${meetTranscriptFiles.length} text, ${meetRecordingFiles.length} video files`);
     }
 
     // Gather client folders from Consultoria (accept body.consultoriaFolderId to skip slow search)
@@ -593,10 +597,21 @@ serve(async (req) => {
       // Collect all available files for this client
       const availableFiles: { file: any; source: string; type: 'text' | 'recording' }[] = [];
 
-      // Source 1: Meet Recordings (text files matching client name)
+      // Source 1: Meet Recordings — text files matching client name
       for (const f of meetTranscriptFiles) {
         if (fileMatchesClient(f.name, clientName)) {
           availableFiles.push({ file: f, source: 'meet_recordings', type: 'text' });
+        }
+      }
+
+      // Source 1b: Meet Recordings — video files matching session date (any day with a scheduled session)
+      const clientSessionDates = new Set(
+        needsTranscript.map((s: any) => new Date(s.session_date).toISOString().split('T')[0])
+      );
+      for (const f of meetRecordingFiles) {
+        const fileDate = new Date(f.createdTime).toISOString().split('T')[0];
+        if (clientSessionDates.has(fileDate)) {
+          availableFiles.push({ file: f, source: 'meet_recordings', type: 'recording' });
         }
       }
 
