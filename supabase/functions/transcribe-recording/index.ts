@@ -163,122 +163,71 @@ Deno.serve(async (req) => {
 
     const accessToken = await getValidAccessToken(supabase, userId);
 
-    // Download file from Drive as blob (we need the full file for ElevenLabs)
-    console.log(`[transcribe-recording] Downloading ${fileName || fileId} from Drive...`);
-    const driveUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`;
-    const driveResp = await fetch(driveUrl, { headers: { Authorization: `Bearer ${accessToken}` } });
-
-    if (!driveResp.ok) {
-      throw new Error(`Drive download failed: ${driveResp.status}`);
-    }
-
-    // Read file into memory - Edge Functions have ~150MB memory on Supabase
-    // For files >150MB, we stream to ElevenLabs using manual multipart
-    const contentLength = parseInt(driveResp.headers.get('content-length') || '0', 10);
-    const sizeMB = Math.round(contentLength / 1024 / 1024);
-    console.log(`[transcribe-recording] File size: ${sizeMB}MB`);
+    // Use file_url approach: pass the Drive URL directly to ElevenLabs
+    // This avoids downloading the file into Edge Function memory (which causes OOM for large files)
+    const driveFileUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&access_token=${accessToken}`;
+    console.log(`[transcribe-recording] Sending Drive file URL to ElevenLabs (no local download)...`);
 
     let transcription = '';
 
-    if (contentLength > 0 && contentLength < 120 * 1024 * 1024) {
-      // Small enough to fit in memory - use standard FormData
-      console.log('[transcribe-recording] Using standard upload (fits in memory)');
-      const blob = await driveResp.blob();
+    const sttResp = await fetch('https://api.elevenlabs.io/v1/speech-to-text', {
+      method: 'POST',
+      headers: {
+        'xi-api-key': ELEVENLABS_API_KEY,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model_id: 'scribe_v2',
+        language_code: 'por',
+        diarize: true,
+        file_url: driveFileUrl,
+      }),
+    });
 
+    if (!sttResp.ok) {
+      const errText = await sttResp.text();
+      console.error('[transcribe-recording] ElevenLabs error:', errText);
+
+      // Fallback: if file_url not supported, try downloading and uploading as FormData
+      // (only feasible for smaller files)
+      console.log('[transcribe-recording] file_url failed, trying direct download fallback...');
+      const driveUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`;
+      const driveResp = await fetch(driveUrl, { headers: { Authorization: `Bearer ${accessToken}` } });
+
+      if (!driveResp.ok) {
+        throw new Error(`Drive download failed: ${driveResp.status}`);
+      }
+
+      const contentLength = parseInt(driveResp.headers.get('content-length') || '0', 10);
+      const sizeMB = Math.round(contentLength / 1024 / 1024);
+      console.log(`[transcribe-recording] Fallback download: ${sizeMB}MB`);
+
+      if (contentLength > 120 * 1024 * 1024) {
+        throw new Error(`Arquivo muito grande (${sizeMB}MB) e file_url não suportado. Converta o vídeo para áudio antes de transcrever.`);
+      }
+
+      const blob = await driveResp.blob();
       const formData = new FormData();
       formData.append('file', blob, fileName || 'recording.mp4');
       formData.append('model_id', 'scribe_v2');
       formData.append('language_code', 'por');
       formData.append('diarize', 'true');
 
-      const sttResp = await fetch('https://api.elevenlabs.io/v1/speech-to-text', {
+      const sttResp2 = await fetch('https://api.elevenlabs.io/v1/speech-to-text', {
         method: 'POST',
         headers: { 'xi-api-key': ELEVENLABS_API_KEY },
         body: formData,
       });
 
-      if (!sttResp.ok) {
-        const errText = await sttResp.text();
-        console.error('[transcribe-recording] ElevenLabs error:', errText);
-        throw new Error(`ElevenLabs STT failed: ${sttResp.status}`);
+      if (!sttResp2.ok) {
+        const errText2 = await sttResp2.text();
+        console.error('[transcribe-recording] ElevenLabs fallback error:', errText2);
+        throw new Error(`ElevenLabs STT failed: ${sttResp2.status} — ${errText2}`);
       }
 
-      const result = await sttResp.json();
-      transcription = result.text || '';
+      const result2 = await sttResp2.json();
+      transcription = result2.text || '';
     } else {
-      // Large file - use streaming multipart upload
-      console.log('[transcribe-recording] Using streaming multipart upload');
-      
-      const boundary = '----ElevenLabsBoundary' + Date.now();
-      const encoder = new TextEncoder();
-
-      const fields: Record<string, string> = {
-        model_id: 'scribe_v2',
-        language_code: 'por',
-        diarize: 'true',
-        tag_audio_events: 'false',
-      };
-
-      let preamble = '';
-      for (const [key, value] of Object.entries(fields)) {
-        preamble += `--${boundary}\r\n`;
-        preamble += `Content-Disposition: form-data; name="${key}"\r\n\r\n`;
-        preamble += `${value}\r\n`;
-      }
-
-      const ext = (fileName || 'mp4').split('.').pop()?.toLowerCase() || 'mp4';
-      const mimeMap: Record<string, string> = {
-        mp4: 'video/mp4', webm: 'video/webm', mp3: 'audio/mpeg',
-        m4a: 'audio/mp4', mkv: 'video/x-matroska',
-      };
-      preamble += `--${boundary}\r\n`;
-      preamble += `Content-Disposition: form-data; name="file"; filename="${fileName || 'recording.mp4'}"\r\n`;
-      preamble += `Content-Type: ${mimeMap[ext] || 'application/octet-stream'}\r\n\r\n`;
-
-      const epilogue = `\r\n--${boundary}--\r\n`;
-      const preambleBytes = encoder.encode(preamble);
-      const epilogueBytes = encoder.encode(epilogue);
-      const driveReader = driveResp.body!.getReader();
-
-      let phase: 'preamble' | 'file' | 'done' = 'preamble';
-
-      const combinedStream = new ReadableStream({
-        async pull(controller) {
-          if (phase === 'preamble') {
-            controller.enqueue(preambleBytes);
-            phase = 'file';
-            return;
-          }
-          if (phase === 'file') {
-            const { done, value } = await driveReader.read();
-            if (done) {
-              controller.enqueue(epilogueBytes);
-              phase = 'done';
-              controller.close();
-              return;
-            }
-            controller.enqueue(value);
-            return;
-          }
-          controller.close();
-        },
-      });
-
-      const sttResp = await fetch('https://api.elevenlabs.io/v1/speech-to-text', {
-        method: 'POST',
-        headers: {
-          'xi-api-key': ELEVENLABS_API_KEY,
-          'Content-Type': `multipart/form-data; boundary=${boundary}`,
-        },
-        body: combinedStream,
-      });
-
-      if (!sttResp.ok) {
-        const errText = await sttResp.text();
-        console.error('[transcribe-recording] ElevenLabs streaming error:', errText);
-        throw new Error(`ElevenLabs STT streaming failed: ${sttResp.status}`);
-      }
-
       const result = await sttResp.json();
       transcription = result.text || '';
     }
