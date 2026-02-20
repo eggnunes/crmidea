@@ -272,9 +272,9 @@ serve(async (req) => {
     const accessToken = await getValidAccessToken(supabase, userId);
 
     // ===== ACTION: import (default) =====
-    let sessQuery = supabase
+  let sessQuery = supabase
       .from('consulting_sessions')
-      .select('*, consulting_clients!client_id(id, full_name)')
+      .select('*, consulting_clients!client_id(id, full_name, meet_display_name)')
       .eq('user_id', userId);
     if (clientId) sessQuery = sessQuery.eq('client_id', clientId);
 
@@ -324,7 +324,9 @@ serve(async (req) => {
     }
 
     for (const [clientIdKey, clientSessions] of sessionsByClient) {
-      const clientName = (clientSessions[0]?.consulting_clients as any)?.full_name || '';
+      const clientData = clientSessions[0]?.consulting_clients as any;
+      const clientName = clientData?.full_name || '';
+      const meetDisplayName = clientData?.meet_display_name || '';
       if (!clientName) { skipped.push({ client_id: clientIdKey, reason: 'no_client_name' }); continue; }
 
       const needsTranscript = clientSessions
@@ -333,32 +335,30 @@ serve(async (req) => {
 
       if (needsTranscript.length === 0) continue;
 
-      console.log(`[batch-import] "${clientName}": ${needsTranscript.length} sessions need transcription`);
+      console.log(`[batch-import] "${clientName}"${meetDisplayName ? ` (alias: "${meetDisplayName}")` : ''}: ${needsTranscript.length} sessions need transcription`);
 
       const availableFiles: { file: any; source: string; type: 'text' | 'recording' }[] = [];
 
-      // Source 1: Meet Recordings text files matching client
+      // Source 1: Meet Recordings text files matching client name OR alias
       for (const f of meetTranscriptFiles) {
-        if (fileMatchesClient(f.name, clientName)) {
+        if (fileMatchesClient(f.name, clientName) || (meetDisplayName && fileMatchesClient(f.name, meetDisplayName))) {
           availableFiles.push({ file: f, source: 'meet_recordings', type: 'text' });
         }
       }
 
-      // Source 1b: Meet Recordings video files matching session date
-      const clientSessionDates = new Set(
-        needsTranscript.map((s: any) => new Date(s.session_date).toISOString().split('T')[0])
-      );
+      // Source 1b: Meet Recordings VIDEO files matching client name OR alias (name-based only, NO date-only matching)
       for (const f of meetRecordingFiles) {
-        const fileDate = new Date(f.createdTime).toISOString().split('T')[0];
-        if (clientSessionDates.has(fileDate)) {
+        if (fileMatchesClient(f.name, clientName) || (meetDisplayName && fileMatchesClient(f.name, meetDisplayName))) {
           availableFiles.push({ file: f, source: 'meet_recordings', type: 'recording' });
         }
       }
 
-      // Source 2: Consultoria client folder
+      // Source 2: Consultoria client folder (match by full_name or alias)
       let clientFolder: any = null;
       for (const folder of clientFolders) {
-        if (fileMatchesClient(folder.name, clientName)) { clientFolder = folder; break; }
+        if (fileMatchesClient(folder.name, clientName) || (meetDisplayName && fileMatchesClient(folder.name, meetDisplayName))) {
+          clientFolder = folder; break;
+        }
       }
 
       if (clientFolder) {

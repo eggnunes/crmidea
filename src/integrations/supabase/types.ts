@@ -1652,6 +1652,7 @@ export type Database = {
           lead_id: string | null
           logo_url: string | null
           lovable_project_url: string | null
+          meet_display_name: string | null
           motivations: string[] | null
           motivations_other: string | null
           num_employees: number
@@ -1708,6 +1709,7 @@ export type Database = {
           lead_id?: string | null
           logo_url?: string | null
           lovable_project_url?: string | null
+          meet_display_name?: string | null
           motivations?: string[] | null
           motivations_other?: string | null
           num_employees?: number
@@ -1764,6 +1766,7 @@ export type Database = {
           lead_id?: string | null
           logo_url?: string | null
           lovable_project_url?: string | null
+          meet_display_name?: string | null
           motivations?: string[] | null
           motivations_other?: string | null
           num_employees?: number
