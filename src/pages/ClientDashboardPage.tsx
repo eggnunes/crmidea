@@ -45,6 +45,7 @@ import { ClientFormResponses } from "@/components/clients/ClientFormResponses";
 import { ClientDocumentsManagerReadOnly } from "@/components/consulting/ClientDocumentsManagerReadOnly";
 import { ClientCommunicationHistory } from "@/components/consulting/ClientCommunicationHistory";
 import { ImplementationStepsManager } from "@/components/consulting/ImplementationStepsManager";
+import { BookingTab } from "@/components/consulting/BookingTab";
 
 
 interface ClientProfile {
@@ -625,26 +626,7 @@ export function ClientDashboardPage() {
 
           {/* Booking Tab */}
           <TabsContent value="booking">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Calendar className="w-5 h-5" />
-                  Agendar uma sessão
-                </CardTitle>
-                <CardDescription>
-                  Selecione um horário disponível e confirme seu agendamento.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="rounded-lg border overflow-hidden">
-                  <iframe
-                    title="Agendamento"
-                    src={`/agendar/${profile.consultant_id}`}
-                    className="w-full h-[900px]"
-                  />
-                </div>
-              </CardContent>
-            </Card>
+            <BookingTab consultantId={profile.consultant_id} />
           </TabsContent>
 
           {/* Steps Tab */}
