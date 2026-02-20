@@ -1,173 +1,142 @@
 
-## Diagnóstico Preciso dos Dois Problemas
+## Diagnóstico Completo
 
-### Problema 1: "Importar Transcrições e Resumos" retorna 0 importações
+### Problema 1: Sueli — Apenas 1 reunião registrada (faltam várias)
 
-**Causa confirmada pelos logs:**
+**Causa raiz:** A função `sync-calendar-sessions` busca reuniões num janela de apenas **30 dias para trás** (`now - 30 dias`). Todas as reuniões anteriores da Sueli (que provavelmente aconteceram antes de 21/01/2026) estão **fora dessa janela** e nunca são importadas. A função foi criada para sincronização contínua, não para importação histórica completa.
 
-```
-[batch-import] 1 recordings queued
-[batch-import] Done: 0 transcriptions, 0 summaries
-```
-
-A gravação da Lucineia **foi encontrada** (pasta "Lucineira Cristina Martins Rodrigues" na Consultoria tem 1 gravação). Mas o `batch-import-transcripts` não transcreve gravações — ele só as coloca em `allPendingRecordings` e devolve na resposta para o frontend processar depois.
-
-O problema é que o frontend (`batchImportTranscripts` em `ConsultingSessionsManager.tsx`) **ignora completamente** o campo `pending_recordings` da resposta. Ele só exibe `data.transcriptions` e `data.summaries`, que são zero — porque as gravações precisam de um passo extra (STT via ElevenLabs).
-
-### Problema 2: Botão "Transcrever" dá erro (context canceled / Memory limit exceeded)
-
-**Causa confirmada pelos logs:**
-
-```
-[transcribe-meeting] Memory limit exceeded
-[transcribe-recording] context canceled
+**Evidência no código (linha 78):**
+```typescript
+const pastDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000); // apenas 30 dias atrás
 ```
 
-Ambas as funções tentam **baixar o arquivo de vídeo completo** (centenas de MBs) para a memória do Edge Function antes de enviar ao ElevenLabs. Edge Functions têm limite de ~150MB de memória e ~150 segundos de execução — arquivos de reunião de 60 min facilmente excedem isso.
-
-A `transcribe-recording` tentou resolver isso com streaming multipart, mas o `context canceled` indica que a conexão é cancelada antes de completar — provavelmente porque o Google Drive não suporta streaming de leitura sem buffering completo nesse contexto.
+A Sueli tem só 1 sessão no banco (criada em 05/02/2026), mas certamente teve reuniões antes disso.
 
 ---
 
-## Solução em Duas Partes
+### Problema 2: Victor Hugo, Alan, ANDRIELLY — Sessões duplicadas por dia
 
-### Parte 1: Corrigir "Importar Transcrições e Resumos" para processar as gravações pendentes
+**Causa raiz:** A função `sync-calendar-sessions` roda diariamente (cron automático às 06:00). A verificação de duplicatas usa `title + session_date ± 1 minuto`, mas o problema é que **a segunda busca (por nome) não verifica duplicatas corretamente** — ela busca `maybeSingle()` sem filtrar por data, então sempre retorna nulo e insere novamente.
 
-O `batch-import-transcripts` já encontra as gravações e as devolve em `pending_recordings`. O que falta é o frontend receber essa lista e chamar `transcribe-recording` para cada uma.
+**Evidência nos dados:**
+- ANDRIELLY tem sessões criadas em `2026-02-15`, `2026-02-17`, `2026-02-18`, `2026-02-19`, `2026-02-20` — **todas para a mesma data de reunião** (uma nova cópia a cada dia que o cron roda)
+- Alan: mesma sessão de 29/01 tem cópias criadas em 17, 18, 19, 20 de fevereiro
+- Victor Hugo: 5 cópias da reunião de 19/02
 
-**Mudança no `ConsultingSessionsManager.tsx` — função `batchImportTranscripts`:**
-
-Após receber a resposta do `batch-import`, verificar se há `pending_recordings`. Se houver, chamar `transcribe-recording` para cada um sequencialmente, mostrando progresso ao usuário (ex: "Transcrevendo reunião 1 de 3...").
-
-### Parte 2: Resolver o timeout/memory limit na transcrição
-
-O problema real é que o Edge Function não consegue lidar com arquivos grandes de vídeo de reunião do Google Drive.
-
-**Solução: usar URL de streaming direto do Drive e passar para ElevenLabs via URL (se suportado) OU dividir a responsabilidade**
-
-A ElevenLabs Scribe v2 aceita upload por URL? Não diretamente — precisa do arquivo. Então a solução mais robusta é usar uma **URL pré-assinada temporária** do Google Drive e fazer o ElevenLabs acessar diretamente.
-
-ElevenLabs Speech-to-Text aceita `file_url` como parâmetro alternativo ao upload de arquivo — isso significa que podemos passar a URL direta do Drive (com token de acesso) e o ElevenLabs baixa o arquivo diretamente, sem passar pela memória do Edge Function.
-
-**Implementação:**
-
-Na `transcribe-recording`, em vez de baixar o arquivo e fazer upload via FormData, usar a API do ElevenLabs com `file_url`:
-
-```
-POST https://api.elevenlabs.io/v1/speech-to-text
-Content-Type: application/json
-
-{
-  "model_id": "scribe_v2",
-  "language_code": "por",
-  "diarize": true,
-  "file_url": "https://www.googleapis.com/drive/v3/files/{fileId}?alt=media&access_token={token}"
-}
+**Evidência no código (linha 204-210):**
+```typescript
+// Segunda busca — filtra só por título, SEM filtrar por data!
+const { data: existingSession } = await supabase
+  .from('consulting_sessions')
+  .select('id')
+  .eq('client_id', consultingClient.id)
+  .eq('title', event.summary || 'Reunião')
+  .maybeSingle(); // retorna uma, mas sem filtro de data é frágil
+                  // quando há múltiplas sessões com mesmo título
 ```
 
-Isso resolve o problema de memória completamente — o Edge Function apenas passa a URL e o ElevenLabs faz o download diretamente.
-
-**Nota importante:** Verificar se ElevenLabs suporta `file_url`. Se não suportar, a alternativa é usar o **streaming multipart corretamente** — a função já tenta isso, mas o problema é que o `fetch` do Deno com `ReadableStream` no body pode não suportar bem a leitura simultânea do Drive + escrita para ElevenLabs. A solução alternativa seria fazer o download em chunks para o Storage do Supabase e depois fazer upload de lá, mas isso adiciona complexidade. A abordagem `file_url` é a mais limpa.
+Quando a segunda busca retorna `null` (porque há múltiplos registros com mesmo título), ela insere mais um. Ou quando a segunda busca não encontra nada, insere sem checar se já existe na primeira busca.
 
 ---
 
-## O Que Será Alterado
+## Resumo Global de Impacto
 
-### 1. `supabase/functions/transcribe-recording/index.ts`
+| Cliente | Sessões totais | Duplicatas | Causa |
+|---|---|---|---|
+| Alan Farias | 13 (deveria ter ~3) | 10 | Cron diário criando novas cópias |
+| ANDRIELLY | 12 (deveria ter ~2) | 10 | Cron diário criando novas cópias |
+| Victor Hugo | 11 (deveria ter ~2) | 9 | Cron diário criando novas cópias |
+| Ana Cristina | 9 (deveria ter ~4) | 5 | Cron diário |
+| Sueli | 1 (faltam várias) | 0 | Janela de 30 dias |
 
-Modificar para usar `file_url` na API do ElevenLabs em vez de baixar o arquivo para a memória:
+---
+
+## Plano de Correção
+
+### Parte 1: Limpeza de Dados Duplicados
+
+Executar SQL para remover os registros duplicados, preservando **apenas o melhor** de cada grupo (priorizando o que tem resumo > o que tem transcrição > o mais antigo):
+
+**Lógica de deduplicação:**
+- Agrupar por `client_id + session_date::date`
+- Dentro de cada grupo, manter o que tem `ai_summary`, depois o que tem `transcription`, depois o que tem `recording_drive_id`, por fim o mais antigo (`created_at` menor)
+- Deletar todos os outros do mesmo grupo
+
+**SQL de limpeza (via ferramenta de insert/update):**
+```sql
+-- Identificar e deletar duplicatas, preservando o melhor registro
+DELETE FROM consulting_sessions
+WHERE id IN (
+  SELECT id FROM (
+    SELECT id,
+      ROW_NUMBER() OVER (
+        PARTITION BY client_id, session_date::date
+        ORDER BY
+          (ai_summary IS NOT NULL) DESC,
+          (transcription IS NOT NULL) DESC,
+          (recording_drive_id IS NOT NULL) DESC,
+          created_at ASC
+      ) as rn
+    FROM consulting_sessions
+  ) ranked
+  WHERE rn > 1
+);
+```
+
+### Parte 2: Corrigir `sync-calendar-sessions` para evitar re-duplicação
+
+**Mudança na lógica de deduplicação:**
+
+A segunda busca (por nome) precisa usar **filtro de data** igual à primeira:
 
 ```typescript
-// Em vez de:
-const driveResp = await fetch(driveUrl, { ... });
-const blob = await driveResp.blob(); // ← causa memory limit
-formData.append('file', blob, ...);
+// ANTES (bugado):
+const { data: existingSession } = await supabase
+  .from('consulting_sessions')
+  .select('id')
+  .eq('client_id', consultingClient.id)
+  .eq('title', event.summary || 'Reunião')
+  .maybeSingle();
 
-// Usar:
-const driveFileUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&access_token=${accessToken}`;
-const body = JSON.stringify({
-  model_id: 'scribe_v2',
-  language_code: 'por',
-  diarize: true,
-  file_url: driveFileUrl,
-});
-const sttResp = await fetch('https://api.elevenlabs.io/v1/speech-to-text', {
-  method: 'POST',
-  headers: { 'xi-api-key': ELEVENLABS_API_KEY, 'Content-Type': 'application/json' },
-  body,
-});
+// DEPOIS (corrigido):
+const { data: existingSessions } = await supabase
+  .from('consulting_sessions')
+  .select('id')
+  .eq('client_id', consultingClient.id)
+  .gte('session_date', new Date(new Date(eventStart).getTime() - 60 * 60 * 1000).toISOString())
+  .lte('session_date', new Date(new Date(eventStart).getTime() + 60 * 60 * 1000).toISOString());
+
+if (existingSessions && existingSessions.length > 0) continue;
 ```
 
-Isso elimina completamente o download do arquivo para memória — o ElevenLabs acessa o Drive diretamente usando o access token temporário do Google.
+Usar janela de **±1 hora** em vez de ±1 minuto, e checar por **data** em vez de título (reuniões com mesmo cliente no mesmo horário = mesma reunião, independente do título).
 
-### 2. `src/components/consulting/ConsultingSessionsManager.tsx`
+### Parte 3: Ampliar janela histórica para Sueli (e outros)
 
-Modificar `batchImportTranscripts` para processar as gravações pendentes retornadas pelo `batch-import`:
+Ampliar a `pastDate` de 30 dias para **24 meses** para capturar todo o histórico:
 
 ```typescript
-const batchImportTranscripts = async () => {
-  setImporting(true);
-  try {
-    const { data, error } = await supabase.functions.invoke('batch-import-transcripts', {
-      body: { clientId },
-    });
-    if (error) throw error;
-    if (data?.error) throw new Error(data.error);
+// ANTES:
+const pastDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-    // Se há gravações pendentes, transcrever cada uma
-    const pendingRecordings = data.pending_recordings || [];
-    if (pendingRecordings.length > 0) {
-      toast.info(`Transcrevendo ${pendingRecordings.length} gravação(ões)...`);
-      let successCount = 0;
-      for (let i = 0; i < pendingRecordings.length; i++) {
-        const rec = pendingRecordings[i];
-        try {
-          // Update toast with progress
-          toast.info(`Transcrevendo reunião ${i + 1} de ${pendingRecordings.length}: "${rec.sessionTitle}"`);
-          const { data: tData, error: tError } = await supabase.functions.invoke('transcribe-recording', {
-            body: {
-              userId: user?.id,
-              sessionId: rec.sessionId,
-              fileId: rec.fileId,
-              fileName: rec.fileName,
-              force: false,
-            },
-          });
-          if (!tError && !tData?.error) successCount++;
-        } catch (e) {
-          console.warn(`Failed to transcribe "${rec.sessionTitle}":`, e);
-        }
-      }
-      toast.success(`${successCount} reunião(ões) transcritas e resumidas com sucesso!`);
-      fetchSessions();
-    } else {
-      toast.success(
-        `${data.transcriptions} transcrição(ões) importada(s), ${data.summaries} resumo(s) gerado(s)`
-      );
-    }
-    fetchSessions();
-  } catch (error: any) {
-    toast.error(error.message || 'Erro ao importar transcrições');
-  } finally {
-    setImporting(false);
-  }
-};
+// DEPOIS:
+const pastDate = new Date(now.getTime() - 730 * 24 * 60 * 60 * 1000); // 24 meses
 ```
 
-### 3. Atualizar `autoProcess` também
-
-O `autoProcess` (que roda automaticamente ao abrir o dashboard) também chama `transcribe-recording` e vai ter o mesmo problema de timeout. Corrigir para usar a mesma lógica via `file_url`.
+Além disso, adicionar paginação (`pageToken`) para buscar mais de 100 eventos do Google Calendar — reuniões históricas podem exceder esse limite.
 
 ---
 
-## Resumo dos Arquivos
+## Arquivos Alterados
 
 | Arquivo | Mudança |
 |---|---|
-| `supabase/functions/transcribe-recording/index.ts` | Usar `file_url` no ElevenLabs em vez de download para memória — elimina timeout e memory limit |
-| `src/components/consulting/ConsultingSessionsManager.tsx` | `batchImportTranscripts` processa `pending_recordings` chamando `transcribe-recording` sequencialmente com feedback de progresso |
+| `supabase/functions/sync-calendar-sessions/index.ts` | Corrigir deduplicação (±1h por data, não por título), ampliar janela para 24 meses, adicionar paginação |
+| SQL via banco | Limpeza dos duplicatas existentes (preservando o melhor de cada grupo) |
 
-Após essas correções:
-- Clicar em "Importar Transcrições e Resumos" encontrará a gravação da Lucineia, mostrará "Transcrevendo reunião 1 de 1..." e salvará a transcrição + resumo corretamente
-- Clicar em "Transcrever" também funcionará sem timeout, pois o ElevenLabs acessa o arquivo diretamente no Drive
-- O mesmo funciona para todos os outros clientes com gravações no Drive
+Após as correções:
+- Victor Hugo, Alan, ANDRIELLY e Ana Cristina terão apenas as sessões reais (sem duplicatas)
+- As sessões com resumo e transcrição serão preservadas
+- Sueli terá todas as reuniões históricas importadas ao sincronizar novamente
+- O cron diário não criará mais duplicatas
+
