@@ -45,6 +45,82 @@ async function getValidAccessToken(supabase: any, userId: string): Promise<strin
   return tokenData.access_token;
 }
 
+/** Format phone to Z-API standard */
+function formatPhone(phone: string): string {
+  let p = phone.replace(/\D/g, '');
+  if (!p.startsWith('55')) p = '55' + p;
+  return p;
+}
+
+/** Send summary via WhatsApp (Z-API) */
+async function sendSummaryViaWhatsApp(
+  supabase: any,
+  clientId: string,
+  sessionTitle: string,
+  sessionDate: string,
+  aiSummary: string,
+): Promise<void> {
+  const ZAPI_INSTANCE_ID = Deno.env.get('ZAPI_INSTANCE_ID');
+  const ZAPI_TOKEN = Deno.env.get('ZAPI_TOKEN');
+  const ZAPI_CLIENT_TOKEN = Deno.env.get('ZAPI_CLIENT_TOKEN');
+
+  if (!ZAPI_INSTANCE_ID || !ZAPI_TOKEN) {
+    console.warn('[transcribe-recording] Z-API not configured, skipping WhatsApp send');
+    return;
+  }
+
+  const { data: client } = await supabase
+    .from('consulting_clients')
+    .select('full_name, phone')
+    .eq('id', clientId)
+    .single();
+
+  if (!client?.phone) {
+    console.warn('[transcribe-recording] Client phone not found, skipping WhatsApp');
+    return;
+  }
+
+  const formattedPhone = formatPhone(client.phone);
+
+  let dateStr = '';
+  try {
+    dateStr = new Date(sessionDate).toLocaleDateString('pt-BR', {
+      day: '2-digit', month: '2-digit', year: 'numeric',
+    });
+  } catch { dateStr = sessionDate; }
+
+  const plainSummary = aiSummary
+    .replace(/^## .*/gm, '')
+    .replace(/^### (.*)/gm, '*$1*')
+    .replace(/^- /gm, '• ')
+    .replace(/\*\*(.*?)\*\*/g, '*$1*')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+
+  const message =
+    `📋 *Resumo da Reunião de Consultoria*\n` +
+    `📅 ${sessionTitle} — ${dateStr}\n\n` +
+    `${plainSummary}\n\n` +
+    `_Este resumo foi gerado automaticamente após a reunião._`;
+
+  const zapiUrl = `https://api.z-api.io/instances/${ZAPI_INSTANCE_ID}/token/${ZAPI_TOKEN}/send-text`;
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (ZAPI_CLIENT_TOKEN) headers['Client-Token'] = ZAPI_CLIENT_TOKEN;
+
+  const resp = await fetch(zapiUrl, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ phone: formattedPhone, message }),
+  });
+
+  if (!resp.ok) {
+    const errText = await resp.text();
+    console.error('[transcribe-recording] WhatsApp send failed:', resp.status, errText);
+  } else {
+    console.log(`[transcribe-recording] WhatsApp summary sent to ${client.full_name} (${formattedPhone})`);
+  }
+}
+
 async function generateAISummary(transcription: string, clientName: string, sessionTitle: string): Promise<string> {
   const prompt = `Você é um assistente especializado em consultoria de IA para advogados. Analise a transcrição desta reunião de consultoria e gere um resumo estruturado em português brasileiro.
 
@@ -279,6 +355,21 @@ Deno.serve(async (req) => {
             ai_summary: summary,
             summary_generated_at: new Date().toISOString(),
           }).eq('id', sessionId);
+
+          // Send via WhatsApp (non-blocking)
+          if (session.client_id) {
+            try {
+              await sendSummaryViaWhatsApp(
+                supabase,
+                session.client_id,
+                session.title,
+                session.session_date,
+                summary,
+              );
+            } catch (wpErr) {
+              console.warn('[transcribe-recording] WhatsApp send error (non-blocking):', wpErr);
+            }
+          }
         }
         return new Response(JSON.stringify({ success: true, action: 'summary_only', summary_length: summary.length }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -325,6 +416,21 @@ Deno.serve(async (req) => {
           ai_summary: summary,
           summary_generated_at: new Date().toISOString(),
         }).eq('id', sessionId);
+
+        // Send summary via WhatsApp automatically (non-blocking)
+        if (session.client_id) {
+          try {
+            await sendSummaryViaWhatsApp(
+              supabase,
+              session.client_id,
+              session.title,
+              session.session_date,
+              summary,
+            );
+          } catch (wpErr) {
+            console.warn('[transcribe-recording] WhatsApp send error (non-blocking):', wpErr);
+          }
+        }
       }
     } catch (e) {
       console.warn('[transcribe-recording] Summary generation failed:', e);
