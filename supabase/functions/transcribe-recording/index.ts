@@ -100,6 +100,143 @@ Seja conciso mas completo. Use bullet points. Mantenha o foco em ações prátic
   return aiData.choices?.[0]?.message?.content || '';
 }
 
+/**
+ * Build a multipart/form-data body by streaming the Drive file directly.
+ * This avoids loading the entire file into Edge Function memory.
+ * We use a boundary to construct the multipart payload manually,
+ * piping the Drive response body directly into the outgoing request body.
+ */
+async function transcribeViaStream(
+  accessToken: string,
+  fileId: string,
+  fileName: string,
+): Promise<string> {
+  const driveUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`;
+  
+  // First get file metadata to know size and mime type
+  const metaResp = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=size,mimeType,name`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  
+  let mimeType = 'video/mp4';
+  let fileSize = 0;
+  if (metaResp.ok) {
+    const meta = await metaResp.json();
+    mimeType = meta.mimeType || 'video/mp4';
+    fileSize = parseInt(meta.size || '0', 10);
+    const sizeMB = Math.round(fileSize / 1024 / 1024);
+    console.log(`[transcribe-recording] File: ${meta.name}, size=${sizeMB}MB, type=${mimeType}`);
+  }
+
+  // Build the multipart boundary
+  const boundary = `----ElevenLabsBoundary${Date.now()}`;
+  const safeFileName = fileName || 'recording.mp4';
+
+  // Preamble: headers for the file part
+  const preamble = [
+    `--${boundary}`,
+    `Content-Disposition: form-data; name="file"; filename="${safeFileName}"`,
+    `Content-Type: ${mimeType}`,
+    '',
+    '', // empty line before body
+  ].join('\r\n');
+
+  // Fields: model_id, language_code, diarize
+  const fields = [
+    `--${boundary}`,
+    `Content-Disposition: form-data; name="model_id"`,
+    '',
+    'scribe_v2',
+    `--${boundary}`,
+    `Content-Disposition: form-data; name="language_code"`,
+    '',
+    'por',
+    `--${boundary}`,
+    `Content-Disposition: form-data; name="diarize"`,
+    '',
+    'true',
+    `--${boundary}--`,
+    '',
+  ].join('\r\n');
+
+  const preambleBytes = new TextEncoder().encode(preamble);
+  // separator between file data and trailing fields
+  const separatorBytes = new TextEncoder().encode(`\r\n`);
+  const fieldsBytes = new TextEncoder().encode(fields);
+
+  // Fetch the file from Drive as a stream
+  const driveResp = await fetch(driveUrl, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+
+  if (!driveResp.ok) {
+    throw new Error(`Drive download failed: ${driveResp.status} ${driveResp.statusText}`);
+  }
+
+  if (!driveResp.body) {
+    throw new Error('Drive response has no body');
+  }
+
+  // Create a TransformStream to pipe: preamble + drive stream + fields
+  const { readable, writable } = new TransformStream();
+  const writer = writable.getWriter();
+
+  // Write asynchronously
+  (async () => {
+    try {
+      await writer.write(preambleBytes);
+
+      const reader = driveResp.body!.getReader();
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        await writer.write(value);
+      }
+
+      await writer.write(separatorBytes);
+      await writer.write(fieldsBytes);
+    } catch (e) {
+      console.error('[transcribe-recording] Stream write error:', e);
+    } finally {
+      await writer.close();
+    }
+  })();
+
+  // Calculate total content-length if we know file size
+  let contentLength: string | undefined;
+  if (fileSize > 0) {
+    const total = preambleBytes.length + fileSize + separatorBytes.length + fieldsBytes.length;
+    contentLength = String(total);
+  }
+
+  const headers: Record<string, string> = {
+    'xi-api-key': ELEVENLABS_API_KEY,
+    'Content-Type': `multipart/form-data; boundary=${boundary}`,
+  };
+  if (contentLength) {
+    headers['Content-Length'] = contentLength;
+  }
+
+  console.log(`[transcribe-recording] Streaming to ElevenLabs via multipart pipe...`);
+
+  const sttResp = await fetch('https://api.elevenlabs.io/v1/speech-to-text', {
+    method: 'POST',
+    headers,
+    body: readable,
+    // @ts-ignore - duplex required for streaming body in some runtimes
+    duplex: 'half',
+  });
+
+  if (!sttResp.ok) {
+    const errText = await sttResp.text();
+    console.error('[transcribe-recording] ElevenLabs stream error:', errText);
+    throw new Error(`ElevenLabs STT failed (stream): ${sttResp.status} — ${errText}`);
+  }
+
+  const result = await sttResp.json();
+  return result.text || '';
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -153,7 +290,7 @@ Deno.serve(async (req) => {
     }
 
     if (session.transcription && force) {
-      console.log('[transcribe-recording] force=true: clearing existing transcription and reprocessing from recording...');
+      console.log('[transcribe-recording] force=true: clearing existing transcription and reprocessing...');
       await supabase.from('consulting_sessions').update({
         transcription: null,
         ai_summary: null,
@@ -163,74 +300,8 @@ Deno.serve(async (req) => {
 
     const accessToken = await getValidAccessToken(supabase, userId);
 
-    // Use file_url approach: pass the Drive URL directly to ElevenLabs
-    // This avoids downloading the file into Edge Function memory (which causes OOM for large files)
-    const driveFileUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&access_token=${accessToken}`;
-    console.log(`[transcribe-recording] Sending Drive file URL to ElevenLabs (no local download)...`);
-
-    let transcription = '';
-
-    const sttResp = await fetch('https://api.elevenlabs.io/v1/speech-to-text', {
-      method: 'POST',
-      headers: {
-        'xi-api-key': ELEVENLABS_API_KEY,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model_id: 'scribe_v2',
-        language_code: 'por',
-        diarize: true,
-        file_url: driveFileUrl,
-      }),
-    });
-
-    if (!sttResp.ok) {
-      const errText = await sttResp.text();
-      console.error('[transcribe-recording] ElevenLabs error:', errText);
-
-      // Fallback: if file_url not supported, try downloading and uploading as FormData
-      // (only feasible for smaller files)
-      console.log('[transcribe-recording] file_url failed, trying direct download fallback...');
-      const driveUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`;
-      const driveResp = await fetch(driveUrl, { headers: { Authorization: `Bearer ${accessToken}` } });
-
-      if (!driveResp.ok) {
-        throw new Error(`Drive download failed: ${driveResp.status}`);
-      }
-
-      const contentLength = parseInt(driveResp.headers.get('content-length') || '0', 10);
-      const sizeMB = Math.round(contentLength / 1024 / 1024);
-      console.log(`[transcribe-recording] Fallback download: ${sizeMB}MB`);
-
-      if (contentLength > 120 * 1024 * 1024) {
-        throw new Error(`Arquivo muito grande (${sizeMB}MB) e file_url não suportado. Converta o vídeo para áudio antes de transcrever.`);
-      }
-
-      const blob = await driveResp.blob();
-      const formData = new FormData();
-      formData.append('file', blob, fileName || 'recording.mp4');
-      formData.append('model_id', 'scribe_v2');
-      formData.append('language_code', 'por');
-      formData.append('diarize', 'true');
-
-      const sttResp2 = await fetch('https://api.elevenlabs.io/v1/speech-to-text', {
-        method: 'POST',
-        headers: { 'xi-api-key': ELEVENLABS_API_KEY },
-        body: formData,
-      });
-
-      if (!sttResp2.ok) {
-        const errText2 = await sttResp2.text();
-        console.error('[transcribe-recording] ElevenLabs fallback error:', errText2);
-        throw new Error(`ElevenLabs STT failed: ${sttResp2.status} — ${errText2}`);
-      }
-
-      const result2 = await sttResp2.json();
-      transcription = result2.text || '';
-    } else {
-      const result = await sttResp.json();
-      transcription = result.text || '';
-    }
+    // Stream the Drive file directly to ElevenLabs — no memory accumulation
+    const transcription = await transcribeViaStream(accessToken, fileId, fileName || 'recording.mp4');
 
     console.log(`[transcribe-recording] Transcription: ${transcription.length} chars`);
 
