@@ -1,104 +1,48 @@
 
-## Análise Completa dos Problemas
+## Problema Identificado
 
-### Problema 1 (Principal): Reuniões da Sueli não existem no banco
+A aba **"Agendar"** no dashboard do cliente (aba do Alan) usa um `<iframe>` interno apontando para `/agendar/{id_do_consultor}`. Esse sistema depende de horários manuais cadastrados na tabela interna — que está **vazia**. Por isso o cliente vê "Nenhum horário disponível" e ao tentar confirmar o agendamento recebe "Erro ao realizar agendamento".
 
-A Sueli tem apenas **1 sessão** no banco (05/02/2026), com 1 gravação, transcrição e resumo. Mas o usuário diz que já fez várias reuniões com ela.
-
-**Causa raiz do `sync-calendar-sessions`:** O Google Calendar é buscado por e-mail da cliente (`suelip.dias123@gmail.com`) e por primeiro nome (`Sueli`). Se as reuniões do Google Calendar foram criadas sem o e-mail da Sueli como participante (por exemplo, o evento foi criado manualmente ou por um link genérico), a busca por e-mail não retorna nada. Já a busca por primeiro nome busca apenas `q: 'Sueli'` — pode não encontrar eventos com o título "Consultoria e Mentoria Individual IDEA (Sueli Pereira Dias)" dependendo de como o Google indexa.
-
-**Consequência:** O `sync-meet-recordings` nunca encontra as outras gravações da Sueli porque **as sessões correspondentes nem existem no banco** — sem sessão no banco, não há o que vincular.
+Já existe na base de dados o campo `calendar_booking_url` em `consulting_settings` para guardar o link do Google Calendar. O link atual salvo é o antigo; o novo link fornecido é `https://calendar.app.google/1i61CqqTTJdwBV7a6`.
 
 ---
 
-### Problema 2: Busca de pastas no Drive é limitada e falha para a estrutura real
+## Plano de Correção
 
-A função `sync-meet-recordings` busca pastas assim:
+### Parte 1 — Atualizar o link salvo no banco
+
+Atualizar o registro em `consulting_settings` com o novo link:
 ```
-mimeType='application/vnd.google-apps.folder' and name contains 'Sueli pereira Dias'
-```
-
-Mas a pasta no Drive é provavelmente chamada apenas **"Sueli"** ou **"Sueli Dias"** dentro de `Minha Mentoria > Turma 2 > Consultoria`. A função:
-- Não navega pela hierarquia de pastas
-- Usa o nome completo do cadastro (com maiúsculas/minúsculas inconsistentes)
-- Não encontra a pasta → não carrega as gravações de dentro dela
-- Resultado: busca genérica por "Meet recordings" no Drive todo, que só retorna 1 arquivo (o mais recente que bate na busca por data)
-
----
-
-### Problema 3: Query de sessões exclui sessões já com `recording_drive_id`
-
-A query na linha 84 do `sync-meet-recordings`:
-```typescript
-.is('recording_url', null)
-```
-Filtra apenas sessões **sem** `recording_url`. Isso significa que se uma sessão já tem uma gravação, ela é excluída do processo — o que é correto para não duplicar. Mas o problema é que as outras reuniões da Sueli simplesmente não existem como sessões.
-
----
-
-## Solução Completa em 3 Etapas
-
-### Etapa 1: Criar nova edge function `scan-drive-recordings`
-
-Uma função dedicada para **navegar a hierarquia de pastas do Drive** e catalogar todas as gravações por cliente, sem depender de sessões previamente cadastradas:
-
-```
-Minha Mentoria/
-  Turma 2/
-    Consultoria/
-      [Nome do Cliente]/          ← pasta do cliente
-        gravacao-da-reuniao.mp4   ← arquivo diretamente na pasta
-        Gravações das Reuniões/   ← ou subpasta
-          gravacao-1.mp4
-          gravacao-2.mp4
+https://calendar.app.google/1i61CqqTTJdwBV7a6
 ```
 
-A função vai:
-1. Localizar a pasta `Minha Mentoria` no Drive raiz
-2. Navegar para `Turma 2 > Consultoria`
-3. Listar subpastas (uma por cliente)
-4. Para cada subpasta, listar arquivos MP4 (recursivamente incluindo subpastas como "Gravações das Reuniões")
-5. Retornar um mapa: `{ nomePasta → [{ fileId, fileName, createdTime }] }`
+### Parte 2 — Refatorar a aba "Agendar" no dashboard do cliente
 
-### Etapa 2: Refatorar `sync-meet-recordings` para usar hierarquia de pastas
+Substituir o `<iframe>` interno (que não funciona) por uma interface limpa e clara que:
 
-Mudanças principais:
-- **Navegar pelo caminho `Minha Mentoria > Turma 2 > Consultoria`** primeiro para encontrar as pastas dos clientes
-- **Match flexível entre nome da pasta e nome do cliente** no banco: usar primeiros nomes e normalização (remover acentos, maiúsculas)
-- **Para cada gravação encontrada na pasta do cliente:** verificar se já existe uma sessão no banco na mesma data (±2 horas). Se existe → vincular. Se não existe → **criar a sessão automaticamente** e vincular
-- **Busca recursiva em subpastas** dentro da pasta do cliente (para o caso de ter uma pasta "Gravações das Reuniões" dentro)
+1. Busca o `calendar_booking_url` da tabela `consulting_settings` (usando o `consultant_id` do perfil do cliente)
+2. Exibe um **card convidativo** com botão "Agendar minha sessão →" que abre o Google Calendar Appointment em nova aba
+3. Se por algum motivo o link não estiver configurado, exibe mensagem orientando o cliente a entrar em contato
 
-### Etapa 3: Melhorar `sync-calendar-sessions` para Sueli e casos similares
-
-O problema adicional: para a Sueli, se os eventos do Google Calendar não têm ela como participante (lista de attendees), a busca por e-mail não encontra nada. A busca por nome `q: 'Sueli'` pode não bater nos títulos dos eventos que têm "SUELI" em maiúsculas.
-
-Correção:
-- Buscar também pelo primeiro nome em **maiúsculas** e pelo nome completo
-- Usar também o sobrenome como termo de busca alternativo
-- **Fallback: se a função de Drive encontrou gravações na pasta do cliente mas não há sessão correspondente, criar a sessão automaticamente** (com data extraída do `createdTime` do arquivo ou do nome do arquivo)
-
----
-
-## Fluxo Completo Corrigido
-
-```text
-[Botão "Sincronizar Gravações"]
-         ↓
-1. Navegar Drive: Minha Mentoria → Turma 2 → Consultoria
-         ↓
-2. Para cada subpasta (ex: "Sueli"):
-   - Match flexível com clientes do banco
-   - Listar todos os MP4 na pasta + subpastas
-         ↓
-3. Para cada arquivo MP4 encontrado:
-   a. Já existe sessão no banco na mesma data?
-      → SIM: vincular recording_drive_id à sessão
-      → NÃO: criar sessão nova com data do arquivo, vincular
-         ↓
-4. Auto-transcrever sessões novas com gravação
-         ↓
-5. Gerar resumo IA para sessões transcritas
+**Visual da nova aba "Agendar":**
 ```
+┌────────────────────────────────────────────────────────┐
+│  📅  Agendar uma Sessão de Consultoria                  │
+│                                                        │
+│  Clique no botão abaixo para ver os horários           │
+│  disponíveis e confirmar seu agendamento.              │
+│                                                        │
+│  ✓ Escolha a data e horário que melhor funciona        │
+│  ✓ O link abrirá a agenda oficial de agendamento       │
+│  ✓ Você receberá uma confirmação por e-mail            │
+│                                                        │
+│  [  🗓️  Abrir Agenda de Agendamento  →  ]              │
+└────────────────────────────────────────────────────────┘
+```
+
+### Parte 3 — Atualizar `ConsultingCalendarSettings` para refletir o novo link
+
+Garantir que o novo link `https://calendar.app.google/1i61CqqTTJdwBV7a6` seja o valor padrão exibido e editável na tela de configurações do calendário (aba Configurações da Consultoria), para facilitar atualizações futuras sem necessidade de código.
 
 ---
 
@@ -106,15 +50,17 @@ Correção:
 
 | Arquivo | Alteração |
 |---|---|
-| `supabase/functions/sync-meet-recordings/index.ts` | Reescrever busca de Drive: navegar hierarquia `Minha Mentoria > Turma 2 > Consultoria`, busca recursiva em subpastas, criar sessões automaticamente quando não existem no banco, match flexível de nomes |
-| `supabase/functions/sync-calendar-sessions/index.ts` | Melhorar busca de nome: incluir variações em maiúsculas, sobrenome separado, e fallback para ignorar case |
+| `src/pages/ClientDashboardPage.tsx` | Substituir o `<iframe>` pela nova interface com botão de link externo; buscar `calendar_booking_url` de `consulting_settings` |
+| `src/components/consulting/ConsultingCalendarSettings.tsx` | Atualizar o valor inicial/placeholder para o novo link |
 
-Nenhuma mudança de banco de dados necessária — as tabelas existentes já suportam tudo isso.
+**Nenhuma mudança de banco necessária** — o link será atualizado via código no `upsert` na inicialização, ou você pode editar diretamente na tela de configurações da consultoria após o deploy.
 
 ---
 
 ## Resultado Esperado
 
-- **Sueli**: Ao clicar em "Sincronizar Gravações", o sistema navega para `Minha Mentoria/Turma 2/Consultoria/Sueli/`, encontra todas as gravações, cria sessões para as que não existem ainda, vincula, transcreve e gera resumo
-- **Todos os outros clientes**: Mesmo fluxo — se tiver pasta com nome compatível no Drive, todas as gravações são importadas e processadas
-- **Gravações não atribuíveis**: Se não houver pasta de cliente compatível no Drive, a função cai no método atual (busca por nome no arquivo e correspondência por data)
+- Alan abre a aba "Agendar" no dashboard → vê um card bonito com botão claro
+- Clica no botão → abre `https://calendar.app.google/1i61CqqTTJdwBV7a6` em nova aba
+- Escolhe data e horário diretamente no Google Calendar Appointment
+- Sem erros, sem iframe quebrado
+- Futuramente, você pode trocar o link na tela de Configurações da Consultoria sem precisar de código
