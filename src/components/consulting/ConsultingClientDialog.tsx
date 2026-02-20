@@ -32,6 +32,7 @@ export function ConsultingClientDialog({ open, onOpenChange, onSuccess }: Consul
     office_address: "",
     num_lawyers: 1,
     num_employees: 1,
+    meet_display_name: "",
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -67,6 +68,7 @@ export function ConsultingClientDialog({ open, onOpenChange, onSuccess }: Consul
         office_address: "",
         num_lawyers: 1,
         num_employees: 1,
+        meet_display_name: "",
       });
     } catch (error) {
       console.error('Error adding client:', error);
@@ -159,6 +161,21 @@ export function ConsultingClientDialog({ open, onOpenChange, onSuccess }: Consul
                 min={1}
                 value={formData.num_employees}
                 onChange={(e) => setFormData({ ...formData, num_employees: parseInt(e.target.value) || 1 })}
+              />
+            </div>
+
+            <div className="col-span-2">
+              <Label htmlFor="meet_display_name">
+                Nome na gravação do Meet
+                <span className="ml-2 text-xs font-normal text-muted-foreground">
+                  (preencha se a reunião foi agendada por outra pessoa, ex: sócio)
+                </span>
+              </Label>
+              <Input
+                id="meet_display_name"
+                value={formData.meet_display_name}
+                onChange={(e) => setFormData({ ...formData, meet_display_name: e.target.value })}
+                placeholder="Ex: Rodrigo Martins"
               />
             </div>
           </div>

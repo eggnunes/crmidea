@@ -78,6 +78,7 @@ export function ConsultingSessionsManager({ clientId }: ConsultingSessionsManage
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [selectedSession, setSelectedSession] = useState<ConsultingSession | null>(null);
+  const [summaryDialogSession, setSummaryDialogSession] = useState<ConsultingSession | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [transcribing, setTranscribing] = useState<string | null>(null);
   const [summarizing, setSummarizing] = useState<string | null>(null);
@@ -344,7 +345,45 @@ export function ConsultingSessionsManager({ clientId }: ConsultingSessionsManage
     }
   };
 
+  const renderMarkdown = (text: string) =>
+    text
+      .replace(/^### (.*)/gm, '<h4 class="font-semibold mt-3 mb-1 text-base">$1</h4>')
+      .replace(/^## (.*)/gm, '<h3 class="font-bold mt-4 mb-2 text-lg">$1</h3>')
+      .replace(/^- (.*)/gm, '<li class="ml-4">$1</li>')
+      .replace(/(<li[^>]*>.*<\/li>\n?)+/gs, '<ul class="list-disc mb-2">$&</ul>')
+      .replace(/<\/ul>\s*<ul[^>]*>/g, '')
+      .replace(/\n/g, '<br/>');
+
   return (
+    <>
+      {/* Dedicated AI Summary Dialog */}
+      <Dialog open={!!summaryDialogSession} onOpenChange={(open) => !open && setSummaryDialogSession(null)}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Brain className="w-5 h-5 text-purple-500" />
+              Resumo da Reunião
+            </DialogTitle>
+            {summaryDialogSession && (
+              <DialogDescription>
+                {summaryDialogSession.title} — {format(new Date(summaryDialogSession.session_date), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                {summaryDialogSession.summary_generated_at && (
+                  <span className="ml-2 text-xs">
+                    (gerado em {format(new Date(summaryDialogSession.summary_generated_at), "dd/MM/yyyy HH:mm")})
+                  </span>
+                )}
+              </DialogDescription>
+            )}
+          </DialogHeader>
+          {summaryDialogSession?.ai_summary && (
+            <div
+              className="prose prose-sm dark:prose-invert max-w-none text-sm"
+              dangerouslySetInnerHTML={{ __html: renderMarkdown(summaryDialogSession.ai_summary) }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
@@ -566,7 +605,12 @@ export function ConsultingSessionsManager({ clientId }: ConsultingSessionsManage
                         </Badge>
                       )}
                       {session.ai_summary && (
-                        <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300">
+                        <Badge
+                          variant="outline"
+                          className="text-xs bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300 cursor-pointer hover:bg-purple-100 dark:hover:bg-purple-900"
+                          onClick={(e) => { e.stopPropagation(); setSummaryDialogSession(session); }}
+                          title="Clique para ver o resumo completo"
+                        >
                           <Brain className="w-3 h-3 mr-1" />
                           Resumo IA
                         </Badge>
@@ -702,5 +746,6 @@ export function ConsultingSessionsManager({ clientId }: ConsultingSessionsManage
         )}
       </CardContent>
     </Card>
+    </>
   );
 }

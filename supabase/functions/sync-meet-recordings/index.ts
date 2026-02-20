@@ -76,10 +76,10 @@ serve(async (req) => {
 
     const accessToken = await getValidAccessToken(supabase, user.id);
 
-    // Get sessions to sync (include client name for matching)
+    // Get sessions to sync (include client name and alias for matching)
     let query = supabase
       .from('consulting_sessions')
-      .select('*, consulting_clients!client_id(full_name)')
+      .select('*, consulting_clients!client_id(full_name, meet_display_name)')
       .eq('user_id', user.id)
       .is('recording_url', null);
 
@@ -170,10 +170,18 @@ serve(async (req) => {
 
     let synced = 0;
 
+    // Build a map: dateStr → count of sessions without recording on that day
+    const sessionsPerDay = new Map<string, number>();
+    for (const s of sessions) {
+      const d = new Date(s.session_date).toISOString().split('T')[0];
+      sessionsPerDay.set(d, (sessionsPerDay.get(d) || 0) + 1);
+    }
+
     for (const session of sessions) {
       const sessionDate = new Date(session.session_date);
       const sessionDateStr = sessionDate.toISOString().split('T')[0];
-      const clientName = (session.consulting_clients?.full_name || '').toLowerCase();
+      const clientName = ((session.consulting_clients as any)?.full_name || '').toLowerCase();
+      const meetAlias = ((session.consulting_clients as any)?.meet_display_name || '').toLowerCase();
 
       // Filter recordings from same day
       const sameDayRecs = recordings.filter((rec: any) => {
@@ -183,39 +191,58 @@ serve(async (req) => {
 
       if (sameDayRecs.length === 0) continue;
 
+      // Helper: check if a string contains at least 1 meaningful part of a name
+      const nameMatchesFile = (name: string, fileName: string) => {
+        if (!name) return false;
+        const normalized = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, '').trim();
+        const nameParts = normalized(name).split(/\s+/).filter(p => p.length > 2 && !['de','da','do','dos','das','e'].includes(p));
+        const file = normalized(fileName);
+        return nameParts.filter(p => file.includes(p)).length >= 1;
+      };
+
       let match = null;
 
-      // Priority 1: Recording in client-specific folder
-      if (clientName) {
-        match = sameDayRecs.find((rec: any) => 
-          rec._folderClientName && rec._folderClientName.toLowerCase() === clientName
-        );
-      }
+      // Priority 1: Recording in client-specific folder (full_name OR alias)
+      match = sameDayRecs.find((rec: any) => {
+        const folder = (rec._folderClientName || '').toLowerCase();
+        return (clientName && nameMatchesFile(clientName, folder)) ||
+               (meetAlias && nameMatchesFile(meetAlias, folder));
+      }) || null;
 
-      // Priority 2: Client name appears in recording title
+      // Priority 2a: Client full_name appears in recording title
       if (!match && clientName) {
-        match = sameDayRecs.find((rec: any) => 
-          rec.name.toLowerCase().includes(clientName)
-        );
+        match = sameDayRecs.find((rec: any) => nameMatchesFile(clientName, rec.name)) || null;
       }
 
-      // Priority 3: Closest time match (within 2 hours)
-      if (!match && sameDayRecs.length > 1) {
-        const sessionTime = sessionDate.getTime();
-        let bestDiff = Infinity;
-        for (const rec of sameDayRecs) {
-          const recTime = new Date(rec.createdTime).getTime();
-          const diff = Math.abs(recTime - sessionTime);
-          if (diff < 2 * 60 * 60 * 1000 && diff < bestDiff) {
-            bestDiff = diff;
-            match = rec;
+      // Priority 2b: Alias (meet_display_name) appears in recording title
+      if (!match && meetAlias) {
+        match = sameDayRecs.find((rec: any) => nameMatchesFile(meetAlias, rec.name)) || null;
+      }
+
+      // Priority 3 & 4: Only safe if there's a single session without recording on this day
+      // (avoids cross-client assignment when multiple clients meet on the same day)
+      const otherSessionsOnSameDay = (sessionsPerDay.get(sessionDateStr) || 0);
+      if (!match && otherSessionsOnSameDay === 1) {
+        // Priority 3: Closest time match (within 2 hours)
+        if (sameDayRecs.length > 1) {
+          const sessionTime = sessionDate.getTime();
+          let bestDiff = Infinity;
+          for (const rec of sameDayRecs) {
+            const recTime = new Date(rec.createdTime).getTime();
+            const diff = Math.abs(recTime - sessionTime);
+            if (diff < 2 * 60 * 60 * 1000 && diff < bestDiff) {
+              bestDiff = diff;
+              match = rec;
+            }
           }
         }
-      }
 
-      // Priority 4: Only one recording that day — use it
-      if (!match && sameDayRecs.length === 1) {
-        match = sameDayRecs[0];
+        // Priority 4: Only one recording that day — use it
+        if (!match && sameDayRecs.length === 1) {
+          match = sameDayRecs[0];
+        }
+      } else if (!match && otherSessionsOnSameDay > 1) {
+        console.log(`[sync-meet-recordings] Skipping generic match for "${session.title}" — ${otherSessionsOnSameDay} sessions on ${sessionDateStr}, cannot safely assign without name match`);
       }
 
       if (match) {
