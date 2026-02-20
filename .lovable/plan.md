@@ -1,142 +1,120 @@
 
-## Diagnóstico Completo
+## Análise Completa dos Problemas
 
-### Problema 1: Sueli — Apenas 1 reunião registrada (faltam várias)
+### Problema 1 (Principal): Reuniões da Sueli não existem no banco
 
-**Causa raiz:** A função `sync-calendar-sessions` busca reuniões num janela de apenas **30 dias para trás** (`now - 30 dias`). Todas as reuniões anteriores da Sueli (que provavelmente aconteceram antes de 21/01/2026) estão **fora dessa janela** e nunca são importadas. A função foi criada para sincronização contínua, não para importação histórica completa.
+A Sueli tem apenas **1 sessão** no banco (05/02/2026), com 1 gravação, transcrição e resumo. Mas o usuário diz que já fez várias reuniões com ela.
 
-**Evidência no código (linha 78):**
-```typescript
-const pastDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000); // apenas 30 dias atrás
-```
+**Causa raiz do `sync-calendar-sessions`:** O Google Calendar é buscado por e-mail da cliente (`suelip.dias123@gmail.com`) e por primeiro nome (`Sueli`). Se as reuniões do Google Calendar foram criadas sem o e-mail da Sueli como participante (por exemplo, o evento foi criado manualmente ou por um link genérico), a busca por e-mail não retorna nada. Já a busca por primeiro nome busca apenas `q: 'Sueli'` — pode não encontrar eventos com o título "Consultoria e Mentoria Individual IDEA (Sueli Pereira Dias)" dependendo de como o Google indexa.
 
-A Sueli tem só 1 sessão no banco (criada em 05/02/2026), mas certamente teve reuniões antes disso.
+**Consequência:** O `sync-meet-recordings` nunca encontra as outras gravações da Sueli porque **as sessões correspondentes nem existem no banco** — sem sessão no banco, não há o que vincular.
 
 ---
 
-### Problema 2: Victor Hugo, Alan, ANDRIELLY — Sessões duplicadas por dia
+### Problema 2: Busca de pastas no Drive é limitada e falha para a estrutura real
 
-**Causa raiz:** A função `sync-calendar-sessions` roda diariamente (cron automático às 06:00). A verificação de duplicatas usa `title + session_date ± 1 minuto`, mas o problema é que **a segunda busca (por nome) não verifica duplicatas corretamente** — ela busca `maybeSingle()` sem filtrar por data, então sempre retorna nulo e insere novamente.
-
-**Evidência nos dados:**
-- ANDRIELLY tem sessões criadas em `2026-02-15`, `2026-02-17`, `2026-02-18`, `2026-02-19`, `2026-02-20` — **todas para a mesma data de reunião** (uma nova cópia a cada dia que o cron roda)
-- Alan: mesma sessão de 29/01 tem cópias criadas em 17, 18, 19, 20 de fevereiro
-- Victor Hugo: 5 cópias da reunião de 19/02
-
-**Evidência no código (linha 204-210):**
-```typescript
-// Segunda busca — filtra só por título, SEM filtrar por data!
-const { data: existingSession } = await supabase
-  .from('consulting_sessions')
-  .select('id')
-  .eq('client_id', consultingClient.id)
-  .eq('title', event.summary || 'Reunião')
-  .maybeSingle(); // retorna uma, mas sem filtro de data é frágil
-                  // quando há múltiplas sessões com mesmo título
+A função `sync-meet-recordings` busca pastas assim:
+```
+mimeType='application/vnd.google-apps.folder' and name contains 'Sueli pereira Dias'
 ```
 
-Quando a segunda busca retorna `null` (porque há múltiplos registros com mesmo título), ela insere mais um. Ou quando a segunda busca não encontra nada, insere sem checar se já existe na primeira busca.
+Mas a pasta no Drive é provavelmente chamada apenas **"Sueli"** ou **"Sueli Dias"** dentro de `Minha Mentoria > Turma 2 > Consultoria`. A função:
+- Não navega pela hierarquia de pastas
+- Usa o nome completo do cadastro (com maiúsculas/minúsculas inconsistentes)
+- Não encontra a pasta → não carrega as gravações de dentro dela
+- Resultado: busca genérica por "Meet recordings" no Drive todo, que só retorna 1 arquivo (o mais recente que bate na busca por data)
 
 ---
 
-## Resumo Global de Impacto
+### Problema 3: Query de sessões exclui sessões já com `recording_drive_id`
 
-| Cliente | Sessões totais | Duplicatas | Causa |
-|---|---|---|---|
-| Alan Farias | 13 (deveria ter ~3) | 10 | Cron diário criando novas cópias |
-| ANDRIELLY | 12 (deveria ter ~2) | 10 | Cron diário criando novas cópias |
-| Victor Hugo | 11 (deveria ter ~2) | 9 | Cron diário criando novas cópias |
-| Ana Cristina | 9 (deveria ter ~4) | 5 | Cron diário |
-| Sueli | 1 (faltam várias) | 0 | Janela de 30 dias |
+A query na linha 84 do `sync-meet-recordings`:
+```typescript
+.is('recording_url', null)
+```
+Filtra apenas sessões **sem** `recording_url`. Isso significa que se uma sessão já tem uma gravação, ela é excluída do processo — o que é correto para não duplicar. Mas o problema é que as outras reuniões da Sueli simplesmente não existem como sessões.
 
 ---
 
-## Plano de Correção
+## Solução Completa em 3 Etapas
 
-### Parte 1: Limpeza de Dados Duplicados
+### Etapa 1: Criar nova edge function `scan-drive-recordings`
 
-Executar SQL para remover os registros duplicados, preservando **apenas o melhor** de cada grupo (priorizando o que tem resumo > o que tem transcrição > o mais antigo):
+Uma função dedicada para **navegar a hierarquia de pastas do Drive** e catalogar todas as gravações por cliente, sem depender de sessões previamente cadastradas:
 
-**Lógica de deduplicação:**
-- Agrupar por `client_id + session_date::date`
-- Dentro de cada grupo, manter o que tem `ai_summary`, depois o que tem `transcription`, depois o que tem `recording_drive_id`, por fim o mais antigo (`created_at` menor)
-- Deletar todos os outros do mesmo grupo
-
-**SQL de limpeza (via ferramenta de insert/update):**
-```sql
--- Identificar e deletar duplicatas, preservando o melhor registro
-DELETE FROM consulting_sessions
-WHERE id IN (
-  SELECT id FROM (
-    SELECT id,
-      ROW_NUMBER() OVER (
-        PARTITION BY client_id, session_date::date
-        ORDER BY
-          (ai_summary IS NOT NULL) DESC,
-          (transcription IS NOT NULL) DESC,
-          (recording_drive_id IS NOT NULL) DESC,
-          created_at ASC
-      ) as rn
-    FROM consulting_sessions
-  ) ranked
-  WHERE rn > 1
-);
+```
+Minha Mentoria/
+  Turma 2/
+    Consultoria/
+      [Nome do Cliente]/          ← pasta do cliente
+        gravacao-da-reuniao.mp4   ← arquivo diretamente na pasta
+        Gravações das Reuniões/   ← ou subpasta
+          gravacao-1.mp4
+          gravacao-2.mp4
 ```
 
-### Parte 2: Corrigir `sync-calendar-sessions` para evitar re-duplicação
+A função vai:
+1. Localizar a pasta `Minha Mentoria` no Drive raiz
+2. Navegar para `Turma 2 > Consultoria`
+3. Listar subpastas (uma por cliente)
+4. Para cada subpasta, listar arquivos MP4 (recursivamente incluindo subpastas como "Gravações das Reuniões")
+5. Retornar um mapa: `{ nomePasta → [{ fileId, fileName, createdTime }] }`
 
-**Mudança na lógica de deduplicação:**
+### Etapa 2: Refatorar `sync-meet-recordings` para usar hierarquia de pastas
 
-A segunda busca (por nome) precisa usar **filtro de data** igual à primeira:
+Mudanças principais:
+- **Navegar pelo caminho `Minha Mentoria > Turma 2 > Consultoria`** primeiro para encontrar as pastas dos clientes
+- **Match flexível entre nome da pasta e nome do cliente** no banco: usar primeiros nomes e normalização (remover acentos, maiúsculas)
+- **Para cada gravação encontrada na pasta do cliente:** verificar se já existe uma sessão no banco na mesma data (±2 horas). Se existe → vincular. Se não existe → **criar a sessão automaticamente** e vincular
+- **Busca recursiva em subpastas** dentro da pasta do cliente (para o caso de ter uma pasta "Gravações das Reuniões" dentro)
 
-```typescript
-// ANTES (bugado):
-const { data: existingSession } = await supabase
-  .from('consulting_sessions')
-  .select('id')
-  .eq('client_id', consultingClient.id)
-  .eq('title', event.summary || 'Reunião')
-  .maybeSingle();
+### Etapa 3: Melhorar `sync-calendar-sessions` para Sueli e casos similares
 
-// DEPOIS (corrigido):
-const { data: existingSessions } = await supabase
-  .from('consulting_sessions')
-  .select('id')
-  .eq('client_id', consultingClient.id)
-  .gte('session_date', new Date(new Date(eventStart).getTime() - 60 * 60 * 1000).toISOString())
-  .lte('session_date', new Date(new Date(eventStart).getTime() + 60 * 60 * 1000).toISOString());
+O problema adicional: para a Sueli, se os eventos do Google Calendar não têm ela como participante (lista de attendees), a busca por e-mail não encontra nada. A busca por nome `q: 'Sueli'` pode não bater nos títulos dos eventos que têm "SUELI" em maiúsculas.
 
-if (existingSessions && existingSessions.length > 0) continue;
-```
-
-Usar janela de **±1 hora** em vez de ±1 minuto, e checar por **data** em vez de título (reuniões com mesmo cliente no mesmo horário = mesma reunião, independente do título).
-
-### Parte 3: Ampliar janela histórica para Sueli (e outros)
-
-Ampliar a `pastDate` de 30 dias para **24 meses** para capturar todo o histórico:
-
-```typescript
-// ANTES:
-const pastDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-
-// DEPOIS:
-const pastDate = new Date(now.getTime() - 730 * 24 * 60 * 60 * 1000); // 24 meses
-```
-
-Além disso, adicionar paginação (`pageToken`) para buscar mais de 100 eventos do Google Calendar — reuniões históricas podem exceder esse limite.
+Correção:
+- Buscar também pelo primeiro nome em **maiúsculas** e pelo nome completo
+- Usar também o sobrenome como termo de busca alternativo
+- **Fallback: se a função de Drive encontrou gravações na pasta do cliente mas não há sessão correspondente, criar a sessão automaticamente** (com data extraída do `createdTime` do arquivo ou do nome do arquivo)
 
 ---
 
-## Arquivos Alterados
+## Fluxo Completo Corrigido
 
-| Arquivo | Mudança |
+```text
+[Botão "Sincronizar Gravações"]
+         ↓
+1. Navegar Drive: Minha Mentoria → Turma 2 → Consultoria
+         ↓
+2. Para cada subpasta (ex: "Sueli"):
+   - Match flexível com clientes do banco
+   - Listar todos os MP4 na pasta + subpastas
+         ↓
+3. Para cada arquivo MP4 encontrado:
+   a. Já existe sessão no banco na mesma data?
+      → SIM: vincular recording_drive_id à sessão
+      → NÃO: criar sessão nova com data do arquivo, vincular
+         ↓
+4. Auto-transcrever sessões novas com gravação
+         ↓
+5. Gerar resumo IA para sessões transcritas
+```
+
+---
+
+## Arquivos a Modificar
+
+| Arquivo | Alteração |
 |---|---|
-| `supabase/functions/sync-calendar-sessions/index.ts` | Corrigir deduplicação (±1h por data, não por título), ampliar janela para 24 meses, adicionar paginação |
-| SQL via banco | Limpeza dos duplicatas existentes (preservando o melhor de cada grupo) |
+| `supabase/functions/sync-meet-recordings/index.ts` | Reescrever busca de Drive: navegar hierarquia `Minha Mentoria > Turma 2 > Consultoria`, busca recursiva em subpastas, criar sessões automaticamente quando não existem no banco, match flexível de nomes |
+| `supabase/functions/sync-calendar-sessions/index.ts` | Melhorar busca de nome: incluir variações em maiúsculas, sobrenome separado, e fallback para ignorar case |
 
-Após as correções:
-- Victor Hugo, Alan, ANDRIELLY e Ana Cristina terão apenas as sessões reais (sem duplicatas)
-- As sessões com resumo e transcrição serão preservadas
-- Sueli terá todas as reuniões históricas importadas ao sincronizar novamente
-- O cron diário não criará mais duplicatas
+Nenhuma mudança de banco de dados necessária — as tabelas existentes já suportam tudo isso.
 
+---
+
+## Resultado Esperado
+
+- **Sueli**: Ao clicar em "Sincronizar Gravações", o sistema navega para `Minha Mentoria/Turma 2/Consultoria/Sueli/`, encontra todas as gravações, cria sessões para as que não existem ainda, vincula, transcreve e gera resumo
+- **Todos os outros clientes**: Mesmo fluxo — se tiver pasta com nome compatível no Drive, todas as gravações são importadas e processadas
+- **Gravações não atribuíveis**: Se não houver pasta de cliente compatível no Drive, a função cai no método atual (busca por nome no arquivo e correspondência por data)
