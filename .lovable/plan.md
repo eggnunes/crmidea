@@ -1,97 +1,173 @@
 
-## Diagnóstico Completo
+## Diagnóstico Preciso dos Dois Problemas
 
-### O que está acontecendo
+### Problema 1: "Importar Transcrições e Resumos" retorna 0 importações
 
-No dia 19/02/2026, você teve reuniões com três clientes em horários próximos:
-- **Victor Hugo** — 17h
-- **Lucineia** (Rodrigo Martins) — 18h  
-- **Rodrigo Oliveira de Brito** — 18h
+**Causa confirmada pelos logs:**
 
-O problema está em duas partes do sistema:
+```
+[batch-import] 1 recordings queued
+[batch-import] Done: 0 transcriptions, 0 summaries
+```
 
-**1. Source 1b no `batch-import-transcripts`** (linhas 347–356):
-Este bloco pega gravações da pasta "Meet Recordings" usando **apenas a data** como critério — sem verificar se o nome do arquivo tem relação com o cliente. Com três clientes no mesmo dia, ele atribui a mesma gravação a múltiplos clientes, ou atribui a gravação errada.
+A gravação da Lucineia **foi encontrada** (pasta "Lucineira Cristina Martins Rodrigues" na Consultoria tem 1 gravação). Mas o `batch-import-transcripts` não transcreve gravações — ele só as coloca em `allPendingRecordings` e devolve na resposta para o frontend processar depois.
 
-**2. `sync-meet-recordings` — Priority 2 (nome no arquivo)**:
-A gravação da Lucineia está salva no Drive com o nome "Rodrigo Martins" (o sócio dela que marcou a reunião). A função `fileMatchesClient` precisa de 2 partes do nome do cliente no arquivo — como o arquivo diz "Rodrigo Martins" e o cliente cadastrado é "Lucineia Cristina Martins Rodrigues", o match falha. Aí o sistema cai no Priority 3/4 (horário mais próximo ou único do dia) e associa a gravação errada.
+O problema é que o frontend (`batchImportTranscripts` em `ConsultingSessionsManager.tsx`) **ignora completamente** o campo `pending_recordings` da resposta. Ele só exibe `data.transcriptions` e `data.summaries`, que são zero — porque as gravações precisam de um passo extra (STT via ElevenLabs).
 
-### Solução para cada caso
+### Problema 2: Botão "Transcrever" dá erro (context canceled / Memory limit exceeded)
 
-**Caso Lucineia** (gravação salva com nome "Rodrigo Martins"):
-- Adicionar suporte a **aliases/nomes alternativos** no cadastro do cliente — ou criar um campo "nome na gravação do Meet" que o sistema usa para fazer o matching. Assim "Rodrigo Martins" fica associado à Lucineia.
-- Alternativa mais simples (imediata): o `sync-meet-recordings` verifica se **alguma sessão do dia já tem `recording_drive_id`** antes de aplicar Priority 3/4, evitando dupla atribuição.
+**Causa confirmada pelos logs:**
 
-**Caso geral (múltiplos clientes no mesmo dia)**:
-- Remover o "Source 1b" completamente — gravações genéricas do Meet (nome tipo `GMT20260219...`) **nunca** devem ser atribuídas apenas pela data.
-- Fazer o matching da gravação ser **obrigatoriamente por nome** no arquivo (Priority 1 e 2 do `sync-meet-recordings`), e para Lucineia especificamente, adicionar o nome alternativo "Rodrigo Martins" no cadastro.
-- No `sync-meet-recordings`, adicionar o "nome alternativo" do cliente como critério de busca.
+```
+[transcribe-meeting] Memory limit exceeded
+[transcribe-recording] context canceled
+```
+
+Ambas as funções tentam **baixar o arquivo de vídeo completo** (centenas de MBs) para a memória do Edge Function antes de enviar ao ElevenLabs. Edge Functions têm limite de ~150MB de memória e ~150 segundos de execução — arquivos de reunião de 60 min facilmente excedem isso.
+
+A `transcribe-recording` tentou resolver isso com streaming multipart, mas o `context canceled` indica que a conexão é cancelada antes de completar — provavelmente porque o Google Drive não suporta streaming de leitura sem buffering completo nesse contexto.
 
 ---
 
-## O Que Será Implementado
+## Solução em Duas Partes
 
-### 1. Campo "Nome na gravação" no cadastro do cliente
+### Parte 1: Corrigir "Importar Transcrições e Resumos" para processar as gravações pendentes
 
-No banco de dados, adicionar uma coluna `meet_display_name` na tabela `consulting_clients` — um campo opcional onde você pode colocar o nome que aparece nas gravações do Google Meet (por exemplo: "Rodrigo Martins" para a Lucineia).
+O `batch-import-transcripts` já encontra as gravações e as devolve em `pending_recordings`. O que falta é o frontend receber essa lista e chamar `transcribe-recording` para cada uma.
 
-Na interface de edição do cliente (`ConsultingClientDialog`), aparecerá um novo campo: **"Nome na gravação do Meet"** — pequeno, discreto, com um tooltip explicando que é o nome que aparece nas gravações quando outra pessoa agenda.
+**Mudança no `ConsultingSessionsManager.tsx` — função `batchImportTranscripts`:**
 
-### 2. `sync-meet-recordings` — usar nome alternativo no matching
+Após receber a resposta do `batch-import`, verificar se há `pending_recordings`. Se houver, chamar `transcribe-recording` para cada um sequencialmente, mostrando progresso ao usuário (ex: "Transcrevendo reunião 1 de 3...").
 
-O Priority 2 passará a verificar tanto o `full_name` quanto o `meet_display_name`:
+### Parte 2: Resolver o timeout/memory limit na transcrição
+
+O problema real é que o Edge Function não consegue lidar com arquivos grandes de vídeo de reunião do Google Drive.
+
+**Solução: usar URL de streaming direto do Drive e passar para ElevenLabs via URL (se suportado) OU dividir a responsabilidade**
+
+A ElevenLabs Scribe v2 aceita upload por URL? Não diretamente — precisa do arquivo. Então a solução mais robusta é usar uma **URL pré-assinada temporária** do Google Drive e fazer o ElevenLabs acessar diretamente.
+
+ElevenLabs Speech-to-Text aceita `file_url` como parâmetro alternativo ao upload de arquivo — isso significa que podemos passar a URL direta do Drive (com token de acesso) e o ElevenLabs baixa o arquivo diretamente, sem passar pela memória do Edge Function.
+
+**Implementação:**
+
+Na `transcribe-recording`, em vez de baixar o arquivo e fazer upload via FormData, usar a API do ElevenLabs com `file_url`:
+
 ```
-Priority 2a: nome do arquivo contém clientName (full_name)
-Priority 2b: nome do arquivo contém meet_display_name (alias)
+POST https://api.elevenlabs.io/v1/speech-to-text
+Content-Type: application/json
+
+{
+  "model_id": "scribe_v2",
+  "language_code": "por",
+  "diarize": true,
+  "file_url": "https://www.googleapis.com/drive/v3/files/{fileId}?alt=media&access_token={token}"
+}
 ```
 
-O Priority 3 (horário mais próximo) e Priority 4 (único do dia) serão tornados **mais conservadores**: só ativam se o dia em questão tiver apenas UMA sessão sem gravação associada. Se houver dois ou mais clientes sem gravação no mesmo dia, o sistema **não arrisca** — ele ignora e aguarda correspondência por nome.
+Isso resolve o problema de memória completamente — o Edge Function apenas passa a URL e o ElevenLabs faz o download diretamente.
 
-### 3. `batch-import-transcripts` — remover "Source 1b"
-
-O bloco "Source 1b" (linhas 347–356) que pegava gravações da pasta Meet Recordings **apenas pela data** será completamente removido.
-
-Gravações genéricas do Meet (`GMT20260219...`) sem nome do cliente no arquivo **nunca** serão atribuídas automaticamente — pois esse é exatamente o comportamento que causou o cruzamento entre clientes.
-
-A nova lógica de gravações no Meet Recordings:
-- Se o **nome do arquivo** contém o nome do cliente (ou `meet_display_name`) → usa ✅
-- Se o arquivo está dentro de **pasta específica do cliente** na Consultoria → usa ✅
-- Se nenhuma das condições acima → não usa, aguarda intervenção manual ✅
-
-### 4. Limpeza dos dados incorretos
-
-Limpar a `transcription` e `ai_summary` da sessão da **Lucineia** (`id: 297aaba6`) que tem dados de outra reunião. Após a limpeza, o sistema vai reprocessar corretamente quando você abrir o dashboard dela, agora usando o `meet_display_name = "Rodrigo Martins"` para encontrar a gravação certa.
-
-O Rodrigo Oliveira de Brito (`id: d149db95`) — a transcrição dele parece ser uma ata manual (começa com "Reunião Inicial: * Como utiliza..."), não uma gravação cruzada. Será mantido como está.
-
-### 5. Dialog de Resumo dedicado (`ConsultingSessionsManager`)
-
-O badge roxo "Resumo IA" no card da reunião vira um **botão clicável** que abre um **Dialog limpo** mostrando apenas:
-- Título da reunião
-- Data formatada
-- Conteúdo do resumo em markdown formatado
-
-Sem formulário, sem campos editáveis. O clique usa `e.stopPropagation()` para não abrir o formulário de edição.
+**Nota importante:** Verificar se ElevenLabs suporta `file_url`. Se não suportar, a alternativa é usar o **streaming multipart corretamente** — a função já tenta isso, mas o problema é que o `fetch` do Deno com `ReadableStream` no body pode não suportar bem a leitura simultânea do Drive + escrita para ElevenLabs. A solução alternativa seria fazer o download em chunks para o Storage do Supabase e depois fazer upload de lá, mas isso adiciona complexidade. A abordagem `file_url` é a mais limpa.
 
 ---
 
-## Arquivos a Modificar
+## O Que Será Alterado
 
-| Arquivo | O que muda |
+### 1. `supabase/functions/transcribe-recording/index.ts`
+
+Modificar para usar `file_url` na API do ElevenLabs em vez de baixar o arquivo para a memória:
+
+```typescript
+// Em vez de:
+const driveResp = await fetch(driveUrl, { ... });
+const blob = await driveResp.blob(); // ← causa memory limit
+formData.append('file', blob, ...);
+
+// Usar:
+const driveFileUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&access_token=${accessToken}`;
+const body = JSON.stringify({
+  model_id: 'scribe_v2',
+  language_code: 'por',
+  diarize: true,
+  file_url: driveFileUrl,
+});
+const sttResp = await fetch('https://api.elevenlabs.io/v1/speech-to-text', {
+  method: 'POST',
+  headers: { 'xi-api-key': ELEVENLABS_API_KEY, 'Content-Type': 'application/json' },
+  body,
+});
+```
+
+Isso elimina completamente o download do arquivo para memória — o ElevenLabs acessa o Drive diretamente usando o access token temporário do Google.
+
+### 2. `src/components/consulting/ConsultingSessionsManager.tsx`
+
+Modificar `batchImportTranscripts` para processar as gravações pendentes retornadas pelo `batch-import`:
+
+```typescript
+const batchImportTranscripts = async () => {
+  setImporting(true);
+  try {
+    const { data, error } = await supabase.functions.invoke('batch-import-transcripts', {
+      body: { clientId },
+    });
+    if (error) throw error;
+    if (data?.error) throw new Error(data.error);
+
+    // Se há gravações pendentes, transcrever cada uma
+    const pendingRecordings = data.pending_recordings || [];
+    if (pendingRecordings.length > 0) {
+      toast.info(`Transcrevendo ${pendingRecordings.length} gravação(ões)...`);
+      let successCount = 0;
+      for (let i = 0; i < pendingRecordings.length; i++) {
+        const rec = pendingRecordings[i];
+        try {
+          // Update toast with progress
+          toast.info(`Transcrevendo reunião ${i + 1} de ${pendingRecordings.length}: "${rec.sessionTitle}"`);
+          const { data: tData, error: tError } = await supabase.functions.invoke('transcribe-recording', {
+            body: {
+              userId: user?.id,
+              sessionId: rec.sessionId,
+              fileId: rec.fileId,
+              fileName: rec.fileName,
+              force: false,
+            },
+          });
+          if (!tError && !tData?.error) successCount++;
+        } catch (e) {
+          console.warn(`Failed to transcribe "${rec.sessionTitle}":`, e);
+        }
+      }
+      toast.success(`${successCount} reunião(ões) transcritas e resumidas com sucesso!`);
+      fetchSessions();
+    } else {
+      toast.success(
+        `${data.transcriptions} transcrição(ões) importada(s), ${data.summaries} resumo(s) gerado(s)`
+      );
+    }
+    fetchSessions();
+  } catch (error: any) {
+    toast.error(error.message || 'Erro ao importar transcrições');
+  } finally {
+    setImporting(false);
+  }
+};
+```
+
+### 3. Atualizar `autoProcess` também
+
+O `autoProcess` (que roda automaticamente ao abrir o dashboard) também chama `transcribe-recording` e vai ter o mesmo problema de timeout. Corrigir para usar a mesma lógica via `file_url`.
+
+---
+
+## Resumo dos Arquivos
+
+| Arquivo | Mudança |
 |---|---|
-| Migração SQL | Adiciona coluna `meet_display_name` na tabela `consulting_clients` |
-| `src/components/consulting/ConsultingClientDialog.tsx` | Campo "Nome na gravação" na edição do cliente |
-| `supabase/functions/sync-meet-recordings/index.ts` | Usar `meet_display_name` no Priority 2; tornar Priority 3/4 conservadores (só 1 cliente no dia) |
-| `supabase/functions/batch-import-transcripts/index.ts` | Remover "Source 1b" (matching por data); usar `meet_display_name` |
-| `src/components/consulting/ConsultingSessionsManager.tsx` | Badge "Resumo IA" → abre Dialog dedicado de leitura |
-| Limpeza de dados | Limpar transcrição/resumo errados da Lucineia |
+| `supabase/functions/transcribe-recording/index.ts` | Usar `file_url` no ElevenLabs em vez de download para memória — elimina timeout e memory limit |
+| `src/components/consulting/ConsultingSessionsManager.tsx` | `batchImportTranscripts` processa `pending_recordings` chamando `transcribe-recording` sequencialmente com feedback de progresso |
 
----
-
-## Resultado Esperado
-
-Após a correção:
-- **Lucineia**: você cadastra `meet_display_name = "Rodrigo Martins"` → o sistema encontra a gravação certa automaticamente
-- **3 clientes no mesmo dia**: cada um associado pela correspondência de nome no arquivo — sem cruzamento
-- **Gravações genéricas sem nome**: não são atribuídas automaticamente, evitando erros
-- **Clicar em "Resumo IA"**: abre dialog limpo só com o resumo, sem formulário
+Após essas correções:
+- Clicar em "Importar Transcrições e Resumos" encontrará a gravação da Lucineia, mostrará "Transcrevendo reunião 1 de 1..." e salvará a transcrição + resumo corretamente
+- Clicar em "Transcrever" também funcionará sem timeout, pois o ElevenLabs acessa o arquivo diretamente no Drive
+- O mesmo funciona para todos os outros clientes com gravações no Drive
