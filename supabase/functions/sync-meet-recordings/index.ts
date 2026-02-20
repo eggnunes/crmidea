@@ -11,6 +11,8 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const GOOGLE_CLIENT_ID = Deno.env.get('GOOGLE_CLIENT_ID')!;
 const GOOGLE_CLIENT_SECRET = Deno.env.get('GOOGLE_CLIENT_SECRET')!;
 
+// ─── Token Management ────────────────────────────────────────────────────────
+
 async function getValidAccessToken(supabase: any, userId: string): Promise<string> {
   const { data: tokenData, error } = await supabase
     .from('google_calendar_tokens')
@@ -20,7 +22,6 @@ async function getValidAccessToken(supabase: any, userId: string): Promise<strin
 
   if (error || !tokenData) throw new Error('Google não conectado');
 
-  // Check if token is expired
   if (new Date(tokenData.expires_at) < new Date()) {
     console.log('[sync-meet-recordings] Refreshing expired token');
     const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
@@ -49,6 +50,155 @@ async function getValidAccessToken(supabase: any, userId: string): Promise<strin
   return tokenData.access_token;
 }
 
+// ─── Drive Helpers ────────────────────────────────────────────────────────────
+
+/** List items inside a Drive folder (files or subfolders) */
+async function listDriveItems(
+  accessToken: string,
+  parentId: string,
+  mimeTypeFilter?: string
+): Promise<any[]> {
+  let q = `'${parentId}' in parents and trashed=false`;
+  if (mimeTypeFilter) q += ` and mimeType='${mimeTypeFilter}'`;
+
+  const url = new URL('https://www.googleapis.com/drive/v3/files');
+  url.searchParams.set('q', q);
+  url.searchParams.set('fields', 'files(id,name,createdTime,modifiedTime,webViewLink,mimeType)');
+  url.searchParams.set('pageSize', '200');
+
+  const res = await fetch(url.toString(), {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  const data = await res.json();
+  if (data.error) {
+    console.warn('[sync-meet-recordings] Drive list error:', data.error.message);
+    return [];
+  }
+  return data.files || [];
+}
+
+/** Find a folder by exact or case-insensitive name inside a parent */
+async function findFolder(
+  accessToken: string,
+  parentId: string,
+  name: string
+): Promise<string | null> {
+  const folders = await listDriveItems(accessToken, parentId, 'application/vnd.google-apps.folder');
+  const normalized = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+  const target = normalized(name);
+  const found = folders.find(f => normalized(f.name) === target || normalized(f.name).includes(target) || target.includes(normalized(f.name)));
+  return found ? found.id : null;
+}
+
+/** Navigate folder path: e.g. ['Minha Mentoria', 'Turma 2', 'Consultoria'] */
+async function navigatePath(
+  accessToken: string,
+  path: string[]
+): Promise<string | null> {
+  // Start from root
+  let currentId = 'root';
+  for (const segment of path) {
+    const found = await findFolder(accessToken, currentId, segment);
+    if (!found) {
+      console.warn(`[sync-meet-recordings] Folder not found: "${segment}" inside ${currentId}`);
+      return null;
+    }
+    console.log(`[sync-meet-recordings] Navigated to "${segment}" (${found})`);
+    currentId = found;
+  }
+  return currentId;
+}
+
+/** Get all MP4 files recursively inside a folder (checks subfolders one level deep) */
+async function getRecordingsInFolder(
+  accessToken: string,
+  folderId: string,
+  folderName: string
+): Promise<any[]> {
+  // MP4 files directly in folder
+  const mp4Files = await listDriveItems(accessToken, folderId, 'video/mp4');
+
+  // Also check subfolders (e.g. "Gravações das Reuniões")
+  const subfolders = await listDriveItems(accessToken, folderId, 'application/vnd.google-apps.folder');
+  for (const sub of subfolders) {
+    const subFiles = await listDriveItems(accessToken, sub.id, 'video/mp4');
+    mp4Files.push(...subFiles);
+  }
+
+  console.log(`[sync-meet-recordings] Folder "${folderName}": ${mp4Files.length} MP4(s) found`);
+  return mp4Files;
+}
+
+// ─── Name Matching ────────────────────────────────────────────────────────────
+
+function normalize(s: string): string {
+  return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, '').trim();
+}
+
+function nameParts(name: string): string[] {
+  return normalize(name).split(/\s+/).filter(p => p.length > 2 && !['de','da','do','dos','das','e'].includes(p));
+}
+
+/** Returns true if the folder name matches the client name (flexible) */
+function folderMatchesClient(folderName: string, clientName: string, alias?: string): boolean {
+  const folderNorm = normalize(folderName);
+  const clientParts = nameParts(clientName);
+
+  // At least 1 meaningful part of client name appears in folder name
+  const clientMatch = clientParts.filter(p => folderNorm.includes(p)).length >= 1;
+  if (clientMatch) return true;
+
+  // Also check alias
+  if (alias) {
+    const aliasParts = nameParts(alias);
+    const aliasMatch = aliasParts.filter(p => folderNorm.includes(p)).length >= 1;
+    if (aliasMatch) return true;
+  }
+
+  return false;
+}
+
+// ─── Session Helpers ──────────────────────────────────────────────────────────
+
+async function findSessionForRecording(
+  supabase: any,
+  clientId: string,
+  fileTime: Date,
+  windowHours = 3
+): Promise<any | null> {
+  const windowMs = windowHours * 60 * 60 * 1000;
+  const windowStart = new Date(fileTime.getTime() - windowMs).toISOString();
+  const windowEnd = new Date(fileTime.getTime() + windowMs).toISOString();
+
+  const { data } = await supabase
+    .from('consulting_sessions')
+    .select('id, recording_url, recording_drive_id, ai_summary, transcription')
+    .eq('client_id', clientId)
+    .gte('session_date', windowStart)
+    .lte('session_date', windowEnd)
+    .order('session_date', { ascending: true });
+
+  if (!data || data.length === 0) return null;
+  return data[0];
+}
+
+async function makeFilePublic(accessToken: string, fileId: string): Promise<void> {
+  try {
+    await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}/permissions`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ role: 'reader', type: 'anyone' }),
+    });
+  } catch (e) {
+    console.warn('[sync-meet-recordings] Could not set sharing permission:', e);
+  }
+}
+
+// ─── Main handler ─────────────────────────────────────────────────────────────
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -71,217 +221,216 @@ serve(async (req) => {
       });
     }
 
-    const { clientId, sessionId } = await req.json();
+    const body = await req.json().catch(() => ({}));
+    const { clientId, sessionId } = body;
     console.log(`[sync-meet-recordings] userId=${user.id}, clientId=${clientId}, sessionId=${sessionId}`);
 
     const accessToken = await getValidAccessToken(supabase, user.id);
 
-    // Get sessions to sync (include client name and alias for matching)
-    let query = supabase
-      .from('consulting_sessions')
-      .select('*, consulting_clients!client_id(full_name, meet_display_name)')
-      .eq('user_id', user.id)
-      .is('recording_url', null);
+    // Load all consulting clients for this user (we need full_name and meet_display_name)
+    const clientQuery = supabase
+      .from('consulting_clients')
+      .select('id, full_name, email, meet_display_name')
+      .eq('user_id', user.id);
+    if (clientId) clientQuery.eq('id', clientId);
 
-    if (sessionId) {
-      query = query.eq('id', sessionId);
-    } else if (clientId) {
-      query = query.eq('client_id', clientId);
-    }
-
-    const { data: sessions, error: sessError } = await query;
-    if (sessError) throw sessError;
-
-    if (!sessions || sessions.length === 0) {
-      return new Response(JSON.stringify({ synced: 0, message: 'Nenhuma sessão pendente' }), {
+    const { data: allClients, error: clientsErr } = await clientQuery;
+    if (clientsErr || !allClients?.length) {
+      return new Response(JSON.stringify({ synced: 0, message: 'Nenhum cliente encontrado' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    console.log(`[sync-meet-recordings] Found ${sessions.length} sessions to sync`);
-
-    // 1. Search Meet Recordings folder in Drive
-    const driveSearchUrl = new URL('https://www.googleapis.com/drive/v3/files');
-    driveSearchUrl.searchParams.set('q', "mimeType='video/mp4' and (name contains 'Meet' or name contains 'meet' or name contains 'GMT')");
-    driveSearchUrl.searchParams.set('fields', 'files(id,name,createdTime,webViewLink,mimeType)');
-    driveSearchUrl.searchParams.set('orderBy', 'createdTime desc');
-    driveSearchUrl.searchParams.set('pageSize', '200');
-
-    const driveResponse = await fetch(driveSearchUrl.toString(), {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
-
-    const driveData = await driveResponse.json();
-    if (driveData.error) {
-      console.error('[sync-meet-recordings] Drive API error:', driveData.error);
-      throw new Error(driveData.error.message || 'Erro ao acessar Google Drive');
-    }
-
-    let recordings = driveData.files || [];
-    console.log(`[sync-meet-recordings] Found ${recordings.length} recordings in Meet Recordings`);
-
-    // 2. Search client-specific folders
-    const clientNames = [...new Set(sessions.map((s: any) => s.consulting_clients?.full_name).filter(Boolean))] as string[];
-    
-    for (const clientName of clientNames) {
-      try {
-        // Find folders containing client name
-        const folderUrl = new URL('https://www.googleapis.com/drive/v3/files');
-        folderUrl.searchParams.set('q', `mimeType='application/vnd.google-apps.folder' and name contains '${clientName.replace(/'/g, "\\'")}'`);
-        folderUrl.searchParams.set('fields', 'files(id,name)');
-        folderUrl.searchParams.set('pageSize', '10');
-
-        const folderRes = await fetch(folderUrl.toString(), {
-          headers: { Authorization: `Bearer ${accessToken}` },
-        });
-        const folderData = await folderRes.json();
-        const folders = folderData.files || [];
-
-        for (const folder of folders) {
-          const filesUrl = new URL('https://www.googleapis.com/drive/v3/files');
-          filesUrl.searchParams.set('q', `'${folder.id}' in parents and mimeType='video/mp4'`);
-          filesUrl.searchParams.set('fields', 'files(id,name,createdTime,webViewLink,mimeType)');
-          filesUrl.searchParams.set('pageSize', '50');
-
-          const filesRes = await fetch(filesUrl.toString(), {
-            headers: { Authorization: `Bearer ${accessToken}` },
-          });
-          const filesData = await filesRes.json();
-          if (filesData.files) {
-            // Tag these recordings with the folder/client name for matching priority
-            const taggedFiles = filesData.files.map((f: any) => ({ ...f, _folderClientName: clientName }));
-            recordings = recordings.concat(taggedFiles);
-          }
-        }
-      } catch (e) {
-        console.warn(`[sync-meet-recordings] Error searching folders for "${clientName}":`, e);
-      }
-    }
-
-    // Deduplicate by id
-    const seen = new Set<string>();
-    recordings = recordings.filter((r: any) => {
-      if (seen.has(r.id)) return false;
-      seen.add(r.id);
-      return true;
-    });
-
-    console.log(`[sync-meet-recordings] Total unique recordings: ${recordings.length}`);
+    // ── Step 1: Navigate Minha Mentoria > Turma 2 > Consultoria ──────────────
+    console.log('[sync-meet-recordings] Navigating Drive hierarchy...');
+    const consultoriaFolderId = await navigatePath(accessToken, ['Minha Mentoria', 'Turma 2', 'Consultoria']);
 
     let synced = 0;
+    let created = 0;
+    const processedFileIds = new Set<string>();
 
-    // Build a map: dateStr → count of sessions without recording on that day
-    const sessionsPerDay = new Map<string, number>();
-    for (const s of sessions) {
-      const d = new Date(s.session_date).toISOString().split('T')[0];
-      sessionsPerDay.set(d, (sessionsPerDay.get(d) || 0) + 1);
-    }
+    if (consultoriaFolderId) {
+      // List all client folders inside Consultoria
+      const clientFolders = await listDriveItems(accessToken, consultoriaFolderId, 'application/vnd.google-apps.folder');
+      console.log(`[sync-meet-recordings] Found ${clientFolders.length} client folders in Consultoria`);
 
-    for (const session of sessions) {
-      const sessionDate = new Date(session.session_date);
-      const sessionDateStr = sessionDate.toISOString().split('T')[0];
-      const clientName = ((session.consulting_clients as any)?.full_name || '').toLowerCase();
-      const meetAlias = ((session.consulting_clients as any)?.meet_display_name || '').toLowerCase();
+      // Match each folder to a client in the DB
+      for (const folder of clientFolders) {
+        // Find matching client(s)
+        const matchedClients = allClients.filter(c =>
+          folderMatchesClient(folder.name, c.full_name, c.meet_display_name)
+        );
 
-      // Filter recordings from same day
-      const sameDayRecs = recordings.filter((rec: any) => {
-        const recDateStr = new Date(rec.createdTime).toISOString().split('T')[0];
-        return recDateStr === sessionDateStr;
-      });
+        if (matchedClients.length === 0) {
+          console.log(`[sync-meet-recordings] No client match for folder "${folder.name}"`);
+          continue;
+        }
 
-      if (sameDayRecs.length === 0) continue;
+        // Use the first match (most cases there's only one)
+        const client = matchedClients[0];
+        console.log(`[sync-meet-recordings] Folder "${folder.name}" → client "${client.full_name}"`);
 
-      // Helper: check if a string contains at least 1 meaningful part of a name
-      const nameMatchesFile = (name: string, fileName: string) => {
-        if (!name) return false;
-        const normalized = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, '').trim();
-        const nameParts = normalized(name).split(/\s+/).filter(p => p.length > 2 && !['de','da','do','dos','das','e'].includes(p));
-        const file = normalized(fileName);
-        return nameParts.filter(p => file.includes(p)).length >= 1;
-      };
+        // Get all MP4s in this folder (recursive)
+        const recordings = await getRecordingsInFolder(accessToken, folder.id, folder.name);
 
-      let match = null;
+        for (const rec of recordings) {
+          if (processedFileIds.has(rec.id)) continue;
+          processedFileIds.add(rec.id);
 
-      // Priority 1: Recording in client-specific folder (full_name OR alias)
-      match = sameDayRecs.find((rec: any) => {
-        const folder = (rec._folderClientName || '').toLowerCase();
-        return (clientName && nameMatchesFile(clientName, folder)) ||
-               (meetAlias && nameMatchesFile(meetAlias, folder));
-      }) || null;
+          const fileTime = new Date(rec.createdTime);
 
-      // Priority 2a: Client full_name appears in recording title
-      if (!match && clientName) {
-        match = sameDayRecs.find((rec: any) => nameMatchesFile(clientName, rec.name)) || null;
-      }
+          // Check if already linked to a session via drive_id
+          const { data: alreadyLinked } = await supabase
+            .from('consulting_sessions')
+            .select('id')
+            .eq('recording_drive_id', rec.id)
+            .maybeSingle();
 
-      // Priority 2b: Alias (meet_display_name) appears in recording title
-      if (!match && meetAlias) {
-        match = sameDayRecs.find((rec: any) => nameMatchesFile(meetAlias, rec.name)) || null;
-      }
+          if (alreadyLinked) {
+            console.log(`[sync-meet-recordings] "${rec.name}" already linked, skipping`);
+            continue;
+          }
 
-      // Priority 3 & 4: Only safe if there's a single session without recording on this day
-      // (avoids cross-client assignment when multiple clients meet on the same day)
-      const otherSessionsOnSameDay = (sessionsPerDay.get(sessionDateStr) || 0);
-      if (!match && otherSessionsOnSameDay === 1) {
-        // Priority 3: Closest time match (within 2 hours)
-        if (sameDayRecs.length > 1) {
-          const sessionTime = sessionDate.getTime();
-          let bestDiff = Infinity;
-          for (const rec of sameDayRecs) {
-            const recTime = new Date(rec.createdTime).getTime();
-            const diff = Math.abs(recTime - sessionTime);
-            if (diff < 2 * 60 * 60 * 1000 && diff < bestDiff) {
-              bestDiff = diff;
-              match = rec;
+          // Find an existing session for this date/time
+          let session = null;
+          if (sessionId) {
+            // If syncing a specific session, only check that one
+            const { data: sp } = await supabase
+              .from('consulting_sessions')
+              .select('id, recording_url, recording_drive_id')
+              .eq('id', sessionId)
+              .maybeSingle();
+            if (sp && !sp.recording_drive_id) session = sp;
+          } else {
+            session = await findSessionForRecording(supabase, client.id, fileTime);
+          }
+
+          // If no session found → create one automatically
+          if (!session) {
+            console.log(`[sync-meet-recordings] No session for "${rec.name}" on ${fileTime.toISOString().split('T')[0]} — creating automatically`);
+            const { data: newSession, error: insertErr } = await supabase
+              .from('consulting_sessions')
+              .insert({
+                client_id: client.id,
+                user_id: user.id,
+                title: `Reunião de Consultoria – ${fileTime.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}`,
+                session_date: rec.createdTime,
+                duration_minutes: 60,
+                session_type: 'online',
+                status: 'completed',
+              })
+              .select('id')
+              .single();
+
+            if (insertErr || !newSession) {
+              console.error('[sync-meet-recordings] Failed to create session:', insertErr);
+              continue;
             }
+            session = newSession;
+            created++;
+          }
+
+          // Make file public and link it
+          await makeFilePublic(accessToken, rec.id);
+
+          const { error: updateErr } = await supabase
+            .from('consulting_sessions')
+            .update({
+              recording_url: rec.webViewLink,
+              recording_drive_id: rec.id,
+            })
+            .eq('id', session.id);
+
+          if (!updateErr) {
+            synced++;
+            console.log(`[sync-meet-recordings] Linked "${rec.name}" → session ${session.id}`);
           }
         }
+      }
+    } else {
+      console.log('[sync-meet-recordings] Consultoria folder not found, falling back to generic search');
+    }
 
-        // Priority 4: Only one recording that day — use it
-        if (!match && sameDayRecs.length === 1) {
-          match = sameDayRecs[0];
-        }
-      } else if (!match && otherSessionsOnSameDay > 1) {
-        console.log(`[sync-meet-recordings] Skipping generic match for "${session.title}" — ${otherSessionsOnSameDay} sessions on ${sessionDateStr}, cannot safely assign without name match`);
+    // ── Step 2: Fallback — generic search in Meet Recordings ─────────────────
+    // For any client that still has sessions without recordings
+    const { data: pendingSessions } = await supabase
+      .from('consulting_sessions')
+      .select('id, client_id, session_date, title, consulting_clients!client_id(full_name, meet_display_name)')
+      .is('recording_drive_id', null)
+      .eq('user_id', user.id)
+      .eq(sessionId ? 'id' : 'user_id', sessionId || user.id);
+
+    if (pendingSessions && pendingSessions.length > 0) {
+      // Search generic Meet recordings
+      const driveSearchUrl = new URL('https://www.googleapis.com/drive/v3/files');
+      driveSearchUrl.searchParams.set('q', "mimeType='video/mp4' and (name contains 'Meet' or name contains 'GMT' or name contains 'Grava')");
+      driveSearchUrl.searchParams.set('fields', 'files(id,name,createdTime,webViewLink,mimeType)');
+      driveSearchUrl.searchParams.set('orderBy', 'createdTime desc');
+      driveSearchUrl.searchParams.set('pageSize', '200');
+
+      const driveRes = await fetch(driveSearchUrl.toString(), {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      const driveData = await driveRes.json();
+      const genericRecordings = (driveData.files || []).filter((r: any) => !processedFileIds.has(r.id));
+
+      console.log(`[sync-meet-recordings] Fallback: ${genericRecordings.length} generic recordings, ${pendingSessions.length} pending sessions`);
+
+      // Build map: sessionDate → pending sessions on that day
+      const sessionsByDay = new Map<string, any[]>();
+      for (const s of pendingSessions) {
+        const day = new Date(s.session_date).toISOString().split('T')[0];
+        if (!sessionsByDay.has(day)) sessionsByDay.set(day, []);
+        sessionsByDay.get(day)!.push(s);
       }
 
-      if (match) {
-        console.log(`[sync-meet-recordings] Matched "${session.title}" → "${match.name}"`);
+      for (const rec of genericRecordings) {
+        if (processedFileIds.has(rec.id)) continue;
+        const recDay = new Date(rec.createdTime).toISOString().split('T')[0];
+        const daySessions = sessionsByDay.get(recDay) || [];
 
-        // Set sharing permission
-        try {
-          await fetch(`https://www.googleapis.com/drive/v3/files/${match.id}/permissions`, {
-            method: 'POST',
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ role: 'reader', type: 'anyone' }),
-          });
-        } catch (permErr) {
-          console.warn('[sync-meet-recordings] Could not set sharing permission:', permErr);
-        }
+        if (daySessions.length === 0) continue;
+
+        const clientName = ((daySessions[0].consulting_clients as any)?.full_name || '').toLowerCase();
+        const alias = ((daySessions[0].consulting_clients as any)?.meet_display_name || '').toLowerCase();
+
+        // Only link if name appears in file name
+        const recNorm = normalize(rec.name);
+        const parts = nameParts(clientName);
+        const aliasParts2 = alias ? nameParts(alias) : [];
+        const nameHit = parts.filter(p => recNorm.includes(p)).length >= 2
+          || aliasParts2.filter(p => recNorm.includes(p)).length >= 1;
+
+        if (!nameHit && daySessions.length > 1) continue; // ambiguous, skip
+
+        // If only one session that day, allow with 1 name part
+        const singleDayHit = daySessions.length === 1 && parts.filter(p => recNorm.includes(p)).length >= 1;
+        if (!nameHit && !singleDayHit) continue;
+
+        const session = daySessions[0];
+        await makeFilePublic(accessToken, rec.id);
 
         const { error: updateErr } = await supabase
           .from('consulting_sessions')
           .update({
-            recording_url: match.webViewLink,
-            recording_drive_id: match.id,
+            recording_url: rec.webViewLink,
+            recording_drive_id: rec.id,
           })
           .eq('id', session.id);
 
         if (!updateErr) {
           synced++;
-          // Remove matched recording so it's not reused
-          recordings = recordings.filter((r: any) => r.id !== match.id);
+          processedFileIds.add(rec.id);
+          sessionsByDay.delete(recDay); // avoid double-linking same day
+          console.log(`[sync-meet-recordings] Fallback linked "${rec.name}" → session ${session.id}`);
         }
       }
     }
 
-    return new Response(JSON.stringify({ 
-      synced, 
-      total: sessions.length,
-      recordingsFound: recordings.length,
+    return new Response(JSON.stringify({
+      synced,
+      created,
+      message: `${synced} gravação(ões) vinculada(s), ${created} sessão(ões) criada(s) automaticamente`,
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
