@@ -333,10 +333,46 @@ export function ConsultingSessionsManager({ clientId }: ConsultingSessionsManage
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      toast.success(
-        `${data.transcriptions} transcrição(ões) importada(s), ${data.summaries} resumo(s) gerado(s)`
-      );
-      fetchSessions();
+
+      // Process any pending recordings returned by batch-import
+      const pendingRecordings: Array<{ sessionId: string; fileId: string; fileName?: string; sessionTitle: string }> =
+        data.pending_recordings || [];
+
+      if (pendingRecordings.length > 0) {
+        toast.info(`Iniciando transcrição de ${pendingRecordings.length} gravação(ões)...`);
+        let successCount = 0;
+        for (let i = 0; i < pendingRecordings.length; i++) {
+          const rec = pendingRecordings[i];
+          toast.info(`Transcrevendo reunião ${i + 1} de ${pendingRecordings.length}: "${rec.sessionTitle}"`);
+          try {
+            const { data: tData, error: tError } = await supabase.functions.invoke('transcribe-recording', {
+              body: {
+                userId: user?.id,
+                sessionId: rec.sessionId,
+                fileId: rec.fileId,
+                fileName: rec.fileName,
+                force: false,
+              },
+            });
+            if (!tError && !tData?.error) {
+              successCount++;
+            } else {
+              console.warn(`[batchImport] Failed for "${rec.sessionTitle}":`, tError || tData?.error);
+            }
+          } catch (e) {
+            console.warn(`[batchImport] Exception for "${rec.sessionTitle}":`, e);
+          }
+        }
+        toast.success(`${successCount} de ${pendingRecordings.length} reunião(ões) transcritas e resumidas!`);
+        fetchSessions();
+      } else if (data.transcriptions > 0 || data.summaries > 0) {
+        toast.success(
+          `${data.transcriptions} transcrição(ões) importada(s), ${data.summaries} resumo(s) gerado(s)`
+        );
+        fetchSessions();
+      } else {
+        toast.info('Nenhuma transcrição nova encontrada. Verifique se as gravações foram sincronizadas.');
+      }
     } catch (error: any) {
       console.error('Error importing transcripts:', error);
       toast.error(error.message || 'Erro ao importar transcrições');
