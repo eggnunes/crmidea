@@ -211,20 +211,39 @@ async function syncClientCalendar(
     console.log(`[sync-calendar-sessions] Created session: ${event.summary} (${eventStart})`);
   }
 
-  // Also search by first name if no events synced via email
+  // Also search by name variants (first name, uppercase, surname) if no events synced via email
   if (syncedCount === 0) {
-    const firstName = consultingClient.full_name.split(' ')[0];
-    const nameParams = new URLSearchParams({
-      timeMin: pastDate.toISOString(),
-      timeMax: futureDate.toISOString(),
-      singleEvents: 'true',
-      orderBy: 'startTime',
-      maxResults: '250',
-      q: firstName,
-    });
+    const nameParts = consultingClient.full_name.trim().split(/\s+/);
+    const firstName = nameParts[0];
+    const lastName = nameParts.length > 1 ? nameParts[nameParts.length - 1] : '';
 
-    const nameEvents = await fetchAllCalendarEvents(accessToken, nameParams);
-    console.log(`[sync-calendar-sessions] Found ${nameEvents.length} events for name: ${firstName}`);
+    // Try multiple search terms: first name, surname, full name
+    const searchTerms = [firstName, lastName, consultingClient.full_name].filter(Boolean);
+    const uniqueTerms = [...new Set(searchTerms)];
+
+    let nameEvents: any[] = [];
+    for (const term of uniqueTerms) {
+      const nameParams = new URLSearchParams({
+        timeMin: pastDate.toISOString(),
+        timeMax: futureDate.toISOString(),
+        singleEvents: 'true',
+        orderBy: 'startTime',
+        maxResults: '250',
+        q: term,
+      });
+
+      const termEvents = await fetchAllCalendarEvents(accessToken, nameParams);
+      console.log(`[sync-calendar-sessions] Found ${termEvents.length} events for term: "${term}"`);
+      nameEvents.push(...termEvents);
+    }
+
+    // Deduplicate events by id
+    const uniqueEventIds = new Set<string>();
+    nameEvents = nameEvents.filter(e => {
+      if (uniqueEventIds.has(e.id)) return false;
+      uniqueEventIds.add(e.id);
+      return true;
+    });
 
     for (const event of nameEvents) {
       const eventStart = event.start?.dateTime || event.start?.date;
