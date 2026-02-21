@@ -427,6 +427,54 @@ serve(async (req) => {
       }
     }
 
+    // ── Step 3: Auto-trigger transcription + summary for newly linked sessions ──
+    if (synced > 0) {
+      console.log(`[sync-meet-recordings] Auto-triggering transcription for ${synced} newly linked session(s)...`);
+
+      // Fetch all sessions that have a recording but no transcription yet
+      const { data: sessionsToProcess } = await supabase
+        .from('consulting_sessions')
+        .select('id, recording_drive_id, title')
+        .eq('user_id', user.id)
+        .not('recording_drive_id', 'is', null)
+        .is('transcription', null)
+        .order('session_date', { ascending: false })
+        .limit(10);
+
+      if (sessionsToProcess && sessionsToProcess.length > 0) {
+        for (const sess of sessionsToProcess) {
+          try {
+            console.log(`[sync-meet-recordings] Triggering transcription for "${sess.title}" (${sess.id})`);
+            // Call transcribe-recording edge function via internal fetch
+            const transcribeUrl = `${SUPABASE_URL}/functions/v1/transcribe-recording`;
+            const resp = await fetch(transcribeUrl, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+              },
+              body: JSON.stringify({
+                userId: user.id,
+                sessionId: sess.id,
+                fileId: sess.recording_drive_id,
+                fileName: `${sess.title}.mp4`,
+              }),
+            });
+
+            if (resp.ok) {
+              const result = await resp.json();
+              console.log(`[sync-meet-recordings] Transcription result for "${sess.title}":`, JSON.stringify(result));
+            } else {
+              const errText = await resp.text();
+              console.error(`[sync-meet-recordings] Transcription failed for "${sess.title}":`, resp.status, errText);
+            }
+          } catch (e) {
+            console.error(`[sync-meet-recordings] Transcription trigger error for "${sess.title}":`, e);
+          }
+        }
+      }
+    }
+
     return new Response(JSON.stringify({
       synced,
       created,
