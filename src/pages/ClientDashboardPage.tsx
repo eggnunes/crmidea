@@ -319,7 +319,9 @@ export function ClientDashboardPage() {
     }
   };
 
-  const formProgressPercent = formProgress ? (formProgress.current_step / 6) * 100 : 0;
+  // Consider form completed if is_completed flag is true OR if submitted_at is set (safety net)
+  const isFormCompleted = !!(formProgress?.is_completed || formProgress?.submitted_at);
+  const formProgressPercent = formProgress ? ((isFormCompleted ? 6 : formProgress.current_step) / 6) * 100 : 0;
 
   if (loading) {
     return (
@@ -377,7 +379,7 @@ export function ClientDashboardPage() {
 
       <main className="container mx-auto px-4 py-8">
         {/* Alert: Form not completed */}
-        {!formProgress?.is_completed && (
+        {!isFormCompleted && (
           <Card className="mb-6 border-amber-300 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30 dark:border-amber-700">
             <CardContent className="pt-6">
               <div className="flex flex-col md:flex-row md:items-center gap-4">
@@ -411,7 +413,7 @@ export function ClientDashboardPage() {
         )}
 
         {/* Alert: Edit Feature Priorities (when form is completed) */}
-        {formProgress?.is_completed && consultingClient && (
+        {isFormCompleted && consultingClient && (
           <Card className="mb-6 border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 dark:border-blue-700">
             <CardContent className="pt-6">
               <div className="flex flex-col md:flex-row md:items-center gap-4">
@@ -450,7 +452,7 @@ export function ClientDashboardPage() {
                 </p>
               </div>
               
-              {formProgress?.is_completed && (
+              {isFormCompleted && (
                 <Badge variant="default" className="bg-green-500 text-white gap-1">
                   <CheckCircle2 className="w-4 h-4" />
                   Diagnóstico Concluído
@@ -474,15 +476,15 @@ export function ClientDashboardPage() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-2xl font-bold">
-                    {formProgress?.is_completed ? "100%" : `${Math.round(formProgressPercent)}%`}
+                    {isFormCompleted ? "100%" : `${Math.round(formProgressPercent)}%`}
                   </span>
-                  {formProgress?.is_completed && (
+                  {isFormCompleted && (
                     <CheckCircle2 className="w-5 h-5 text-green-500" />
                   )}
                 </div>
-                <Progress value={formProgress?.is_completed ? 100 : formProgressPercent} className="h-2" />
+                <Progress value={isFormCompleted ? 100 : formProgressPercent} className="h-2" />
                 <p className="text-xs text-muted-foreground">
-                  {formProgress?.is_completed ? "Concluído" : `Etapa ${formProgress?.current_step || 1} de 6`}
+                  {isFormCompleted ? "Concluído" : `Etapa ${formProgress?.current_step || 1} de 6`}
                 </p>
               </div>
             </CardContent>
@@ -678,7 +680,7 @@ export function ClientDashboardPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {formProgress?.is_completed && consultingClient ? (
+                {isFormCompleted && consultingClient ? (
                   <ClientFormResponses clientId={consultingClient.id} />
                 ) : (
                   <div className="text-center py-8">
