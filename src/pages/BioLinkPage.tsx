@@ -12,7 +12,7 @@ import logoRobodetoga from "@/assets/logo-robodetoga.png";
 import logoVagasjuridicas from "@/assets/logo-vagasjuridicas.png";
 import logoAITeleprompter from "@/assets/logo-ai-teleprompter.png";
 import { Link, useNavigate } from "react-router-dom";
-import { Helmet } from "react-helmet";
+import { SEOHead } from "@/components/seo/SEOHead";
 import { supabase } from "@/integrations/supabase/client";
 
 const products = [
@@ -150,19 +150,7 @@ export function BioLinkPage() {
 
   return (
     <>
-      <Helmet>
-        <title>Rafael Egg | Links - IA para Advogados</title>
-        <meta name="description" content="Todos os links, produtos e projetos de Rafael Egg - Mentor em IA para Advocacia. Consultoria, Mentoria, Cursos e E-books sobre Inteligência Artificial para advogados." />
-        <meta name="keywords" content="Rafael Egg links, IA para advogados, consultoria IA, mentoria advogados, cursos IA jurídica" />
-        <meta name="robots" content="index, follow" />
-        <link rel="canonical" href="https://rafaelegg.com/bio" />
-        
-        <meta property="og:type" content="website" />
-        <meta property="og:url" content="https://rafaelegg.com/bio" />
-        <meta property="og:title" content="Rafael Egg | Links - IA para Advogados" />
-        <meta property="og:description" content="Todos os links, produtos e projetos de Rafael Egg - Mentor em IA para Advocacia." />
-        <meta property="og:image" content="https://rafaelegg.com/og-image.png" />
-      </Helmet>
+      <SEOHead path="/bio" />
       
       <div className="min-h-screen bg-gradient-to-br from-[#1a1f2e] via-[#0f1419] to-[#1a1f2e]">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-amber-600/10 via-transparent to-transparent" />
