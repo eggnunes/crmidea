@@ -139,20 +139,30 @@ function nameParts(name: string): string[] {
   return normalize(name).split(/\s+/).filter(p => p.length > 2 && !['de','da','do','dos','das','e'].includes(p));
 }
 
-/** Returns true if the folder name matches the client name (flexible) */
+/** Returns true if the folder name matches the client name (strict: requires at least 2 meaningful name parts OR exact first+last name) */
 function folderMatchesClient(folderName: string, clientName: string, alias?: string): boolean {
   const folderNorm = normalize(folderName);
   const clientParts = nameParts(clientName);
 
-  // At least 1 meaningful part of client name appears in folder name
-  const clientMatch = clientParts.filter(p => folderNorm.includes(p)).length >= 1;
-  if (clientMatch) return true;
+  // Require at least 2 meaningful parts to match, preventing false positives
+  // e.g. "Rodrigues" alone won't match "Lucineia Cristina Martins Rodrigues"
+  if (clientParts.length >= 2) {
+    const matchCount = clientParts.filter(p => folderNorm.includes(p)).length;
+    if (matchCount >= 2) return true;
+  } else if (clientParts.length === 1) {
+    // Single-word name: require exact match
+    if (folderNorm === clientParts[0]) return true;
+  }
 
-  // Also check alias
+  // Check alias (meet_display_name) - require at least 2 parts or exact match
   if (alias) {
     const aliasParts = nameParts(alias);
-    const aliasMatch = aliasParts.filter(p => folderNorm.includes(p)).length >= 1;
-    if (aliasMatch) return true;
+    if (aliasParts.length >= 2) {
+      const aliasMatch = aliasParts.filter(p => folderNorm.includes(p)).length;
+      if (aliasMatch >= 2) return true;
+    } else if (aliasParts.length === 1) {
+      if (folderNorm === aliasParts[0]) return true;
+    }
   }
 
   return false;
