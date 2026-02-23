@@ -93,7 +93,7 @@ function generateHtmlForRoute(route: SEORouteData, template: string): string {
   // Replace seo-static-content
   html = html.replace(
     /<div id="seo-static-content"[^>]*>[\s\S]*?<\/footer>\s*<\/div>/,
-    `<div id="seo-static-content" style="font-family:system-ui,-apple-system,sans-serif;max-width:900px;margin:0 auto;padding:20px;color:#333;line-height:1.7;">\n${route.staticContent}\n      </div>`
+    `<div id="seo-static-content">\n${route.staticContent}\n      </div>`
   );
 
   // Replace noscript content
