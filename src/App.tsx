@@ -23,6 +23,7 @@ import { ConsultingEconomyPage } from "./pages/ConsultingEconomyPage";
 import { ClientAuthPage } from "./pages/ClientAuthPage";
 import { ClientDashboardPage } from "./pages/ClientDashboardPage";
 import { ClientDiagnosticForm } from "./pages/ClientDiagnosticForm";
+import { ClientResetPasswordPage } from "./pages/ClientResetPasswordPage";
 import { EditFeaturePrioritiesPage } from "./pages/EditFeaturePrioritiesPage";
 import AdminUsersPage from "./pages/AdminUsersPage";
 import { AdminClientViewPage } from "./pages/AdminClientViewPage";
@@ -70,6 +71,7 @@ function AppRoutes() {
       
       {/* Área do Cliente da Consultoria - Login e Dashboard */}
       <Route path="/consultoria/login" element={<ClientAuthPage />} />
+      <Route path="/consultoria/redefinir-senha" element={<ClientResetPasswordPage />} />
       <Route path="/consultoria/dashboard" element={<ClientDashboardPage />} />
       <Route path="/consultoria/diagnostico" element={<ClientDiagnosticForm />} />
       <Route path="/consultoria/editar-prioridades" element={<EditFeaturePrioritiesPage />} />
