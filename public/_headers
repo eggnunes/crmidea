@@ -18,6 +18,9 @@
 /consultoria
   X-Robots-Tag: index, follow
 
+/consultoria/economia
+  X-Robots-Tag: index, follow
+
 /blog
   X-Robots-Tag: index, follow
 

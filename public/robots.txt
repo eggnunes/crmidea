@@ -3,6 +3,7 @@ Allow: /
 Allow: /blog
 Allow: /blog/
 Allow: /consultoria
+Allow: /consultoria/
 Allow: /consultoria/economia
 Allow: /bio
 Allow: /ebook
