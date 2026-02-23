@@ -520,13 +520,13 @@ export const seoRoutes: SEORouteData[] = [
 <main>
 <section style="margin-bottom:30px;">
 <h2>Quem É Rafael Egg?</h2>
-<p>Rafael Egg Nunes é advogado desde 2008, formado pela Universidade Federal do Paraná (UFPR), e sócio do Egg Nunes Advogados Associados. Com mais de 15 anos de experiência na prática jurídica, Rafael se especializou na interseção entre direito e tecnologia, tornando-se referência nacional em inteligência artificial aplicada à advocacia.</p>
+<p>Rafael Egg Nunes é advogado desde 2008, formado em Direito pela Universidade FUMEC, com MBA em Direito Empresarial pela FGV e extensão na Ohio University, e sócio do Egg Nunes Advogados Associados. Com mais de 15 anos de experiência na prática jurídica, Rafael se especializou na interseção entre direito e tecnologia, tornando-se referência nacional em inteligência artificial aplicada à advocacia.</p>
 <p>Em 2025, seu escritório recebeu o prêmio de <strong>Melhor Escritório em Inteligência Artificial do Brasil</strong> pela Law Summit, consolidando seu reconhecimento como pioneiro na aplicação de IA no universo jurídico brasileiro.</p>
 </section>
 <section style="margin-bottom:30px;">
 <h2>Trajetória e Conquistas</h2>
 <ul>
-<li><strong>2008:</strong> Formatura em Direito pela UFPR e início da carreira advocatícia</li>
+<li><strong>2008:</strong> Início da carreira advocatícia após formação pela FUMEC</li>
 <li><strong>2020:</strong> Início da pesquisa em IA aplicada ao Direito</li>
 <li><strong>2023:</strong> Criação do Método IDEA</li>
 <li><strong>2024:</strong> Lançamento da Consultoria IDEA e dos E-books</li>
@@ -548,7 +548,7 @@ export const seoRoutes: SEORouteData[] = [
 </footer>`,
     noscriptContent: `<h1>Sobre Rafael Egg</h1><p>Advogado desde 2008, mentor em IA, criador do Método IDEA. Melhor Escritório em IA do Brasil 2025.</p><a href="/">Início</a> | <a href="/consultoria">Consultoria</a>`,
     jsonLd: [
-      { ...personSchema, "alumniOf": { "@type": "CollegeOrUniversity", "name": "Universidade Federal do Paraná (UFPR)" } },
+      { ...personSchema, "alumniOf": [{ "@type": "CollegeOrUniversity", "name": "Universidade FUMEC" }, { "@type": "CollegeOrUniversity", "name": "Fundação Getúlio Vargas (FGV)" }] },
       breadcrumb({ name: "Sobre Rafael Egg", url: `${BASE_URL}/bio` })
     ],
     lastModified: TODAY, sitemapPriority: 0.7, changeFrequency: "monthly"
