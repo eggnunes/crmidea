@@ -26,64 +26,39 @@ serve(async (req) => {
 
   const today = new Date().toISOString().split("T")[0];
 
-  let blogEntries = "";
+  // Static routes
+  const staticRoutes = [
+    { loc: "/", priority: "1.0", changefreq: "weekly" },
+    { loc: "/consultoria", priority: "0.9", changefreq: "monthly" },
+    { loc: "/consultoria/economia", priority: "0.8", changefreq: "monthly" },
+    { loc: "/blog", priority: "0.8", changefreq: "daily" },
+    { loc: "/bio", priority: "0.7", changefreq: "monthly" },
+    { loc: "/ebook", priority: "0.7", changefreq: "monthly" },
+    { loc: "/privacidade", priority: "0.3", changefreq: "yearly" },
+  ];
+
+  let entries = staticRoutes.map(r => `  <url>
+    <loc>https://rafaelegg.com${r.loc}</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>${r.changefreq}</changefreq>
+    <priority>${r.priority}</priority>
+  </url>`).join('\n');
+
   if (posts) {
     for (const post of posts) {
       const lastmod = (post.updated_at || post.published_at || today).split("T")[0];
-      blogEntries += `
-  <url>
+      entries += `\n  <url>
     <loc>https://rafaelegg.com/blog/${post.slug}</loc>
     <lastmod>${lastmod}</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
+    <priority>0.6</priority>
   </url>`;
     }
   }
 
   const sitemapXml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url>
-    <loc>https://rafaelegg.com/</loc>
-    <lastmod>${today}</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>1.0</priority>
-  </url>
-  <url>
-    <loc>https://rafaelegg.com/consultoria</loc>
-    <lastmod>${today}</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://rafaelegg.com/consultoria/economia</loc>
-    <lastmod>${today}</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://rafaelegg.com/blog</loc>
-    <lastmod>${today}</lastmod>
-    <changefreq>daily</changefreq>
-    <priority>0.8</priority>
-  </url>${blogEntries}
-  <url>
-    <loc>https://rafaelegg.com/bio</loc>
-    <lastmod>${today}</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://rafaelegg.com/ebook</loc>
-    <lastmod>${today}</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://rafaelegg.com/privacidade</loc>
-    <lastmod>${today}</lastmod>
-    <changefreq>yearly</changefreq>
-    <priority>0.3</priority>
-  </url>
+${entries}
 </urlset>`;
 
   return new Response(sitemapXml, {
