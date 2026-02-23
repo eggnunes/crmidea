@@ -1,16 +1,11 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Helmet } from "react-helmet";
+import { SEOHead } from "@/components/seo/SEOHead";
 import { Link } from "react-router-dom";
 
 const PrivacyPolicyPage = () => {
   return (
     <>
-      <Helmet>
-        <title>Política de Privacidade | Rafael Egg - IA para Advogados</title>
-        <meta name="description" content="Política de Privacidade do site Rafael Egg. Saiba como coletamos, usamos e protegemos suas informações pessoais." />
-        <meta name="robots" content="index, follow" />
-        <link rel="canonical" href="https://rafaelegg.com/privacidade" />
-      </Helmet>
+      <SEOHead path="/privacidade" />
       
       <div className="min-h-screen bg-background py-12 px-4">
         <div className="max-w-4xl mx-auto">
