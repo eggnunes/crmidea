@@ -246,7 +246,7 @@ export function ClientAuthPage() {
     setForgotPasswordLoading(true);
     
     try {
-      const redirectUrl = `${window.location.origin}/consultoria/auth`;
+      const redirectUrl = `${window.location.origin}/consultoria/redefinir-senha`;
       
       const { error } = await supabase.auth.resetPasswordForEmail(forgotPasswordEmail, {
         redirectTo: redirectUrl,
