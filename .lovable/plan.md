@@ -1,66 +1,87 @@
 
+
+# Correção de Reuniões Incorretas nos Clientes de Consultoria
+
 ## Problema Identificado
 
-A aba **"Agendar"** no dashboard do cliente (aba do Alan) usa um `<iframe>` interno apontando para `/agendar/{id_do_consultor}`. Esse sistema depende de horários manuais cadastrados na tabela interna — que está **vazia**. Por isso o cliente vê "Nenhum horário disponível" e ao tentar confirmar o agendamento recebe "Erro ao realizar agendamento".
+A sincronização do Google Calendar (`sync-calendar-sessions`) usa uma busca muito ampla que associa eventos errados aos clientes. Exemplos encontrados:
 
-Já existe na base de dados o campo `calendar_booking_url` em `consulting_settings` para guardar o link do Google Calendar. O link atual salvo é o antigo; o novo link fornecido é `https://calendar.app.google/1i61CqqTTJdwBV7a6`.
+| Cliente | Total | Corretas (estimadas) | Erradas |
+|---------|-------|---------------------|---------|
+| Luiz Augusto Nunes | 96 | ~1 | ~95 (82 sao "[Egg Nunes] Reuniao Semanal") |
+| Ana Cristina | 18 | ~7 | ~11 |
+| Diego Castro | 15 | ~8 | ~7 ("Conciliacao Jesp", "Melissa de Castro", etc.) |
+| Lucineia | 14 | ~2 | ~12 ("Reuniao de Consultoria" genericas, "RD Station") |
+| Adriana Gomes | 13 | ~3 | ~10 ("Marketing Meta", "Audiencia", etc.) |
 
----
-
-## Plano de Correção
-
-### Parte 1 — Atualizar o link salvo no banco
-
-Atualizar o registro em `consulting_settings` com o novo link:
-```
-https://calendar.app.google/1i61CqqTTJdwBV7a6
-```
-
-### Parte 2 — Refatorar a aba "Agendar" no dashboard do cliente
-
-Substituir o `<iframe>` interno (que não funciona) por uma interface limpa e clara que:
-
-1. Busca o `calendar_booking_url` da tabela `consulting_settings` (usando o `consultant_id` do perfil do cliente)
-2. Exibe um **card convidativo** com botão "Agendar minha sessão →" que abre o Google Calendar Appointment em nova aba
-3. Se por algum motivo o link não estiver configurado, exibe mensagem orientando o cliente a entrar em contato
-
-**Visual da nova aba "Agendar":**
-```
-┌────────────────────────────────────────────────────────┐
-│  📅  Agendar uma Sessão de Consultoria                  │
-│                                                        │
-│  Clique no botão abaixo para ver os horários           │
-│  disponíveis e confirmar seu agendamento.              │
-│                                                        │
-│  ✓ Escolha a data e horário que melhor funciona        │
-│  ✓ O link abrirá a agenda oficial de agendamento       │
-│  ✓ Você receberá uma confirmação por e-mail            │
-│                                                        │
-│  [  🗓️  Abrir Agenda de Agendamento  →  ]              │
-└────────────────────────────────────────────────────────┘
-```
-
-### Parte 3 — Atualizar `ConsultingCalendarSettings` para refletir o novo link
-
-Garantir que o novo link `https://calendar.app.google/1i61CqqTTJdwBV7a6` seja o valor padrão exibido e editável na tela de configurações do calendário (aba Configurações da Consultoria), para facilitar atualizações futuras sem necessidade de código.
+**Causa raiz**: O sync busca eventos no calendario por nome/email e aceita qualquer evento que mencione o primeiro nome do cliente, gerando falsos positivos massivos.
 
 ---
 
-## Arquivos a Modificar
+## Solucao em 2 Etapas
 
-| Arquivo | Alteração |
-|---|---|
-| `src/pages/ClientDashboardPage.tsx` | Substituir o `<iframe>` pela nova interface com botão de link externo; buscar `calendar_booking_url` de `consulting_settings` |
-| `src/components/consulting/ConsultingCalendarSettings.tsx` | Atualizar o valor inicial/placeholder para o novo link |
+### Etapa 1: Limpeza dos Dados Incorretos
 
-**Nenhuma mudança de banco necessária** — o link será atualizado via código no `upsert` na inicialização, ou você pode editar diretamente na tela de configurações da consultoria após o deploy.
+Deletar todas as sessoes que NAO sao reunioes de consultoria legitimas. Criterios para MANTER uma sessao:
+
+1. Titulo contem "Consultoria e Mentoria Individual IDEA" ou "Consultoria IDEA"
+2. Titulo contem "Aula Mentoria [NomeCliente]" ou "Imersao [NomeCliente]" ou "Aula Imersao [NomeCliente]"
+3. Sessao tem `ai_summary` preenchido (indica que foi processada como reuniao real)
+4. Sessao tem `transcription` preenchida
+
+Tudo que nao se enquadra nos criterios acima sera deletado. Isso inclui:
+- "[Egg Nunes] Reuniao Semanal" (reunioes internas)
+- "Reuniao de Consultoria" genericas sem evidencia de vinculo
+- "Ligacao com Especialista em Marketing Meta"
+- "Audiencia Inicial", "AIJ", "Conciliacao Jesp" (audiencias judiciais do cliente)
+- "RD Station [Call X]"
+- Eventos de outros clientes/pessoas
+
+A limpeza sera feita via SQL direto, identificando por padrao de titulo e ausencia de dados de transcricao/resumo.
+
+### Etapa 2: Correcao do Algoritmo de Sync
+
+Alterar o `sync-calendar-sessions` para ser muito mais restritivo:
+
+**Regras novas de matching:**
+
+1. **Busca primaria por email**: Manter a busca por email do cliente, MAS so aceitar eventos onde:
+   - O cliente esta EXPLICITAMENTE na lista de `attendees` do evento, OU
+   - O titulo do evento contem um padrao de consultoria ("IDEA", "Consultoria", "Mentoria")
+
+2. **Eliminar busca por nome (fallback)**: Remover completamente o bloco de fallback que busca por primeiro nome/sobrenome. Este e o principal causador de falsos positivos.
+
+3. **Filtro de titulo obrigatorio**: Mesmo quando o email e encontrado nos attendees, exigir que o titulo do evento contenha pelo menos um dos termos: "IDEA", "Consultoria", "Mentoria", "Imersao", ou o nome/alias do cliente.
+
+4. **Ignorar eventos internos**: Rejeitar eventos com "[Egg Nunes]" no titulo.
 
 ---
 
-## Resultado Esperado
+## Detalhes Tecnicos
 
-- Alan abre a aba "Agendar" no dashboard → vê um card bonito com botão claro
-- Clica no botão → abre `https://calendar.app.google/1i61CqqTTJdwBV7a6` em nova aba
-- Escolhe data e horário diretamente no Google Calendar Appointment
-- Sem erros, sem iframe quebrado
-- Futuramente, você pode trocar o link na tela de Configurações da Consultoria sem precisar de código
+### Arquivo: `supabase/functions/sync-calendar-sessions/index.ts`
+
+Modificacoes na funcao `syncClientCalendar`:
+
+1. Apos buscar eventos por email (linha 150), adicionar filtro de titulo obrigatorio:
+   - Aceitar apenas se titulo contem "IDEA" ou "Consultoria" ou "Mentoria" ou nome/alias do cliente
+   - Rejeitar se titulo contem "[Egg Nunes]" ou "RD Station"
+
+2. Remover completamente o bloco de fallback por nome (linhas ~200-260) que busca por primeiro nome, sobrenome e nome completo
+
+3. Adicionar checagem de `meet_display_name` como criterio adicional de titulo (alem de email nos attendees)
+
+### Limpeza de dados (via SQL)
+
+Sera executado um script que:
+1. Identifica todas as sessoes por cliente
+2. Marca como "para manter" as que tem titulo com padrao de consultoria OU tem ai_summary/transcription
+3. Deleta as restantes
+
+Estimativa: ~120-130 sessoes serao removidas no total.
+
+### Impacto
+
+- Os clientes verao apenas as reunioes reais de consultoria
+- Futuras sincronizacoes nao criarao mais sessoes falsas
+- Sessoes com gravacoes/transcricoes serao preservadas
