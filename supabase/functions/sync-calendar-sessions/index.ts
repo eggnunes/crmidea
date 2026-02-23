@@ -125,9 +125,57 @@ async function sessionExistsForTime(
   return (existingSessions && existingSessions.length > 0);
 }
 
+// Title patterns that indicate a legitimate consulting session
+const CONSULTING_TITLE_PATTERNS = [
+  'consultoria e mentoria individual idea',
+  'consultoria idea',
+  'aula mentoria',
+  'imersao',
+  'imersão',
+  'aula imersao',
+  'aula imersão',
+];
+
+// Title patterns that indicate internal/irrelevant events to always reject
+const REJECTED_TITLE_PATTERNS = [
+  '[egg nunes]',
+  'rd station',
+];
+
+function isConsultingTitle(title: string, clientName: string, meetDisplayName?: string): boolean {
+  const lowerTitle = title.toLowerCase();
+
+  // Reject internal/irrelevant events
+  for (const pattern of REJECTED_TITLE_PATTERNS) {
+    if (lowerTitle.includes(pattern)) return false;
+  }
+
+  // Accept if title matches consulting patterns
+  for (const pattern of CONSULTING_TITLE_PATTERNS) {
+    if (lowerTitle.includes(pattern)) return true;
+  }
+
+  // Accept if title contains client name or alias
+  const nameParts = clientName.trim().split(/\s+/);
+  const firstName = nameParts[0]?.toLowerCase();
+  const lastName = nameParts.length > 1 ? nameParts[nameParts.length - 1]?.toLowerCase() : '';
+
+  // Require at least first AND last name match, or full name, to avoid false positives
+  if (firstName && lastName && lowerTitle.includes(firstName) && lowerTitle.includes(lastName)) {
+    return true;
+  }
+
+  // Check meet_display_name if available
+  if (meetDisplayName && lowerTitle.includes(meetDisplayName.toLowerCase())) {
+    return true;
+  }
+
+  return false;
+}
+
 async function syncClientCalendar(
   supabase: any,
-  consultingClient: { id: string; full_name: string; email: string },
+  consultingClient: { id: string; full_name: string; email: string; meet_display_name?: string },
   accessToken: string,
   consultantId: string
 ): Promise<{ synced: number; events: any[] }> {
@@ -155,15 +203,25 @@ async function syncClientCalendar(
   const processedEventStarts = new Set<string>();
 
   for (const event of emailEvents) {
+    const title = event.summary || '';
+
+    // STEP 1: Check if this is a legitimate consulting event by title
+    if (!isConsultingTitle(title, consultingClient.full_name, consultingClient.meet_display_name)) {
+      console.log(`[sync-calendar-sessions] Skipping non-consulting event: "${title}"`);
+      continue;
+    }
+
+    // STEP 2: Verify client is in attendees OR title contains consulting pattern
     const hasClientEmail = event.attendees?.some((a: any) =>
       a.email?.toLowerCase() === clientEmail.toLowerCase()
     ) || event.description?.toLowerCase().includes(clientEmail.toLowerCase());
 
-    const hasClientName = event.summary?.toLowerCase().includes(
-      consultingClient.full_name.split(' ')[0].toLowerCase()
-    );
+    const hasConsultingPattern = CONSULTING_TITLE_PATTERNS.some(p => title.toLowerCase().includes(p));
 
-    if (!hasClientEmail && !hasClientName) continue;
+    if (!hasClientEmail && !hasConsultingPattern) {
+      console.log(`[sync-calendar-sessions] Skipping event without client email/pattern: "${title}"`);
+      continue;
+    }
 
     const eventStart = event.start?.dateTime || event.start?.date;
     if (!eventStart) continue;
@@ -211,83 +269,8 @@ async function syncClientCalendar(
     console.log(`[sync-calendar-sessions] Created session: ${event.summary} (${eventStart})`);
   }
 
-  // Also search by name variants (first name, uppercase, surname) if no events synced via email
-  if (syncedCount === 0) {
-    const nameParts = consultingClient.full_name.trim().split(/\s+/);
-    const firstName = nameParts[0];
-    const lastName = nameParts.length > 1 ? nameParts[nameParts.length - 1] : '';
-
-    // Try multiple search terms: first name, surname, full name
-    const searchTerms = [firstName, lastName, consultingClient.full_name].filter(Boolean);
-    const uniqueTerms = [...new Set(searchTerms)];
-
-    let nameEvents: any[] = [];
-    for (const term of uniqueTerms) {
-      const nameParams = new URLSearchParams({
-        timeMin: pastDate.toISOString(),
-        timeMax: futureDate.toISOString(),
-        singleEvents: 'true',
-        orderBy: 'startTime',
-        maxResults: '250',
-        q: term,
-      });
-
-      const termEvents = await fetchAllCalendarEvents(accessToken, nameParams);
-      console.log(`[sync-calendar-sessions] Found ${termEvents.length} events for term: "${term}"`);
-      nameEvents.push(...termEvents);
-    }
-
-    // Deduplicate events by id
-    const uniqueEventIds = new Set<string>();
-    nameEvents = nameEvents.filter(e => {
-      if (uniqueEventIds.has(e.id)) return false;
-      uniqueEventIds.add(e.id);
-      return true;
-    });
-
-    for (const event of nameEvents) {
-      const eventStart = event.start?.dateTime || event.start?.date;
-      if (!eventStart) continue;
-
-      const eventKey = new Date(eventStart).toISOString().substring(0, 16);
-      if (processedEventStarts.has(eventKey)) continue;
-
-      // Check database for existing session within ±1 hour
-      const exists = await sessionExistsForTime(supabase, consultingClient.id, eventStart);
-      if (exists) continue;
-
-      let durationMinutes = 60;
-      if (event.end?.dateTime && event.start?.dateTime) {
-        const start = new Date(event.start.dateTime);
-        const end = new Date(event.end.dateTime);
-        durationMinutes = Math.round((end.getTime() - start.getTime()) / 60000);
-      }
-
-      const eventDate = new Date(eventStart);
-      const status = eventDate < now ? 'completed' : 'scheduled';
-
-      const { error: insertError } = await supabase
-        .from('consulting_sessions')
-        .insert({
-          client_id: consultingClient.id,
-          user_id: consultantId,
-          title: event.summary || 'Reunião de Consultoria',
-          session_date: eventStart,
-          duration_minutes: durationMinutes,
-          session_type: event.hangoutLink ? 'online' : 'presential',
-          status,
-          notes: event.description || null,
-          summary: event.hangoutLink ? `Link: ${event.hangoutLink}` : null,
-        });
-
-      if (!insertError) {
-        processedEventStarts.add(eventKey);
-        syncedCount++;
-        syncedEvents.push({ title: event.summary, date: eventStart, status });
-        console.log(`[sync-calendar-sessions] Created session (by name): ${event.summary} (${eventStart})`);
-      }
-    }
-  }
+  // NOTE: Name-based fallback search has been REMOVED to prevent false positives.
+  // Only email-based search with title validation is used now.
 
   return { synced: syncedCount, events: syncedEvents };
 }
@@ -321,7 +304,7 @@ serve(async (req) => {
 
       const { data: allClients, error: clientsError } = await supabase
         .from('consulting_clients')
-        .select('id, full_name, email')
+        .select('id, full_name, email, meet_display_name')
         .eq('user_id', targetConsultantId);
 
       if (clientsError || !allClients?.length) {
@@ -372,7 +355,7 @@ serve(async (req) => {
 
     const { data: consultingClient, error: clientError } = await supabase
       .from('consulting_clients')
-      .select('id, full_name, email')
+      .select('id, full_name, email, meet_display_name')
       .eq('email', clientEmail)
       .eq('user_id', targetConsultantId)
       .maybeSingle();
