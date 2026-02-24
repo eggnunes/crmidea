@@ -74,16 +74,14 @@ export function SEOHead({
     setMeta("name", "twitter:description", description);
     setMeta("name", "twitter:image", image);
 
-    // JSON-LD
-    const JSONLD_CLASS = "seo-jsonld";
-    document.querySelectorAll(`.${JSONLD_CLASS}`).forEach((el) => el.remove());
+    // JSON-LD — remove ALL json-ld scripts (including ones injected by build plugin)
+    document.querySelectorAll('script[type="application/ld+json"]').forEach((el) => el.remove());
     const schemas = schemaJson
       ? Array.isArray(schemaJson) ? schemaJson : [schemaJson]
       : [];
     schemas.forEach((schema) => {
       const script = document.createElement("script");
       script.type = "application/ld+json";
-      script.className = JSONLD_CLASS;
       script.textContent = JSON.stringify(schema);
       document.head.appendChild(script);
     });

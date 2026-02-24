@@ -41,6 +41,7 @@ import logoRE from "@/assets/logo-re.png";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { SEOHead } from "@/components/seo/SEOHead";
+import { personSchema, organizationSchema, generateFAQSchema, generateBreadcrumbSchema } from "@/components/seo/JsonLd";
 import { toast } from "sonner";
 import logoMentoria from "@/assets/logo-mentoria-new.png";
 import logoCursoIdea from "@/assets/logo-curso-idea-new.png";
@@ -210,6 +211,26 @@ export function HomePage() {
         title="Rafael Egg - IA para Advogados | Consultoria, Mentoria e Cursos"
         description="Rafael Egg - Especialista em Inteligência Artificial para Advogados. Consultoria IDEA, Mentoria, Cursos e E-books para transformar sua advocacia com IA."
         canonical="https://rafaelegg.com/"
+        schemaJson={[
+          personSchema,
+          organizationSchema,
+          {
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            "name": "Rafael Egg - IA para Advogados",
+            "url": "https://rafaelegg.com",
+            "description": "Consultoria, mentoria e cursos de Inteligência Artificial para advogados e escritórios de advocacia.",
+            "potentialAction": {
+              "@type": "SearchAction",
+              "target": "https://rafaelegg.com/blog?q={search_term_string}",
+              "query-input": "required name=search_term_string"
+            }
+          },
+          generateFAQSchema(faqItems),
+          generateBreadcrumbSchema([
+            { name: "Início", url: "https://rafaelegg.com/" }
+          ])
+        ]}
       />
       
       <div className="min-h-screen bg-gradient-to-br from-[#1a1f2e] via-[#0f1419] to-[#1a1f2e]">
