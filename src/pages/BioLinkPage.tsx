@@ -150,7 +150,11 @@ export function BioLinkPage() {
 
   return (
     <>
-      <SEOHead path="/bio" />
+      <SEOHead
+        title="Sobre Rafael Egg | Especialista em IA para Advocacia"
+        description="Conheça Rafael Egg, consultor especializado em inteligência artificial aplicada ao direito. Ajudando escritórios de advocacia a inovar com tecnologia."
+        canonical="https://rafaelegg.com/bio"
+      />
       
       <div className="min-h-screen bg-gradient-to-br from-[#1a1f2e] via-[#0f1419] to-[#1a1f2e]">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-amber-600/10 via-transparent to-transparent" />

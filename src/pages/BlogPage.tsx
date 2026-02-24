@@ -150,7 +150,11 @@ export function BlogPage() {
 
   return (
     <>
-      <SEOHead path="/blog" />
+      <SEOHead
+        title="Blog sobre IA na Advocacia | Dicas e Tendências | Rafael Egg"
+        description="Artigos sobre inteligência artificial para advogados: ferramentas, prompts, automação de contratos, pesquisa jurídica e tendências do setor jurídico."
+        canonical="https://rafaelegg.com/blog"
+      />
       
     <div className="min-h-screen bg-gradient-to-br from-[#1a1f2e] via-[#0f1419] to-[#1a1f2e]">
       {/* Header */}

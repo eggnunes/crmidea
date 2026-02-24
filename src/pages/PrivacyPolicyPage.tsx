@@ -5,7 +5,11 @@ import { Link } from "react-router-dom";
 const PrivacyPolicyPage = () => {
   return (
     <>
-      <SEOHead path="/privacidade" />
+      <SEOHead
+        title="Política de Privacidade | Rafael Egg"
+        description="Política de privacidade do site rafaelegg.com. Saiba como coletamos, usamos e protegemos suas informações pessoais."
+        canonical="https://rafaelegg.com/privacidade"
+      />
       
       <div className="min-h-screen bg-background py-12 px-4">
         <div className="max-w-4xl mx-auto">

@@ -216,7 +216,11 @@ export function ConsultingEconomyPage() {
 
   return (
     <>
-      <SEOHead path="/consultoria/economia" />
+      <SEOHead
+        title="Economia com IA na Advocacia: Reduza Custos no Escritório | Rafael Egg"
+        description="Descubra como a inteligência artificial pode reduzir custos e aumentar a lucratividade do seu escritório de advocacia. Resultados comprovados."
+        canonical="https://rafaelegg.com/consultoria/economia"
+      />
       
       <div className="min-h-screen bg-[hsl(222,47%,5%)] overflow-x-hidden">
         {/* Navigation */}
