@@ -327,7 +327,7 @@ export const seoRoutes: SEORouteData[] = [
     noscriptContent: `<h1>Rafael Egg - Inteligência Artificial para Advogados</h1>
 <p>Advogado desde 2008, mentor em IA e criador do Método IDEA. Melhor Escritório em IA do Brasil 2025.</p>
 <nav><a href="/consultoria">Consultoria IDEA</a> | <a href="/blog">Blog</a> | <a href="/bio">Sobre</a> | <a href="/ebook">E-books</a></nav>`,
-    jsonLd: [personSchema, organizationSchema, websiteSchema, faqSchema, breadcrumb()],
+    jsonLd: [personSchema, organizationSchema, websiteSchema, breadcrumb()],
     lastModified: TODAY, sitemapPriority: 1.0, changeFrequency: "weekly"
   },
   {
