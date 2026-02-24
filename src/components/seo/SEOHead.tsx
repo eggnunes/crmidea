@@ -1,62 +1,67 @@
-import { Helmet } from "react-helmet";
-import { getSEORouteData, SEORouteData } from "@/data/seoRoutes";
+import { Helmet } from "react-helmet-async";
 
 interface SEOHeadProps {
-  /** Route path to look up in the registry, e.g. "/consultoria" */
-  path: string;
-  /** Optional overrides (useful for dynamic pages like blog articles) */
-  overrides?: Partial<Pick<SEORouteData, "title" | "description" | "canonical" | "ogTitle" | "ogDescription" | "ogImage" | "jsonLd">>;
+  title: string;
+  description: string;
+  canonical: string;
+  ogImage?: string;
+  noIndex?: boolean;
+  schemaJson?: object | object[];
+  ogType?: string;
 }
 
+const DEFAULT_OG_IMAGE = "https://rafaelegg.com/og-image.png";
+
 /**
- * Renders SEO meta tags + JSON-LD from the centralized seoRoutes registry.
- * Falls back gracefully if the route isn't found in the registry.
+ * Renders SEO meta tags via react-helmet-async.
+ * Must be placed inside a <HelmetProvider>.
  */
-export function SEOHead({ path, overrides }: SEOHeadProps) {
-  const routeData = getSEORouteData(path);
-
-  if (!routeData && !overrides) return null;
-
-  const title = overrides?.title || routeData?.title || "";
-  const description = overrides?.description || routeData?.description || "";
-  const canonical = overrides?.canonical || routeData?.canonical || "";
-  const ogTitle = overrides?.ogTitle || routeData?.ogTitle || title;
-  const ogDescription = overrides?.ogDescription || routeData?.ogDescription || description;
-  const ogImage = overrides?.ogImage || routeData?.ogImage || "";
-  const jsonLd = overrides?.jsonLd || routeData?.jsonLd || [];
+export function SEOHead({
+  title,
+  description,
+  canonical,
+  ogImage,
+  noIndex = false,
+  schemaJson,
+  ogType = "website",
+}: SEOHeadProps) {
+  const image = ogImage || DEFAULT_OG_IMAGE;
+  const schemas = schemaJson
+    ? Array.isArray(schemaJson)
+      ? schemaJson
+      : [schemaJson]
+    : [];
 
   return (
-    <>
-      <Helmet>
-        <title>{title}</title>
-        <meta name="description" content={description} />
-        <link rel="canonical" href={canonical} />
-        <meta name="robots" content="index, follow" />
-        <meta name="author" content="Rafael Egg" />
+    <Helmet>
+      <title>{title}</title>
+      <meta name="description" content={description} />
+      <link rel="canonical" href={canonical} />
+      <meta name="robots" content={noIndex ? "noindex, nofollow" : "index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1"} />
+      <meta name="author" content="Rafael Egg" />
 
-        {/* Open Graph */}
-        <meta property="og:type" content="website" />
-        <meta property="og:url" content={canonical} />
-        <meta property="og:title" content={ogTitle} />
-        <meta property="og:description" content={ogDescription} />
-        <meta property="og:image" content={ogImage} />
-        <meta property="og:site_name" content="Rafael Egg - IA para Advogados" />
-        <meta property="og:locale" content="pt_BR" />
+      {/* Open Graph */}
+      <meta property="og:type" content={ogType} />
+      <meta property="og:url" content={canonical} />
+      <meta property="og:title" content={title} />
+      <meta property="og:description" content={description} />
+      <meta property="og:image" content={image} />
+      <meta property="og:site_name" content="Rafael Egg - IA para Advogados" />
+      <meta property="og:locale" content="pt_BR" />
 
-        {/* Twitter */}
-        <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:url" content={canonical} />
-        <meta name="twitter:title" content={ogTitle} />
-        <meta name="twitter:description" content={ogDescription} />
-        <meta name="twitter:image" content={ogImage} />
+      {/* Twitter */}
+      <meta name="twitter:card" content="summary_large_image" />
+      <meta name="twitter:url" content={canonical} />
+      <meta name="twitter:title" content={title} />
+      <meta name="twitter:description" content={description} />
+      <meta name="twitter:image" content={image} />
 
-        {/* JSON-LD structured data */}
-        {jsonLd.map((schema, i) => (
-          <script key={i} type="application/ld+json">
-            {JSON.stringify(schema)}
-          </script>
-        ))}
-      </Helmet>
-    </>
+      {/* JSON-LD structured data */}
+      {schemas.map((schema, i) => (
+        <script key={i} type="application/ld+json">
+          {JSON.stringify(schema)}
+        </script>
+      ))}
+    </Helmet>
   );
 }

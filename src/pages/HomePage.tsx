@@ -206,7 +206,11 @@ export function HomePage() {
 
   return (
     <>
-      <SEOHead path="/" />
+      <SEOHead
+        title="Rafael Egg - IA para Advogados | Consultoria, Mentoria e Cursos"
+        description="Rafael Egg - Especialista em Inteligência Artificial para Advogados. Consultoria IDEA, Mentoria, Cursos e E-books para transformar sua advocacia com IA."
+        canonical="https://rafaelegg.com/"
+      />
       
       <div className="min-h-screen bg-gradient-to-br from-[#1a1f2e] via-[#0f1419] to-[#1a1f2e]">
       {/* Hero Section */}

@@ -153,7 +153,11 @@ export function EbookCapturePage() {
 
   return (
     <>
-      <SEOHead path="/ebook" />
+      <SEOHead
+        title="E-book Gratuito: IA para Advogados | Rafael Egg"
+        description="Baixe o e-book gratuito sobre inteligência artificial para advogados. Guia prático com ferramentas, estratégias e dicas para modernizar seu escritório."
+        canonical="https://rafaelegg.com/ebook"
+      />
       
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 relative overflow-hidden">
       {/* Background Effects */}

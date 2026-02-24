@@ -135,16 +135,12 @@ export function BlogArticlePage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#1a1f2e] via-[#0f1419] to-[#1a1f2e]">
       <SEOHead
-        path={`/blog/${article.slug}`}
-        overrides={{
-          title: `${article.title} | Rafael Egg - IA para Advogados`,
-          description: article.excerpt || `Leia sobre ${article.title} no blog de Rafael Egg.`,
-          canonical: articleUrl,
-          ogTitle: article.title,
-          ogDescription: article.excerpt || "",
-          ogImage: articleImage,
-          jsonLd: [articleSchema, breadcrumbSchema],
-        }}
+        title={`${article.title} | Rafael Egg - IA para Advogados`}
+        description={article.excerpt || `Leia sobre ${article.title} no blog de Rafael Egg.`}
+        canonical={articleUrl}
+        ogImage={articleImage}
+        ogType="article"
+        schemaJson={[articleSchema, breadcrumbSchema]}
       />
 
       {/* Header */}

@@ -229,7 +229,11 @@ export function PublicConsultingPage() {
 
   return (
     <>
-      <SEOHead path="/consultoria" />
+      <SEOHead
+        title="Consultoria IDEA - Implementação de IA para Escritórios de Advocacia | Rafael Egg"
+        description="Consultoria personalizada para implementação de inteligência artificial em escritórios de advocacia. ROI de 1.820-3.500% em 12 meses. Economia de 270-415h/mês."
+        canonical="https://rafaelegg.com/consultoria"
+      />
       
       <div className="min-h-screen bg-[hsl(222,47%,5%)] overflow-x-hidden">
       {/* Navigation */}
