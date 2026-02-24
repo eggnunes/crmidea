@@ -1,42 +1,39 @@
 
 
-# Correção: Campo "FAQPage" Duplicado nos Dados Estruturados
+# Correção Definitiva: FAQPage Duplicado no Google Search Console
 
-## Problema
+## Diagnóstico
 
-O Google Search Console detectou que o schema `FAQPage` está duplicado na página inicial (`rafaelegg.com`). Isso é um **problema crítico** que impede a página de aparecer nos resultados de pesquisa.
+O problema persiste porque existem **duas fontes diferentes** gerando schemas `FAQPage` para a mesma URL `https://rafaelegg.com/`:
 
-**Causa raiz**: Existem duas fontes injetando JSON-LD no HTML:
+1. **Build-time** (`src/data/seoRoutes.ts`, linha 330): O Vite plugin injeta um `faqSchema` com 6 perguntas sobre IA na advocacia no HTML estático
+2. **Runtime** (`src/pages/HomePage.tsx`, linha 229): O React injeta outro `FAQPage` via `generateFAQSchema(faqItems)` com perguntas diferentes sobre produtos/serviços
 
-1. **Vite SEO Plugin** (`vite-plugin-seo.ts`): Injeta schemas no HTML durante o build, incluindo o `faqSchema` (sem classe CSS identificadora)
-2. **SEOHead component** (`useEffect`): Limpa apenas elementos com classe `seo-jsonld` e re-injeta schemas do React
-
-O plugin de build não adiciona a classe `seo-jsonld` aos scripts, então o SEOHead não consegue removê-los. Resultado: dois blocos `FAQPage` no HTML final.
+O Google indexa o HTML estático **antes** do JavaScript executar, então vê o FAQ do build. Quando o JS executa, o SEOHead limpa e re-injeta — mas o Googlebot pode já ter capturado ambos, ou renderizar e ver a transição.
 
 ## Solução
 
-Atualizar o **SEOHead component** para limpar TODOS os `<script type="application/ld+json">` do `<head>` antes de injetar os novos, independentemente de terem ou não a classe `seo-jsonld`. Isso garante que os schemas injetados pelo Vite plugin no build sejam substituídos pelos do React quando a página hidrata.
+Remover o `faqSchema` da array `jsonLd` no `seoRoutes.ts` para a rota `/`. Assim, apenas UMA fonte (o React no HomePage) injeta o `FAQPage`. O HTML estático do build continuará com Person, Organization, Website e Breadcrumb — sem FAQ duplicado.
 
-### Arquivo: `src/components/seo/SEOHead.tsx`
+### Alteração única
 
-Alterar a lógica de limpeza de JSON-LD de:
-```javascript
-document.querySelectorAll(`.${JSONLD_CLASS}`).forEach((el) => el.remove());
+**Arquivo: `src/data/seoRoutes.ts`** — linha 330
+
+De:
+```typescript
+jsonLd: [personSchema, organizationSchema, websiteSchema, faqSchema, breadcrumb()],
 ```
+
 Para:
-```javascript
-document.querySelectorAll('script[type="application/ld+json"]').forEach((el) => el.remove());
+```typescript
+jsonLd: [personSchema, organizationSchema, websiteSchema, breadcrumb()],
 ```
 
-Isso remove tanto os scripts injetados pelo plugin (sem classe) quanto os injetados anteriormente pelo SEOHead (com classe), antes de inserir os novos.
+Isso remove a injeção do FAQ no build, eliminando a duplicação. O `faqSchema` continuará definido no arquivo (pode ser usado futuramente), mas não será injetado na homepage pelo plugin.
 
-### Arquivo: `src/pages/HomePage.tsx`
+### Após a correção
 
-Adicionar o prop `schemaJson` ao `SEOHead` da homepage com os schemas corretos (Person, Organization, Website, FAQ, Breadcrumb) para que, ao hidratar, o React re-injete apenas UMA cópia de cada schema. Atualmente a HomePage não passa `schemaJson`, então nenhum JSON-LD é injetado pelo React, mas os do build permanecem (incluindo o FAQ duplicado se houver cache).
-
-### Impacto
-
-- Os schemas injetados pelo Vite plugin continuam funcionando para crawlers que não executam JavaScript (pré-renderização)
-- Quando o React monta, ele limpa tudo e injeta uma cópia limpa
-- Sem duplicação para crawlers que executam JavaScript (como o Googlebot)
+1. Publicar o site
+2. No Google Search Console, clicar em "VALIDAR A CORREÇÃO"
+3. Aguardar o Google re-rastrear (pode levar alguns dias)
 
