@@ -1,4 +1,4 @@
-import { Helmet } from "react-helmet-async";
+import { useEffect } from "react";
 
 interface SEOHeadProps {
   title: string;
@@ -12,9 +12,29 @@ interface SEOHeadProps {
 
 const DEFAULT_OG_IMAGE = "https://rafaelegg.com/og-image.png";
 
+function setMeta(attr: string, key: string, content: string) {
+  let el = document.querySelector(`meta[${attr}="${key}"]`) as HTMLMetaElement | null;
+  if (!el) {
+    el = document.createElement("meta");
+    el.setAttribute(attr, key);
+    document.head.appendChild(el);
+  }
+  el.setAttribute("content", content);
+}
+
+function setLink(rel: string, href: string) {
+  let el = document.querySelector(`link[rel="${rel}"]`) as HTMLLinkElement | null;
+  if (!el) {
+    el = document.createElement("link");
+    el.setAttribute("rel", rel);
+    document.head.appendChild(el);
+  }
+  el.setAttribute("href", href);
+}
+
 /**
- * Renders SEO meta tags via react-helmet-async.
- * Must be placed inside a <HelmetProvider>.
+ * Sets SEO meta tags directly on document.head.
+ * No external dependencies required.
  */
 export function SEOHead({
   title,
@@ -26,42 +46,48 @@ export function SEOHead({
   ogType = "website",
 }: SEOHeadProps) {
   const image = ogImage || DEFAULT_OG_IMAGE;
-  const schemas = schemaJson
-    ? Array.isArray(schemaJson)
-      ? schemaJson
-      : [schemaJson]
-    : [];
+  const robots = noIndex
+    ? "noindex, nofollow"
+    : "index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1";
 
-  return (
-    <Helmet>
-      <title>{title}</title>
-      <meta name="description" content={description} />
-      <link rel="canonical" href={canonical} />
-      <meta name="robots" content={noIndex ? "noindex, nofollow" : "index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1"} />
-      <meta name="author" content="Rafael Egg" />
+  useEffect(() => {
+    document.title = title;
 
-      {/* Open Graph */}
-      <meta property="og:type" content={ogType} />
-      <meta property="og:url" content={canonical} />
-      <meta property="og:title" content={title} />
-      <meta property="og:description" content={description} />
-      <meta property="og:image" content={image} />
-      <meta property="og:site_name" content="Rafael Egg - IA para Advogados" />
-      <meta property="og:locale" content="pt_BR" />
+    setMeta("name", "description", description);
+    setMeta("name", "robots", robots);
+    setMeta("name", "author", "Rafael Egg");
+    setLink("canonical", canonical);
 
-      {/* Twitter */}
-      <meta name="twitter:card" content="summary_large_image" />
-      <meta name="twitter:url" content={canonical} />
-      <meta name="twitter:title" content={title} />
-      <meta name="twitter:description" content={description} />
-      <meta name="twitter:image" content={image} />
+    // Open Graph
+    setMeta("property", "og:type", ogType);
+    setMeta("property", "og:url", canonical);
+    setMeta("property", "og:title", title);
+    setMeta("property", "og:description", description);
+    setMeta("property", "og:image", image);
+    setMeta("property", "og:site_name", "Rafael Egg - IA para Advogados");
+    setMeta("property", "og:locale", "pt_BR");
 
-      {/* JSON-LD structured data */}
-      {schemas.map((schema, i) => (
-        <script key={i} type="application/ld+json">
-          {JSON.stringify(schema)}
-        </script>
-      ))}
-    </Helmet>
-  );
+    // Twitter
+    setMeta("name", "twitter:card", "summary_large_image");
+    setMeta("name", "twitter:url", canonical);
+    setMeta("name", "twitter:title", title);
+    setMeta("name", "twitter:description", description);
+    setMeta("name", "twitter:image", image);
+
+    // JSON-LD
+    const JSONLD_CLASS = "seo-jsonld";
+    document.querySelectorAll(`.${JSONLD_CLASS}`).forEach((el) => el.remove());
+    const schemas = schemaJson
+      ? Array.isArray(schemaJson) ? schemaJson : [schemaJson]
+      : [];
+    schemas.forEach((schema) => {
+      const script = document.createElement("script");
+      script.type = "application/ld+json";
+      script.className = JSONLD_CLASS;
+      script.textContent = JSON.stringify(schema);
+      document.head.appendChild(script);
+    });
+  }, [title, description, canonical, image, noIndex, schemaJson, ogType, robots]);
+
+  return null;
 }
