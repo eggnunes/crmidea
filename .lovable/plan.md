@@ -1,68 +1,94 @@
 
 
-# Plano: Sincronizar Reuniões de 24/02, Gerar Resumos e Enviar WhatsApp
+# Plano: Corrigir Inatividade Falsa e Link de Agendamento
 
-## Bug Encontrado
+## Problemas Identificados
 
-A correção anterior de matching por nome tem um bug com a Sandra. O `full_name` dela é:
+### Problema 1: Rodrigo Brito recebe emails de inatividade diariamente
+**Evidencia**: O banco mostra 4 emails de inatividade enviados em dias consecutivos (22, 23, 24, 25/fev).
+**Causa raiz**: A funcao `check-inactive-clients` em `client-monthly-report/index.ts` (linhas 193-210) calcula inatividade baseando-se **apenas na data da ultima sessao (reuniao) completada**. A ultima sessao completada do Rodrigo foi em 22/01/2026 (33 dias atras). O sistema **ignora completamente** se o cliente fez login, atualizou etapas ou acessou o dashboard.
 
-```text
-"Sandra Mendes - Sociedade Individual de Advocacia"
+Alem disso, o email e enviado **todos os dias** apos atingir 30 dias, sem nenhum cooldown entre envios. O Rodrigo recebeu 4 emails em 4 dias consecutivos.
+
+### Problema 2: Link de agendamento nao funciona para clientes
+**Causa raiz**: A tabela `consulting_settings` tem RLS que permite SELECT apenas quando `auth.uid() = user_id`. O `user_id` na tabela e o do consultor (`e850e3e3`). Quando o cliente Rodrigo (user_id `4dc32f2a`) tenta ler o `calendar_booking_url`, a query retorna vazio por causa da RLS. O componente `BookingTab` mostra "link nao configurado".
+
+O URL correto ja esta salvo no banco: `https://calendar.app.google/1i61CqqTTJdwBV7a6`
+O usuario quer atualizar para: `https://calendar.app.google/asVrCHJCHuYJRc5B8`
+
+### Problema 3: Sessao incorreta atribuida ao Rodrigo Brito
+A sessao `d149db95` (19/02/2026) tem titulo "Consultoria e Mentoria Individual IDEA (Rodrigo Martins)" mas esta atribuida ao Rodrigo Brito. Outro bug do matching por nome parcial.
+
+## Correcoes
+
+### 1. `supabase/functions/client-monthly-report/index.ts` — Corrigir logica de inatividade
+
+**Mudanca principal (linhas 193-212)**: Em vez de considerar apenas a ultima sessao completada, verificar tambem:
+- **Ultimo login do cliente** (via tabela `client_profiles.updated_at` ou uma nova coluna `last_active_at`)
+- **Ultima atualizacao nas etapas de implementacao** (via `consulting_clients.updated_at`)
+- **Usar o mais recente** entre: ultima sessao, ultimo login, ultima atualizacao
+
+**Adicionar cooldown**: Verificar na tabela `sent_emails_log` se ja foi enviado um email de inatividade nos ultimos 7 dias para aquele cliente. Se sim, nao enviar novamente.
+
+Logica proposta:
+```
+lastActivity = MAX(
+  ultima_sessao_completada,
+  consulting_clients.updated_at,
+  client_profiles.updated_at
+)
+
+SE lastActivity < 30 dias atras E nenhum email de inatividade nos ultimos 7 dias:
+  enviar email
+SENAO:
+  pular
 ```
 
-O código extrai `firstName = "sandra"` e `lastName = "advocacia"` (última palavra). Quando o título do evento é "Consultoria e Mentoria Individual IDEA (Sandra Paula de Souza Mendes)", o sistema procura "advocacia" no título e não encontra → **reunião da Sandra não é sincronizada**.
+### 2. SQL Migration — Adicionar coluna `last_active_at` em `client_profiles`
 
-O mesmo problema pode afetar qualquer cliente cujo `full_name` inclua razão social ou texto extra após o nome real.
+Criar coluna `last_active_at` na tabela `client_profiles` para rastrear quando o cliente fez login/acessou o dashboard. Inicializar com `updated_at` existente.
 
-## Correções
+### 3. Frontend — Atualizar `last_active_at` ao acessar o dashboard
 
-### 1. Melhorar matching de nome em `sync-calendar-sessions/index.ts` (linhas 219-224)
+No componente do dashboard do cliente (`ClientDashboardPage.tsx`), adicionar um `useEffect` que faz `UPDATE client_profiles SET last_active_at = now()` quando o cliente acessa a pagina.
 
-Em vez de usar apenas primeiro/último nome, usar a mesma lógica robusta de `sync-meet-recordings` — contar quantas partes significativas do nome aparecem no título (mínimo 2):
+### 4. SQL Migration — RLS para `consulting_settings`
 
-```typescript
-// Extrair partes significativas do nome (ignorar preposições)
-const normalize = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-const significantParts = consultingClient.full_name.trim().split(/\s+/)
-  .map(p => normalize(p))
-  .filter(p => p.length > 2 && !['de','da','do','dos','das','sociedade','individual','advocacia'].includes(p));
-const matchCount = significantParts.filter(p => normalize(title).includes(p)).length;
-const titleContainsClientName = matchCount >= 2;
+Adicionar uma nova policy SELECT que permite clientes lerem o `calendar_booking_url` do seu consultor:
+```sql
+CREATE POLICY "Clientes podem ver settings do seu consultor"
+ON consulting_settings FOR SELECT TO authenticated
+USING (
+  user_id IN (
+    SELECT consultant_id FROM client_profiles WHERE user_id = auth.uid()
+  )
+);
 ```
 
-Isso fará "Sandra" + "Mendes" = 2 matches → aceito.
+### 5. SQL Migration — Atualizar booking URL e limpar sessao incorreta
 
-### 2. SQL: Criar sessão faltante da Sandra em 24/02
-
-Verificar se o Google Calendar tem uma reunião com Sandra em 24/02 e criar a sessão manualmente, já que a sync anterior a ignorou.
-
-### 3. Sincronizar gravações e gerar resumos
-
-Após corrigir o filtro e criar a sessão da Sandra:
-- Chamar `sync-meet-recordings` para vincular as gravações do Drive às 5 sessões de 24/02
-- Chamar `transcribe-recording` para cada sessão que tenha gravação vinculada → transcrição + resumo + envio WhatsApp automático
-
-O fluxo existente já faz: Transcrição → Resumo IA → Envio WhatsApp automático (com verificação de `client_id`).
-
-### 4. Verificação antes do envio WhatsApp
-
-O sistema já verifica que o `client_id` está preenchido antes de enviar. A correção do filtro garante que cada sessão está atribuída ao cliente correto. Adicionalmente, os resumos só são enviados quando o `client_id` da sessão corresponde ao cliente cujo telefone será usado.
+- Atualizar `consulting_settings.calendar_booking_url` para `https://calendar.app.google/asVrCHJCHuYJRc5B8`
+- Deletar sessao `d149db95` (Rodrigo Martins atribuida incorretamente ao Rodrigo Brito)
 
 ## Arquivos modificados
 
-| Arquivo | Alteração |
+| Arquivo | Alteracao |
 |---|---|
-| `supabase/functions/sync-calendar-sessions/index.ts` | Melhorar matching de nome para ignorar razão social e usar 2+ partes significativas |
-| SQL migration | Criar sessão da Sandra em 24/02 (se confirmada no Calendar) |
+| `supabase/functions/client-monthly-report/index.ts` | Considerar login + updated_at como atividade; adicionar cooldown de 7 dias |
+| SQL migration | Adicionar `last_active_at` em `client_profiles`; RLS para `consulting_settings`; atualizar booking URL; deletar sessao incorreta |
+| `src/pages/ClientDashboardPage.tsx` | Atualizar `last_active_at` ao acessar |
 
-## Fluxo pós-deploy
+## Detalhes tecnicos
 
-1. Deploy da correção do filtro
-2. Criar sessão da Sandra em 24/02
-3. O usuário clica "Sincronizar Gravações" → vincula MP4s do Drive
-4. O usuário clica "Transcrever" em cada sessão → transcrição + resumo + WhatsApp automático
+A mudanca na funcao de inatividade:
 
-## Detalhe técnico
+```text
+ANTES: lastActivity = ultima sessao completada (ignora logins e atualizacoes)
+       cooldown = nenhum (envia todo dia)
 
-A lógica de matching será alinhada entre `sync-calendar-sessions` e `sync-meet-recordings`, ambos usando a mesma estratégia de "2 partes significativas" com lista de stop-words (de, da, do, sociedade, individual, advocacia).
+DEPOIS: lastActivity = MAX(sessao, login, updated_at do consulting_clients)
+        cooldown = 7 dias entre emails de inatividade
+```
+
+Isso resolve o caso do Rodrigo: ele acessa o dashboard e atualiza etapas, entao `last_active_at` e `consulting_clients.updated_at` (23/02) sao recentes, e o sistema nao o considerara inativo.
 
