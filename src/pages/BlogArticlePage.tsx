@@ -19,7 +19,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Card, CardContent } from "@/components/ui/card";
 import DOMPurify from "dompurify";
-import { generateArticleSchema, generateBreadcrumbSchema } from "@/components/seo/JsonLd";
+
 
 // Blog images - mapeamento exato por slug (sem repetição)
 import blogIaRevolucionando from "@/assets/blog-ia-revolucionando.png";
@@ -114,20 +114,6 @@ export function BlogArticlePage() {
       .replace(/\n/g, '<br/>');
   };
 
-  const articleSchema = generateArticleSchema({
-    title: article.title,
-    excerpt: article.excerpt,
-    slug: article.slug,
-    published_at: article.published_at,
-    updated_at: article.updated_at,
-    cover_image_url: article.cover_image_url
-  });
-
-  const breadcrumbSchema = generateBreadcrumbSchema([
-    { name: "Início", url: "https://rafaelegg.com" },
-    { name: "Blog", url: "https://rafaelegg.com/blog" },
-    { name: article.title, url: `https://rafaelegg.com/blog/${article.slug}` }
-  ]);
 
   const articleUrl = `https://rafaelegg.com/blog/${article.slug}`;
   const articleImage = article.cover_image_url || getArticleImage(article.slug) || "https://rafaelegg.com/og-image.png";
@@ -140,7 +126,6 @@ export function BlogArticlePage() {
         canonical={articleUrl}
         ogImage={articleImage}
         ogType="article"
-        schemaJson={[articleSchema, breadcrumbSchema]}
       />
 
       {/* Header */}

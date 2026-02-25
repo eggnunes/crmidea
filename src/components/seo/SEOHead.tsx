@@ -6,7 +6,6 @@ interface SEOHeadProps {
   canonical: string;
   ogImage?: string;
   noIndex?: boolean;
-  schemaJson?: object | object[];
   ogType?: string;
 }
 
@@ -42,7 +41,6 @@ export function SEOHead({
   canonical,
   ogImage,
   noIndex = false,
-  schemaJson,
   ogType = "website",
 }: SEOHeadProps) {
   const image = ogImage || DEFAULT_OG_IMAGE;
@@ -73,19 +71,7 @@ export function SEOHead({
     setMeta("name", "twitter:title", title);
     setMeta("name", "twitter:description", description);
     setMeta("name", "twitter:image", image);
-
-    // JSON-LD — remove ALL json-ld scripts (including ones injected by build plugin)
-    document.querySelectorAll('script[type="application/ld+json"]').forEach((el) => el.remove());
-    const schemas = schemaJson
-      ? Array.isArray(schemaJson) ? schemaJson : [schemaJson]
-      : [];
-    schemas.forEach((schema) => {
-      const script = document.createElement("script");
-      script.type = "application/ld+json";
-      script.textContent = JSON.stringify(schema);
-      document.head.appendChild(script);
-    });
-  }, [title, description, canonical, image, noIndex, schemaJson, ogType, robots]);
+  }, [title, description, canonical, image, noIndex, ogType, robots]);
 
   return null;
 }
