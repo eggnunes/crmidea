@@ -142,7 +142,42 @@ const REJECTED_TITLE_PATTERNS = [
   'rd station',
 ];
 
-function isConsultingTitle(title: string, clientName: string, meetDisplayName?: string): boolean {
+// Stop-words to ignore when matching client names (prepositions + business suffixes)
+const NAME_STOP_WORDS = new Set([
+  'de', 'da', 'do', 'dos', 'das', 'e',
+  'sociedade', 'individual', 'advocacia', 'advogados', 'escritorio', 'ltda', 'me', 'eireli',
+]);
+
+/** Remove accents and lowercase */
+function normalize(s: string): string {
+  return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+/** Extract significant name parts (ignore stop-words and short tokens) */
+function getSignificantNameParts(fullName: string): string[] {
+  // Split on whitespace and common separators like "-"
+  return fullName.trim().split(/[\s\-–—]+/)
+    .map(p => normalize(p))
+    .filter(p => p.length > 2 && !NAME_STOP_WORDS.has(p));
+}
+
+/** Check if title contains at least N significant parts of the name */
+function titleMatchesClientName(title: string, fullName: string, minParts = 2): boolean {
+  const normalizedTitle = normalize(title);
+  const parts = getSignificantNameParts(fullName);
+  const matchCount = parts.filter(p => normalizedTitle.includes(p)).length;
+  return matchCount >= Math.min(minParts, parts.length);
+}
+
+function isRejectedTitle(title: string): boolean {
+  const lowerTitle = title.toLowerCase();
+  for (const pattern of REJECTED_TITLE_PATTERNS) {
+    if (lowerTitle.includes(pattern)) return false;
+  }
+  return true; // not rejected
+}
+
+function isConsultingTitle(title: string): boolean {
   const lowerTitle = title.toLowerCase();
 
   // Reject internal/irrelevant events
@@ -153,21 +188,6 @@ function isConsultingTitle(title: string, clientName: string, meetDisplayName?: 
   // Accept if title matches consulting patterns
   for (const pattern of CONSULTING_TITLE_PATTERNS) {
     if (lowerTitle.includes(pattern)) return true;
-  }
-
-  // Accept if title contains client name or alias
-  const nameParts = clientName.trim().split(/\s+/);
-  const firstName = nameParts[0]?.toLowerCase();
-  const lastName = nameParts.length > 1 ? nameParts[nameParts.length - 1]?.toLowerCase() : '';
-
-  // Require at least first AND last name match, or full name, to avoid false positives
-  if (firstName && lastName && lowerTitle.includes(firstName) && lowerTitle.includes(lastName)) {
-    return true;
-  }
-
-  // Check meet_display_name if available
-  if (meetDisplayName && lowerTitle.includes(meetDisplayName.toLowerCase())) {
-    return true;
   }
 
   return false;
@@ -205,26 +225,35 @@ async function syncClientCalendar(
   for (const event of emailEvents) {
     const title = event.summary || '';
 
-    // STEP 1: Check if this is a legitimate consulting event by title
-    if (!isConsultingTitle(title, consultingClient.full_name, consultingClient.meet_display_name)) {
-      console.log(`[sync-calendar-sessions] Skipping non-consulting event: "${title}"`);
+    // STEP 1: Reject internal/irrelevant events
+    if (!isRejectedTitle(title)) {
+      console.log(`[sync-calendar-sessions] Skipping rejected event: "${title}"`);
       continue;
     }
 
-    // STEP 2: Verify client is in attendees OR title contains client name
+    // STEP 2: Verify client connection via email OR name in title
     const hasClientEmail = event.attendees?.some((a: any) =>
       a.email?.toLowerCase() === clientEmail.toLowerCase()
     ) || event.description?.toLowerCase().includes(clientEmail.toLowerCase());
 
-    // Check if client's full name (first + last) appears in the title
-    const lowerTitle = title.toLowerCase();
-    const nameParts = consultingClient.full_name.trim().split(/\s+/);
-    const firstName = nameParts[0]?.toLowerCase() || '';
-    const lastName = nameParts.length > 1 ? nameParts[nameParts.length - 1]?.toLowerCase() : '';
-    const titleContainsClientName = firstName && lastName && lowerTitle.includes(firstName) && lowerTitle.includes(lastName);
+    // Use robust "significant parts" matching (handles business names like "Sandra Mendes - Sociedade Individual de Advocacia")
+    const titleContainsClientName = titleMatchesClientName(title, consultingClient.full_name);
 
-    if (!hasClientEmail && !titleContainsClientName) {
-      console.log(`[sync-calendar-sessions] Skipping event - no client email or name match: "${title}" (client: ${consultingClient.full_name})`);
+    // Also check meet_display_name alias
+    const titleContainsAlias = consultingClient.meet_display_name
+      ? titleMatchesClientName(title, consultingClient.meet_display_name, 1)
+      : false;
+
+    // STEP 3: Accept only if client email is present OR client name/alias is in the title
+    // A generic consulting pattern alone is NOT sufficient — the client must be identifiable
+    if (!hasClientEmail && !titleContainsClientName && !titleContainsAlias) {
+      console.log(`[sync-calendar-sessions] Skipping event - no client match: "${title}" (client: ${consultingClient.full_name})`);
+      continue;
+    }
+
+    // STEP 4: If matched by name/alias only (no email), require a consulting pattern too
+    if (!hasClientEmail && !isConsultingTitle(title)) {
+      console.log(`[sync-calendar-sessions] Skipping non-consulting event matched by name only: "${title}"`);
       continue;
     }
 
