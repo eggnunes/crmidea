@@ -128,6 +128,13 @@ export function ClientDashboardPage() {
       
       setUser(session.user);
       await fetchData(session.user.id);
+      
+      // Track last active at for inactivity detection
+      supabase
+        .from("client_profiles")
+        .update({ last_active_at: new Date().toISOString() })
+        .eq("user_id", session.user.id)
+        .then(() => {});
     };
 
     checkAuth();
