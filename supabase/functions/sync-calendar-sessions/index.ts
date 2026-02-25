@@ -211,15 +211,20 @@ async function syncClientCalendar(
       continue;
     }
 
-    // STEP 2: Verify client is in attendees OR title contains consulting pattern
+    // STEP 2: Verify client is in attendees OR title contains client name
     const hasClientEmail = event.attendees?.some((a: any) =>
       a.email?.toLowerCase() === clientEmail.toLowerCase()
     ) || event.description?.toLowerCase().includes(clientEmail.toLowerCase());
 
-    const hasConsultingPattern = CONSULTING_TITLE_PATTERNS.some(p => title.toLowerCase().includes(p));
+    // Check if client's full name (first + last) appears in the title
+    const lowerTitle = title.toLowerCase();
+    const nameParts = consultingClient.full_name.trim().split(/\s+/);
+    const firstName = nameParts[0]?.toLowerCase() || '';
+    const lastName = nameParts.length > 1 ? nameParts[nameParts.length - 1]?.toLowerCase() : '';
+    const titleContainsClientName = firstName && lastName && lowerTitle.includes(firstName) && lowerTitle.includes(lastName);
 
-    if (!hasClientEmail && !hasConsultingPattern) {
-      console.log(`[sync-calendar-sessions] Skipping event without client email/pattern: "${title}"`);
+    if (!hasClientEmail && !titleContainsClientName) {
+      console.log(`[sync-calendar-sessions] Skipping event - no client email or name match: "${title}" (client: ${consultingClient.full_name})`);
       continue;
     }
 
