@@ -201,15 +201,42 @@ serve(async (req) => {
           .limit(1)
           .maybeSingle();
 
-        const lastActivityDate = lastSession?.session_date
-          ? new Date(lastSession.session_date)
+        // Get client profile last_active_at (tracks dashboard logins)
+        const { data: clientProfile } = await supabase
+          .from("client_profiles")
+          .select("last_active_at, updated_at")
+          .eq("email", client.email)
+          .maybeSingle();
+
+        // Calculate last activity as MAX of: last session, client updated_at, profile last_active_at
+        const candidates = [
+          lastSession?.session_date ? new Date(lastSession.session_date) : null,
+          client.updated_at ? new Date(client.updated_at) : null,
+          clientProfile?.last_active_at ? new Date(clientProfile.last_active_at) : null,
+          clientProfile?.updated_at ? new Date(clientProfile.updated_at) : null,
+        ].filter(Boolean) as Date[];
+
+        const lastActivityDate = candidates.length > 0
+          ? new Date(Math.max(...candidates.map(d => d.getTime())))
           : new Date(client.created_at);
 
         const daysSinceLastActivity = Math.floor(
           (now.getTime() - lastActivityDate.getTime()) / (1000 * 60 * 60 * 24)
         );
 
-        if (daysSinceLastActivity >= 30) {
+        // Check cooldown: skip if inactivity email sent in last 7 days
+        const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        const { data: recentEmails } = await supabase
+          .from("sent_emails_log")
+          .select("id")
+          .eq("recipient_email", client.email)
+          .eq("email_type", "inactivity_reminder")
+          .gte("created_at", sevenDaysAgo.toISOString())
+          .limit(1);
+
+        const hasCooldown = recentEmails && recentEmails.length > 0;
+
+        if (daysSinceLastActivity >= 30 && !hasCooldown) {
           console.log(`Client ${client.full_name} inactive for ${daysSinceLastActivity} days`);
 
           const siteUrl = Deno.env.get("SITE_URL") || "https://crmidea.lovable.app";

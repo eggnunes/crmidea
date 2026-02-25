@@ -1128,6 +1128,7 @@ export type Database = {
           full_name: string
           id: string
           is_approved: boolean | null
+          last_active_at: string | null
           office_name: string | null
           phone: string | null
           updated_at: string
@@ -1142,6 +1143,7 @@ export type Database = {
           full_name: string
           id?: string
           is_approved?: boolean | null
+          last_active_at?: string | null
           office_name?: string | null
           phone?: string | null
           updated_at?: string
@@ -1156,6 +1158,7 @@ export type Database = {
           full_name?: string
           id?: string
           is_approved?: boolean | null
+          last_active_at?: string | null
           office_name?: string | null
           phone?: string | null
           updated_at?: string
