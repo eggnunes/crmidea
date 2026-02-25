@@ -1,69 +1,68 @@
 
 
-# Plano: Corrigir Sessões Incorretas e Sincronizar Reuniões de 24/Fev
+# Plano: Sincronizar Reuniões de 24/02, Gerar Resumos e Enviar WhatsApp
 
-## Diagnóstico
+## Bug Encontrado
 
-### Problema 1: Sessões erradas na Sandra
-As sessões "Aula Imersão Rafa Mendes" (23/10/2025) e "Aula mentoria Rafa Mendes" (23/09/2024) foram incorretamente atribuídas à Sandra Mendes. Esses eventos são de **outra pessoa** chamada "Rafa Mendes".
+A correção anterior de matching por nome tem um bug com a Sandra. O `full_name` dela é:
 
-**Causa raiz** (linha 219-224 de `sync-calendar-sessions/index.ts`): O código aceita um evento se `hasClientEmail OR hasConsultingPattern`. Como "Aula Imersão" e "Aula mentoria" são padrões genéricos de consultoria (`CONSULTING_TITLE_PATTERNS`), o sistema criou as sessões para Sandra mesmo sem o e-mail dela nos participantes. Bastou o título conter um padrão genérico para passar no filtro.
+```text
+"Sandra Mendes - Sociedade Individual de Advocacia"
+```
 
-### Problema 2: Sessão duplicada atribuída ao cliente errado
-A sessão de 12/02/2026 da Sandra foi duplicada e uma cópia foi atribuída à cliente "Paula Souza Muniz" (client_id `264c923a`) — provavelmente por matching parcial de nome ("Souza").
+O código extrai `firstName = "sandra"` e `lastName = "advocacia"` (última palavra). Quando o título do evento é "Consultoria e Mentoria Individual IDEA (Sandra Paula de Souza Mendes)", o sistema procura "advocacia" no título e não encontra → **reunião da Sandra não é sincronizada**.
 
-### Problema 3: Reuniões de 24/02 não sincronizadas
-Existem 4 sessões de 24/02 no banco (Victor Hugo, Alan, Jelres, Andrielly), mas seus status estão como "scheduled" em vez de "completed". A reunião da Sandra em 24/02 não existe no banco.
+O mesmo problema pode afetar qualquer cliente cujo `full_name` inclua razão social ou texto extra após o nome real.
 
 ## Correções
 
-### 1. Limpeza do banco de dados (SQL migration)
-Deletar as 3 sessões incorretas:
-- `9e9c1214` — "Aula Imersão Rafa Mendes" (errado, não é da Sandra)
-- `18c64db0` — "Aula mentoria Rafa Mendes" (errado, não é da Sandra)
-- `b9bbcd69` — Sessão duplicada da Sandra atribuída a Paula Souza Muniz
+### 1. Melhorar matching de nome em `sync-calendar-sessions/index.ts` (linhas 219-224)
 
-Atualizar status das 4 sessões de 24/02 para "completed" (reuniões já ocorreram).
+Em vez de usar apenas primeiro/último nome, usar a mesma lógica robusta de `sync-meet-recordings` — contar quantas partes significativas do nome aparecem no título (mínimo 2):
 
-### 2. Correção do filtro em `sync-calendar-sessions/index.ts`
-
-**Alterar a lógica principal (linhas 214-224)**: Um padrão genérico de consultoria (`hasConsultingPattern`) **não é mais suficiente sozinho**. A nova lógica exige:
-
-```
-SE o e-mail do cliente está nos participantes → aceitar
-SE o título contém o NOME do cliente (primeiro + último nome) → aceitar  
-CASO CONTRÁRIO → rejeitar (mesmo que o título contenha "aula mentoria", "imersão", etc.)
+```typescript
+// Extrair partes significativas do nome (ignorar preposições)
+const normalize = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+const significantParts = consultingClient.full_name.trim().split(/\s+/)
+  .map(p => normalize(p))
+  .filter(p => p.length > 2 && !['de','da','do','dos','das','sociedade','individual','advocacia'].includes(p));
+const matchCount = significantParts.filter(p => normalize(title).includes(p)).length;
+const titleContainsClientName = matchCount >= 2;
 ```
 
-Isso impede que eventos genéricos como "Aula Imersão Rafa Mendes" sejam atribuídos a Sandra Mendes só porque o título contém "Imersão".
+Isso fará "Sandra" + "Mendes" = 2 matches → aceito.
 
-A função `isConsultingTitle` será dividida em duas responsabilidades:
-- `isRejectedTitle()` — rejeita eventos internos (`[Egg Nunes]`, `RD Station`)
-- A verificação de consulting pattern será movida para o loop principal, onde será usada apenas em conjunto com `hasClientEmail`
+### 2. SQL: Criar sessão faltante da Sandra em 24/02
 
-### 3. Sincronização manual das reuniões de 24/02
+Verificar se o Google Calendar tem uma reunião com Sandra em 24/02 e criar a sessão manualmente, já que a sync anterior a ignorou.
 
-Após o deploy da correção, o sistema precisará que o usuário clique em "Sincronizar Gravações" na interface para importar as reuniões de 24/02. A correção do filtro garantirá que cada reunião seja atribuída ao cliente correto.
+### 3. Sincronizar gravações e gerar resumos
+
+Após corrigir o filtro e criar a sessão da Sandra:
+- Chamar `sync-meet-recordings` para vincular as gravações do Drive às 5 sessões de 24/02
+- Chamar `transcribe-recording` para cada sessão que tenha gravação vinculada → transcrição + resumo + envio WhatsApp automático
+
+O fluxo existente já faz: Transcrição → Resumo IA → Envio WhatsApp automático (com verificação de `client_id`).
+
+### 4. Verificação antes do envio WhatsApp
+
+O sistema já verifica que o `client_id` está preenchido antes de enviar. A correção do filtro garante que cada sessão está atribuída ao cliente correto. Adicionalmente, os resumos só são enviados quando o `client_id` da sessão corresponde ao cliente cujo telefone será usado.
 
 ## Arquivos modificados
 
 | Arquivo | Alteração |
 |---|---|
-| `supabase/functions/sync-calendar-sessions/index.ts` | Corrigir lógica de filtro para exigir e-mail do cliente OU nome no título |
-| SQL migration | Deletar 3 sessões incorretas + atualizar status de 24/02 |
+| `supabase/functions/sync-calendar-sessions/index.ts` | Melhorar matching de nome para ignorar razão social e usar 2+ partes significativas |
+| SQL migration | Criar sessão da Sandra em 24/02 (se confirmada no Calendar) |
 
-## Detalhes técnicos
+## Fluxo pós-deploy
 
-A mudança principal na função `sync-calendar-sessions`:
+1. Deploy da correção do filtro
+2. Criar sessão da Sandra em 24/02
+3. O usuário clica "Sincronizar Gravações" → vincula MP4s do Drive
+4. O usuário clica "Transcrever" em cada sessão → transcrição + resumo + WhatsApp automático
 
-```typescript
-// ANTES (bug): aceita se hasClientEmail OR hasConsultingPattern
-// "Aula Imersão Rafa Mendes" → hasConsultingPattern=true → aceito para Sandra ❌
+## Detalhe técnico
 
-// DEPOIS (fix): aceita se hasClientEmail OR titleContainsClientName
-// "Aula Imersão Rafa Mendes" → hasClientEmail=false, titleContainsClientName=false → rejeitado ✅
-// "Consultoria IDEA (Sandra Mendes)" → titleContainsClientName=true → aceito ✅
-```
-
-A função `isConsultingTitle` continuará existindo mas será usada como **pré-filtro** (rejeitar eventos claramente irrelevantes), não como condição suficiente para aceitar.
+A lógica de matching será alinhada entre `sync-calendar-sessions` e `sync-meet-recordings`, ambos usando a mesma estratégia de "2 partes significativas" com lista de stop-words (de, da, do, sociedade, individual, advocacia).
 
