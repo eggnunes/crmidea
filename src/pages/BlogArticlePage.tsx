@@ -14,6 +14,7 @@ import {
 import { Link, useParams, Navigate } from "react-router-dom";
 import logoRE from "@/assets/logo-re.png";
 import { SEOHead } from "@/components/seo/SEOHead";
+import { JsonLd, generateArticleSchema, generateBreadcrumbSchema } from "@/components/seo/JsonLd";
 import { useBlogPost, useBlogPosts } from "@/hooks/useBlogPosts";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -127,6 +128,19 @@ export function BlogArticlePage() {
         ogImage={articleImage}
         ogType="article"
       />
+      <JsonLd data={generateArticleSchema({
+        title: article.title,
+        excerpt: article.excerpt,
+        slug: article.slug,
+        published_at: article.published_at,
+        updated_at: article.updated_at,
+        cover_image_url: article.cover_image_url
+      })} />
+      <JsonLd data={generateBreadcrumbSchema([
+        { name: "Início", url: "https://rafaelegg.com/" },
+        { name: "Blog", url: "https://rafaelegg.com/blog" },
+        { name: article.title, url: articleUrl }
+      ])} />
 
       {/* Header */}
       <header className="relative overflow-hidden">

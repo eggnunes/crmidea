@@ -24,7 +24,7 @@ interface SEORouteData {
 }
 
 function escapeHtml(str: string): string {
-  return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+  return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 function generateHtmlForRoute(route: SEORouteData, template: string): string {
@@ -35,41 +35,53 @@ function generateHtmlForRoute(route: SEORouteData, template: string): string {
 
   // Replace meta description
   html = html.replace(
-    /<meta name="description" content="[^"]*"/,
-    `<meta name="description" content="${escapeHtml(route.description)}"`
+    /<meta name="description" content="[^"]*"\s*\/?>/,
+    `<meta name="description" content="${escapeHtml(route.description)}" />`
   );
 
   // Replace canonical
   html = html.replace(
-    /<link rel="canonical" href="[^"]*"/,
-    `<link rel="canonical" href="${route.canonical}"`
+    /<link rel="canonical" href="[^"]*"\s*\/?>/,
+    `<link rel="canonical" href="${route.canonical}" />`
   );
 
   // Replace OG tags
   html = html.replace(
-    /<meta property="og:url" content="[^"]*"/,
-    `<meta property="og:url" content="${route.canonical}"`
+    /<meta property="og:url" content="[^"]*"\s*\/?>/,
+    `<meta property="og:url" content="${route.canonical}" />`
   );
   html = html.replace(
-    /<meta property="og:title" content="[^"]*"/,
-    `<meta property="og:title" content="${escapeHtml(route.ogTitle)}"`
+    /<meta property="og:title" content="[^"]*"\s*\/?>/,
+    `<meta property="og:title" content="${escapeHtml(route.ogTitle)}" />`
   );
   html = html.replace(
-    /<meta property="og:description" content="[^"]*"/,
-    `<meta property="og:description" content="${escapeHtml(route.ogDescription)}"`
+    /<meta property="og:description" content="[^"]*"\s*\/?>/,
+    `<meta property="og:description" content="${escapeHtml(route.ogDescription)}" />`
+  );
+  html = html.replace(
+    /<meta property="og:image" content="[^"]*"\s*\/?>/,
+    `<meta property="og:image" content="${route.ogImage}" />`
   );
 
   // Replace Twitter tags
   html = html.replace(
-    /<meta name="twitter:title" content="[^"]*"/,
-    `<meta name="twitter:title" content="${escapeHtml(route.ogTitle)}"`
+    /<meta name="twitter:url" content="[^"]*"\s*\/?>/,
+    `<meta name="twitter:url" content="${route.canonical}" />`
   );
   html = html.replace(
-    /<meta name="twitter:description" content="[^"]*"/,
-    `<meta name="twitter:description" content="${escapeHtml(route.ogDescription)}"`
+    /<meta name="twitter:title" content="[^"]*"\s*\/?>/,
+    `<meta name="twitter:title" content="${escapeHtml(route.ogTitle)}" />`
+  );
+  html = html.replace(
+    /<meta name="twitter:description" content="[^"]*"\s*\/?>/,
+    `<meta name="twitter:description" content="${escapeHtml(route.ogDescription)}" />`
+  );
+  html = html.replace(
+    /<meta name="twitter:image" content="[^"]*"\s*\/?>/,
+    `<meta name="twitter:image" content="${route.ogImage}" />`
   );
 
-  // Replace all JSON-LD scripts with route-specific ones
+  // Replace all existing JSON-LD scripts with route-specific ones
   html = html.replace(/<script type="application\/ld\+json">[\s\S]*?<\/script>\s*/g, '');
 
   // Insert new JSON-LD blocks before </head>
@@ -80,8 +92,8 @@ function generateHtmlForRoute(route: SEORouteData, template: string): string {
 
   // Replace seo-static-content div
   html = html.replace(
-    /<div id="seo-static-content"[^>]*>[\s\S]*?(<\/footer>\s*<\/div>|<\/main>\s*<\/div>)/,
-    `<div id="seo-static-content">\n${route.staticContent}\n      </div>`
+    /<div id="seo-static-content"[^>]*>[\s\S]*?<\/div>/,
+    `<div id="seo-static-content" style="position:absolute;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden;">\n${route.staticContent}\n      </div>`
   );
 
   // Replace noscript content

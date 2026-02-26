@@ -13,6 +13,7 @@ import logoVagasjuridicas from "@/assets/logo-vagasjuridicas.png";
 import logoAITeleprompter from "@/assets/logo-ai-teleprompter.png";
 import { Link, useNavigate } from "react-router-dom";
 import { SEOHead } from "@/components/seo/SEOHead";
+import { JsonLd, personSchema, generateBreadcrumbSchema } from "@/components/seo/JsonLd";
 import { supabase } from "@/integrations/supabase/client";
 
 const products = [
@@ -155,6 +156,11 @@ export function BioLinkPage() {
         description="Conheça Rafael Egg, consultor especializado em inteligência artificial aplicada ao direito. Ajudando escritórios de advocacia a inovar com tecnologia."
         canonical="https://rafaelegg.com/bio"
       />
+      <JsonLd data={personSchema} />
+      <JsonLd data={generateBreadcrumbSchema([
+        { name: "Início", url: "https://rafaelegg.com/" },
+        { name: "Sobre Rafael Egg", url: "https://rafaelegg.com/bio" }
+      ])} />
       
       <div className="min-h-screen bg-gradient-to-br from-[#1a1f2e] via-[#0f1419] to-[#1a1f2e]">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-amber-600/10 via-transparent to-transparent" />

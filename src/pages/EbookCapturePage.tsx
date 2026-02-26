@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
 import { SEOHead } from "@/components/seo/SEOHead";
+import { JsonLd, generateBreadcrumbSchema } from "@/components/seo/JsonLd";
 import { Loader2, Camera, CheckCircle, Sparkles, ArrowRight, Star, Wand2, Instagram, Linkedin, Youtube, Home, Briefcase, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -158,6 +159,10 @@ export function EbookCapturePage() {
         description="Baixe o e-book gratuito sobre inteligência artificial para advogados. Guia prático com ferramentas, estratégias e dicas para modernizar seu escritório."
         canonical="https://rafaelegg.com/ebook"
       />
+      <JsonLd data={generateBreadcrumbSchema([
+        { name: "Início", url: "https://rafaelegg.com/" },
+        { name: "E-books", url: "https://rafaelegg.com/ebook" }
+      ])} />
       
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 relative overflow-hidden">
       {/* Background Effects */}

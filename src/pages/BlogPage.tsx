@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { SEOHead } from "@/components/seo/SEOHead";
+import { JsonLd } from "@/components/seo/JsonLd";
 import logoRE from "@/assets/logo-re.png";
 import { useBlogPosts } from "@/hooks/useBlogPosts";
 import { format } from "date-fns";
@@ -155,6 +156,15 @@ export function BlogPage() {
         description="Artigos sobre inteligência artificial para advogados: ferramentas, prompts, automação de contratos, pesquisa jurídica e tendências do setor jurídico."
         canonical="https://rafaelegg.com/blog"
       />
+      <JsonLd data={{
+        "@context": "https://schema.org",
+        "@type": "Blog",
+        "name": "Blog sobre IA na Advocacia",
+        "description": "Artigos sobre inteligência artificial para advogados.",
+        "url": "https://rafaelegg.com/blog",
+        "author": { "@type": "Person", "name": "Rafael Egg" },
+        "inLanguage": "pt-BR"
+      }} />
       
     <div className="min-h-screen bg-gradient-to-br from-[#1a1f2e] via-[#0f1419] to-[#1a1f2e]">
       {/* Header */}

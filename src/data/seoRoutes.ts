@@ -18,7 +18,7 @@ export interface SEORouteData {
 
 const BASE_URL = "https://rafaelegg.com";
 const OG_IMAGE = `${BASE_URL}/og-image.png`;
-const TODAY = "2026-02-23";
+const TODAY = "2026-02-26";
 
 const personSchema = {
   "@context": "https://schema.org",
