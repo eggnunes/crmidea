@@ -327,7 +327,39 @@ export const seoRoutes: SEORouteData[] = [
     noscriptContent: `<h1>Rafael Egg - Inteligência Artificial para Advogados</h1>
 <p>Advogado desde 2008, mentor em IA e criador do Método IDEA. Melhor Escritório em IA do Brasil 2025.</p>
 <nav><a href="/consultoria">Consultoria IDEA</a> | <a href="/blog">Blog</a> | <a href="/bio">Sobre</a> | <a href="/ebook">E-books</a></nav>`,
-    jsonLd: [personSchema, organizationSchema, websiteSchema, breadcrumb()],
+    jsonLd: [
+      personSchema,
+      organizationSchema,
+      websiteSchema,
+      faqSchema,
+      {
+        "@context": "https://schema.org",
+        "@type": "Service",
+        "name": "Consultoria IDEA",
+        "description": "Implementação personalizada de IA em escritórios de advocacia. Economia de 270-415 horas/mês.",
+        "provider": { "@type": "Person", "name": "Rafael Egg", "url": BASE_URL },
+        "url": `${BASE_URL}/consultoria`,
+        "serviceType": "Consultoria em Inteligência Artificial para Advocacia"
+      },
+      {
+        "@context": "https://schema.org",
+        "@type": "Service",
+        "name": "Mentoria em IA para Advogados",
+        "description": "Acompanhamento personalizado para advogados que querem dominar a inteligência artificial na prática jurídica.",
+        "provider": { "@type": "Person", "name": "Rafael Egg", "url": BASE_URL },
+        "url": "https://mentoriarafaelegg.com.br/inscricoes-abertas/",
+        "serviceType": "Mentoria em Inteligência Artificial"
+      },
+      {
+        "@context": "https://schema.org",
+        "@type": "Course",
+        "name": "Curso IDEA",
+        "description": "Formação completa em Inteligência de Dados e Artificial para advogados.",
+        "provider": { "@type": "Organization", "name": "Rafael Egg - IA para Advogados", "sameAs": BASE_URL },
+        "url": "https://mentoriarafaelegg.com.br/curso-idea/"
+      },
+      breadcrumb()
+    ],
     lastModified: TODAY, sitemapPriority: 1.0, changeFrequency: "weekly"
   },
   {
