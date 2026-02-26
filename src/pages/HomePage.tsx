@@ -240,6 +240,32 @@ export function HomePage() {
           }
         }))
       }} />
+      <JsonLd data={{
+        "@context": "https://schema.org",
+        "@type": "Service",
+        "name": "Consultoria IDEA",
+        "description": "Implementação personalizada de IA em escritórios de advocacia. Economia de 270-415 horas/mês.",
+        "provider": { "@type": "Person", "name": "Rafael Egg", "url": "https://rafaelegg.com" },
+        "url": "https://rafaelegg.com/consultoria",
+        "serviceType": "Consultoria em Inteligência Artificial para Advocacia"
+      }} />
+      <JsonLd data={{
+        "@context": "https://schema.org",
+        "@type": "Service",
+        "name": "Mentoria em IA para Advogados",
+        "description": "Acompanhamento personalizado para advogados que querem dominar a inteligência artificial na prática jurídica.",
+        "provider": { "@type": "Person", "name": "Rafael Egg", "url": "https://rafaelegg.com" },
+        "url": "https://mentoriarafaelegg.com.br/inscricoes-abertas/",
+        "serviceType": "Mentoria em Inteligência Artificial"
+      }} />
+      <JsonLd data={{
+        "@context": "https://schema.org",
+        "@type": "Course",
+        "name": "Curso IDEA",
+        "description": "Formação completa em Inteligência de Dados e Artificial para advogados.",
+        "provider": { "@type": "Organization", "name": "Rafael Egg - IA para Advogados", "sameAs": "https://rafaelegg.com" },
+        "url": "https://mentoriarafaelegg.com.br/curso-idea/"
+      }} />
       
       <div className="min-h-screen bg-gradient-to-br from-[#1a1f2e] via-[#0f1419] to-[#1a1f2e]">
       {/* Hero Section */}
