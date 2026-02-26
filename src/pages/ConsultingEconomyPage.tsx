@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { SEOHead } from "@/components/seo/SEOHead";
+import { JsonLd, generateBreadcrumbSchema } from "@/components/seo/JsonLd";
 import { useState } from "react";
 import logoConsultoria from "@/assets/logo-consultoria.png";
 import {
@@ -221,6 +222,11 @@ export function ConsultingEconomyPage() {
         description="Descubra como a inteligência artificial pode reduzir custos e aumentar a lucratividade do seu escritório de advocacia. Resultados comprovados."
         canonical="https://rafaelegg.com/consultoria/economia"
       />
+      <JsonLd data={generateBreadcrumbSchema([
+        { name: "Início", url: "https://rafaelegg.com/" },
+        { name: "Consultoria IDEA", url: "https://rafaelegg.com/consultoria" },
+        { name: "Economia com IA", url: "https://rafaelegg.com/consultoria/economia" }
+      ])} />
       
       <div className="min-h-screen bg-[hsl(222,47%,5%)] overflow-x-hidden">
         {/* Navigation */}

@@ -38,6 +38,7 @@ import {
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { SEOHead } from "@/components/seo/SEOHead";
+import { JsonLd, personSchema, generateServiceSchema, generateBreadcrumbSchema, generateFAQSchema } from "@/components/seo/JsonLd";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRoles } from "@/hooks/useUserRoles";
 import { CONSULTING_FEATURES, FEATURE_CATEGORIES } from "@/data/consultingFeatures";
@@ -234,6 +235,18 @@ export function PublicConsultingPage() {
         description="Consultoria personalizada para implementação de inteligência artificial em escritórios de advocacia. ROI de 1.820-3.500% em 12 meses. Economia de 270-415h/mês."
         canonical="https://rafaelegg.com/consultoria"
       />
+      <JsonLd data={generateServiceSchema({
+        name: "Consultoria IDEA - Inteligência de Dados e Artificial",
+        description: "Implementação personalizada de IA em escritórios de advocacia. Metodologia exclusiva para automatizar rotinas, captar clientes e escalar faturamento.",
+        provider: "Rafael Egg",
+        url: "https://rafaelegg.com/consultoria"
+      })} />
+      <JsonLd data={personSchema} />
+      <JsonLd data={generateBreadcrumbSchema([
+        { name: "Início", url: "https://rafaelegg.com/" },
+        { name: "Consultoria IDEA", url: "https://rafaelegg.com/consultoria" }
+      ])} />
+      <JsonLd data={generateFAQSchema(consultingFaqItems)} />
       
       <div className="min-h-screen bg-[hsl(222,47%,5%)] overflow-x-hidden">
       {/* Navigation */}

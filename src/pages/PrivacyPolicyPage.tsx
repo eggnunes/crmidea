@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SEOHead } from "@/components/seo/SEOHead";
+import { JsonLd, generateBreadcrumbSchema } from "@/components/seo/JsonLd";
 import { Link } from "react-router-dom";
 
 const PrivacyPolicyPage = () => {
@@ -10,6 +11,10 @@ const PrivacyPolicyPage = () => {
         description="Política de privacidade do site rafaelegg.com. Saiba como coletamos, usamos e protegemos suas informações pessoais."
         canonical="https://rafaelegg.com/privacidade"
       />
+      <JsonLd data={generateBreadcrumbSchema([
+        { name: "Início", url: "https://rafaelegg.com/" },
+        { name: "Privacidade", url: "https://rafaelegg.com/privacidade" }
+      ])} />
       
       <div className="min-h-screen bg-background py-12 px-4">
         <div className="max-w-4xl mx-auto">
