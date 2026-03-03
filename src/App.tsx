@@ -37,6 +37,7 @@ import { BlogPage } from "./pages/BlogPage";
 import { BlogArticlePage } from "./pages/BlogArticlePage";
 import { BioLinkPage } from "./pages/BioLinkPage";
 import { EbookCapturePage } from "./pages/EbookCapturePage";
+import { FAQPage } from "./pages/FAQPage";
 import { AITeleprompterAdminPage } from "./pages/AITeleprompterAdminPage";
 import { EmailCenterPage } from "./pages/EmailCenterPage";
 import CampaignsPage from "./pages/CampaignsPage";
@@ -52,6 +53,7 @@ function AppRoutes() {
       <Route path="/blog" element={<BlogPage />} />
       <Route path="/blog/:slug" element={<BlogArticlePage />} />
       <Route path="/ebook" element={<EbookCapturePage />} />
+      <Route path="/faq" element={<FAQPage />} />
       
       {/* Autenticação admin */}
       <Route path="/auth" element={<AuthPage />} />
