@@ -53,6 +53,7 @@ function AppRoutes() {
       <Route path="/blog" element={<BlogPage />} />
       <Route path="/blog/:slug" element={<BlogArticlePage />} />
       <Route path="/ebook" element={<EbookCapturePage />} />
+      <Route path="/faq" element={<FAQPage />} />
       
       {/* Autenticação admin */}
       <Route path="/auth" element={<AuthPage />} />
