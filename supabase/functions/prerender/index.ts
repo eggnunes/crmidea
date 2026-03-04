@@ -356,6 +356,75 @@ function renderEconomyPage(): string {
   );
 }
 
+function renderFAQPage(): string {
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      { "@type": "Question", "name": "Preciso saber programar para usar IA na advocacia?", "acceptedAnswer": { "@type": "Answer", "text": "Não. Todas as ferramentas e metodologias são projetadas para advogados sem conhecimento técnico em programação." } },
+      { "@type": "Question", "name": "A IA vai substituir os advogados?", "acceptedAnswer": { "@type": "Answer", "text": "Não. A IA é uma ferramenta que potencializa o trabalho do advogado. Profissionais que dominam a tecnologia terão vantagem competitiva." } },
+      { "@type": "Question", "name": "O uso de IA na advocacia é ético?", "acceptedAnswer": { "@type": "Answer", "text": "Sim, quando usado corretamente. A OAB permite o uso de IA como apoio ao trabalho advocatício." } },
+      { "@type": "Question", "name": "O que é a Consultoria IDEA?", "acceptedAnswer": { "@type": "Answer", "text": "Programa personalizado de implementação de IA no escritório, com duração de 3 a 6 meses, incluindo diagnóstico, plano de ação e acompanhamento." } },
+      { "@type": "Question", "name": "O que é o Método IDEA?", "acceptedAnswer": { "@type": "Answer", "text": "Metodologia exclusiva de Rafael Egg para automatizar rotinas, captar clientes e escalar faturamento com IA." } },
+      { "@type": "Question", "name": "Qual a melhor IA para advogados?", "acceptedAnswer": { "@type": "Answer", "text": "ChatGPT, Claude e Gemini são as mais usadas. Cada uma tem vantagens específicas para diferentes tarefas jurídicas." } },
+      { "@type": "Question", "name": "Quanto tempo leva para ver resultados com a Consultoria?", "acceptedAnswer": { "@type": "Answer", "text": "Os primeiros resultados aparecem nas primeiras semanas. Payback em 10-19 dias. ROI de 1.820-3.500% em 12 meses." } },
+      { "@type": "Question", "name": "O que é o Código dos Prompts?", "acceptedAnswer": { "@type": "Answer", "text": "Coletânea dos melhores prompts jurídicos para ChatGPT, Claude e Gemini, otimizados para petições, contratos e pesquisa." } },
+      { "@type": "Question", "name": "Como usar o ChatGPT para escrever petições?", "acceptedAnswer": { "@type": "Answer", "text": "Use prompts estruturados com contexto, tipo de peça e informações do caso. O Código dos Prompts ensina como." } },
+      { "@type": "Question", "name": "Qual a diferença entre Consultoria e Mentoria?", "acceptedAnswer": { "@type": "Answer", "text": "A Consultoria é implementação completa no escritório. A Mentoria é acompanhamento individual focado no desenvolvimento do advogado." } },
+      { "@type": "Question", "name": "A Consultoria é presencial ou online?", "acceptedAnswer": { "@type": "Answer", "text": "100% online, com sessões ao vivo via videoconferência, atendendo advogados de todo o Brasil." } },
+      { "@type": "Question", "name": "Existe garantia?", "acceptedAnswer": { "@type": "Answer", "text": "Sim. Todos os produtos digitais possuem garantia conforme o Código de Defesa do Consumidor." } }
+    ]
+  };
+
+  return baseHtml(
+    "Perguntas Frequentes sobre IA para Advogados | Rafael Egg",
+    "FAQ completo sobre inteligência artificial na advocacia. Tire suas dúvidas sobre Consultoria IDEA, Mentoria, Curso IDEA, e-books e uso de IA no Direito.",
+    "/faq",
+    `<h1>Perguntas Frequentes sobre IA para Advogados</h1>
+<p>Respostas para as dúvidas mais comuns sobre inteligência artificial na advocacia, Consultoria IDEA, Mentoria e Cursos.</p>
+
+<h2>IA para Advogados</h2>
+<h3>Preciso saber programar para usar IA na advocacia?</h3>
+<p>Não. Todas as ferramentas e metodologias são projetadas para advogados sem conhecimento técnico em programação.</p>
+<h3>A IA vai substituir os advogados?</h3>
+<p>Não. A IA potencializa o trabalho do advogado. Profissionais que dominam a tecnologia terão vantagem competitiva significativa.</p>
+<h3>O uso de IA na advocacia é ético?</h3>
+<p>Sim, quando usado corretamente. A OAB permite o uso de IA como apoio, desde que o advogado mantenha a responsabilidade técnica.</p>
+<h3>Qual a melhor IA para advogados?</h3>
+<p>ChatGPT, Claude e Gemini são as mais usadas. Cada uma tem vantagens para diferentes tarefas jurídicas.</p>
+<h3>A IA pode errar em questões jurídicas?</h3>
+<p>Sim. O advogado deve sempre revisar e validar todo conteúdo gerado por IA.</p>
+
+<h2>Consultoria IDEA</h2>
+<h3>O que é a Consultoria IDEA?</h3>
+<p>Programa personalizado de implementação de IA no escritório, com duração de 3 a 6 meses, incluindo diagnóstico, plano de ação e acompanhamento.</p>
+<h3>Quanto tempo leva para ver resultados?</h3>
+<p>Primeiros resultados nas primeiras semanas. Payback em 10-19 dias. ROI de 1.820-3.500% em 12 meses.</p>
+<h3>A Consultoria é online?</h3>
+<p>Sim, 100% online via videoconferência.</p>
+
+<h2>Mentoria</h2>
+<h3>Qual a diferença entre Consultoria e Mentoria?</h3>
+<p>A Consultoria é implementação completa no escritório. A Mentoria é acompanhamento individual focado no desenvolvimento do advogado.</p>
+
+<h2>Curso IDEA e E-books</h2>
+<h3>O que é o Método IDEA?</h3>
+<p>Metodologia exclusiva de Rafael Egg para automatizar rotinas, captar clientes e escalar faturamento com IA.</p>
+<h3>O que é o Código dos Prompts?</h3>
+<p>Coletânea dos melhores prompts jurídicos para ChatGPT, Claude e Gemini.</p>
+<h3>Como usar o ChatGPT para escrever petições?</h3>
+<p>Use prompts estruturados com contexto, tipo de peça e informações do caso.</p>
+
+<h2>Suporte</h2>
+<h3>Existe garantia?</h3>
+<p>Sim. Todos os produtos possuem garantia conforme o Código de Defesa do Consumidor.</p>
+
+<p><a href="/consultoria">Conheça a Consultoria IDEA →</a></p>
+<p><a href="/blog">Leia o Blog →</a></p>`,
+    jsonLd
+  );
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, {
@@ -398,6 +467,8 @@ serve(async (req) => {
       html = renderConsultingPage();
     } else if (path === "/consultoria/economia") {
       html = renderEconomyPage();
+    } else if (path === "/faq") {
+      html = renderFAQPage();
     }
 
     if (!html) {

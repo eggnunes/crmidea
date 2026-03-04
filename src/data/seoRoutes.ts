@@ -641,6 +641,108 @@ export const seoRoutes: SEORouteData[] = [
     jsonLd: [breadcrumb({ name: "Privacidade", url: `${BASE_URL}/privacidade` })],
     lastModified: TODAY, sitemapPriority: 0.3, changeFrequency: "yearly"
   },
+  {
+    path: "/faq",
+    title: "Perguntas Frequentes sobre IA para Advogados | Rafael Egg",
+    description: "FAQ completo sobre inteligência artificial na advocacia. Tire suas dúvidas sobre Consultoria IDEA, Mentoria, Curso IDEA, e-books e uso de IA no Direito.",
+    canonical: `${BASE_URL}/faq`,
+    ogTitle: "FAQ - Perguntas Frequentes sobre IA para Advogados",
+    ogDescription: "Respostas para as dúvidas mais comuns sobre IA na advocacia, Consultoria IDEA, Mentoria e Cursos.",
+    ogImage: OG_IMAGE,
+    h1: "Perguntas Frequentes sobre IA para Advogados",
+    staticContent: `<header style="border-bottom:3px solid #F5A524;padding-bottom:15px;margin-bottom:25px;">
+<nav><a href="/" style="color:#F5A524;">Início</a> &gt; <strong>FAQ</strong></nav>
+<h1 style="font-size:2em;color:#1a1a2e;">Perguntas Frequentes sobre IA para Advogados</h1>
+<p>Respostas para as dúvidas mais comuns sobre inteligência artificial na advocacia, Consultoria IDEA, Mentoria e Cursos.</p>
+</header>
+<main>
+<section style="margin-bottom:30px;">
+<h2>IA para Advogados</h2>
+<h3>Preciso saber programar para usar IA na advocacia?</h3>
+<p>Não. Todas as ferramentas e metodologias ensinadas por Rafael Egg são projetadas para advogados sem conhecimento técnico em programação. A IA moderna é intuitiva e acessível.</p>
+<h3>A IA vai substituir os advogados?</h3>
+<p>Não. A IA é uma ferramenta que potencializa o trabalho do advogado. Profissionais que dominam a tecnologia terão vantagem competitiva significativa sobre os que não usam. A IA substitui tarefas, não profissionais.</p>
+<h3>O uso de IA na advocacia é ético?</h3>
+<p>Sim, quando usado corretamente. A OAB permite o uso de ferramentas de IA como apoio ao trabalho advocatício, desde que o advogado mantenha a responsabilidade técnica e revise todo o conteúdo gerado pela IA.</p>
+<h3>Qual a melhor IA para advogados?</h3>
+<p>ChatGPT, Claude e Gemini são as mais utilizadas. Cada uma tem vantagens específicas para diferentes tarefas jurídicas. Na Consultoria e Mentoria, ensinamos a usar todas de forma estratégica.</p>
+<h3>A IA pode errar em questões jurídicas?</h3>
+<p>Sim. Por isso é fundamental que o advogado sempre revise e valide todo conteúdo gerado por IA. Ensinamos técnicas para minimizar erros e maximizar a qualidade das respostas.</p>
+</section>
+<section style="margin-bottom:30px;">
+<h2>Consultoria IDEA</h2>
+<h3>O que é a Consultoria IDEA?</h3>
+<p>É um programa personalizado de implementação de inteligência artificial no seu escritório de advocacia, com duração de 3 a 6 meses. Inclui diagnóstico completo, plano de ação, implementação prática e acompanhamento contínuo.</p>
+<h3>Para quem é a Consultoria?</h3>
+<p>Para qualquer advogado ou escritório que queira implementar IA de forma estratégica e personalizada, independente do porte ou área de atuação.</p>
+<h3>Quanto tempo leva para ver resultados?</h3>
+<p>Os primeiros resultados aparecem nas primeiras semanas. O payback do investimento ocorre em média entre 10 e 19 dias. O ROI em 12 meses varia de 1.820% a 3.500%.</p>
+<h3>A Consultoria é presencial ou online?</h3>
+<p>A Consultoria IDEA é 100% online, com sessões ao vivo via videoconferência. Isso permite atender advogados de todo o Brasil e do exterior.</p>
+</section>
+<section style="margin-bottom:30px;">
+<h2>Mentoria</h2>
+<h3>Qual a diferença entre Consultoria e Mentoria?</h3>
+<p>A Consultoria é uma implementação completa e personalizada no escritório. A Mentoria é um acompanhamento individual focado no desenvolvimento do advogado com IA, com encontros periódicos e suporte contínuo.</p>
+<h3>A Mentoria tem vagas limitadas?</h3>
+<p>Sim. Para garantir qualidade e atenção personalizada, Rafael Egg limita o número de mentorados ativos. Consulte a disponibilidade.</p>
+</section>
+<section style="margin-bottom:30px;">
+<h2>Curso IDEA</h2>
+<h3>O que é o Curso IDEA?</h3>
+<p>É uma formação completa em Inteligência de Dados e Artificial para advogados. Cobre desde fundamentos até aplicações avançadas, incluindo tráfego pago, orgânico, IA no setor comercial e operacional.</p>
+<h3>Por quanto tempo tenho acesso ao curso?</h3>
+<p>O acesso ao Curso IDEA é vitalício. Você pode assistir às aulas quantas vezes quiser e terá acesso a todas as atualizações futuras.</p>
+<h3>O que é o Método IDEA?</h3>
+<p>O Método IDEA (Inteligência de Dados e Artificial) é uma metodologia exclusiva criada por Rafael Egg para ajudar advogados a automatizar rotinas, captar mais clientes, escalar faturamento e usar IA de forma ética e eficiente.</p>
+</section>
+<section style="margin-bottom:30px;">
+<h2>E-books</h2>
+<h3>O que inclui o Guia Prático de IA?</h3>
+<p>O Guia Prático de IA para Advogados é um e-book completo que cobre desde os fundamentos de IA até aplicações avançadas na advocacia, com exemplos práticos e passo a passo detalhado.</p>
+<h3>O que é o Código dos Prompts?</h3>
+<p>É uma coletânea dos melhores prompts jurídicos otimizados para ChatGPT, Claude e Gemini. Prompts testados para petições, contratos, pesquisa jurisprudencial, pareceres e muito mais.</p>
+<h3>Como usar o ChatGPT para escrever petições?</h3>
+<p>É necessário usar prompts bem estruturados com contexto, tipo de peça, estilo desejado e informações do caso. No Código dos Prompts, ensinamos exatamente como criar prompts jurídicos eficientes.</p>
+</section>
+<section style="margin-bottom:30px;">
+<h2>Suporte</h2>
+<h3>Como entro em contato?</h3>
+<p>Você pode entrar em contato pelo Instagram (@rafaeleggnunes), pelo site ou diretamente pelo WhatsApp disponível na página de consultoria.</p>
+<h3>Existe garantia?</h3>
+<p>Sim. Todos os produtos digitais possuem garantia conforme o Código de Defesa do Consumidor.</p>
+</section>
+</main>
+<footer style="border-top:1px solid #ccc;padding-top:15px;color:#666;">
+<p><a href="/">← Início</a> | <a href="/consultoria">Consultoria IDEA</a> | <a href="/blog">Blog</a></p>
+<p>© 2026 Rafael Egg. Todos os direitos reservados.</p>
+</footer>`,
+    noscriptContent: `<h1>Perguntas Frequentes sobre IA para Advogados</h1>
+<p>FAQ completo sobre IA na advocacia, Consultoria IDEA, Mentoria, Cursos e E-books por Rafael Egg.</p>
+<a href="/">Início</a> | <a href="/consultoria">Consultoria</a> | <a href="/blog">Blog</a>`,
+    jsonLd: [
+      {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": [
+          { "@type": "Question", "name": "Preciso saber programar para usar IA na advocacia?", "acceptedAnswer": { "@type": "Answer", "text": "Não. Todas as ferramentas e metodologias ensinadas por Rafael Egg são projetadas para advogados sem conhecimento técnico em programação." } },
+          { "@type": "Question", "name": "A IA vai substituir os advogados?", "acceptedAnswer": { "@type": "Answer", "text": "Não. A IA é uma ferramenta que potencializa o trabalho do advogado. Profissionais que dominam a tecnologia terão vantagem competitiva significativa." } },
+          { "@type": "Question", "name": "O uso de IA na advocacia é ético?", "acceptedAnswer": { "@type": "Answer", "text": "Sim, quando usado corretamente. A OAB permite o uso de ferramentas de IA como apoio ao trabalho advocatício, desde que o advogado mantenha a responsabilidade técnica." } },
+          { "@type": "Question", "name": "Qual a melhor IA para advogados?", "acceptedAnswer": { "@type": "Answer", "text": "ChatGPT, Claude e Gemini são as mais utilizadas. Cada uma tem vantagens específicas para diferentes tarefas jurídicas." } },
+          { "@type": "Question", "name": "O que é a Consultoria IDEA?", "acceptedAnswer": { "@type": "Answer", "text": "É um programa personalizado de implementação de IA no escritório de advocacia, com duração de 3 a 6 meses, incluindo diagnóstico completo, plano de ação e acompanhamento." } },
+          { "@type": "Question", "name": "Quanto tempo leva para ver resultados?", "acceptedAnswer": { "@type": "Answer", "text": "Os primeiros resultados aparecem nas primeiras semanas. O payback ocorre em média entre 10 e 19 dias. ROI de 1.820% a 3.500% em 12 meses." } },
+          { "@type": "Question", "name": "Qual a diferença entre Consultoria e Mentoria?", "acceptedAnswer": { "@type": "Answer", "text": "A Consultoria é implementação completa no escritório. A Mentoria é acompanhamento individual focado no desenvolvimento do advogado com IA." } },
+          { "@type": "Question", "name": "O que é o Método IDEA?", "acceptedAnswer": { "@type": "Answer", "text": "Metodologia exclusiva de Rafael Egg para automatizar rotinas, captar clientes, escalar faturamento e usar IA de forma ética e eficiente na advocacia." } },
+          { "@type": "Question", "name": "O que é o Código dos Prompts?", "acceptedAnswer": { "@type": "Answer", "text": "Coletânea dos melhores prompts jurídicos otimizados para ChatGPT, Claude e Gemini, testados para petições, contratos, pesquisa jurisprudencial e mais." } },
+          { "@type": "Question", "name": "Como usar o ChatGPT para escrever petições?", "acceptedAnswer": { "@type": "Answer", "text": "Use prompts bem estruturados com contexto, tipo de peça, estilo desejado e informações do caso. O Código dos Prompts ensina exatamente como fazer isso." } },
+          { "@type": "Question", "name": "A Consultoria é presencial ou online?", "acceptedAnswer": { "@type": "Answer", "text": "A Consultoria IDEA é 100% online, com sessões ao vivo via videoconferência, atendendo advogados de todo o Brasil e do exterior." } },
+          { "@type": "Question", "name": "A IA pode errar em questões jurídicas?", "acceptedAnswer": { "@type": "Answer", "text": "Sim. Por isso é fundamental que o advogado sempre revise e valide todo conteúdo gerado por IA. Ensinamos técnicas para minimizar erros." } }
+        ]
+      },
+      breadcrumb({ name: "FAQ", url: `${BASE_URL}/faq` })
+    ],
+    lastModified: TODAY, sitemapPriority: 0.7, changeFrequency: "monthly"
+  },
   // Include all blog posts
   ...blogPostsSEO
 ];

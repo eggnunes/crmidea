@@ -7,6 +7,7 @@ Allow: /consultoria/
 Allow: /consultoria/economia
 Allow: /bio
 Allow: /ebook
+Allow: /faq
 Allow: /privacidade
 
 # Permitir bots de IA para maior visibilidade
