@@ -93,9 +93,10 @@ function generateHtmlForRoute(route: SEORouteData, template: string): string {
 
   // CRITICAL FOR SEO: Inject static HTML content INSIDE #root
   // This gives crawlers real, visible content to index.
-  // React will replace this content when it hydrates/mounts.
+  // React will replace this content when it mounts.
+  // Match both empty <div id="root"></div> and <div id="root">...</div> with any content
   html = html.replace(
-    /<div id="root"><\/div>/,
+    /<div id="root">[\s\S]*?<\/div>/,
     `<div id="root">\n${route.staticContent}\n    </div>`
   );
 
