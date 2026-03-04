@@ -398,6 +398,8 @@ serve(async (req) => {
       html = renderConsultingPage();
     } else if (path === "/consultoria/economia") {
       html = renderEconomyPage();
+    } else if (path === "/faq") {
+      html = renderFAQPage();
     }
 
     if (!html) {

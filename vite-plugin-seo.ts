@@ -1,6 +1,7 @@
 /**
  * Vite plugin that generates per-route HTML files during build.
- * Each route gets a unique index.html with specific meta tags, JSON-LD, etc.
+ * Each route gets a unique index.html with specific meta tags, JSON-LD,
+ * AND pre-rendered static HTML content inside #root for SEO crawlers.
  */
 import type { Plugin } from 'vite';
 import { writeFileSync, mkdirSync, readFileSync } from 'fs';
@@ -90,7 +91,15 @@ function generateHtmlForRoute(route: SEORouteData, template: string): string {
     .join('\n');
   html = html.replace('</head>', `${jsonLdScripts}\n  </head>`);
 
-  // Replace seo-static-content div
+  // CRITICAL FOR SEO: Inject static HTML content INSIDE #root
+  // This gives crawlers real, visible content to index.
+  // React will replace this content when it hydrates/mounts.
+  html = html.replace(
+    /<div id="root"><\/div>/,
+    `<div id="root">\n${route.staticContent}\n    </div>`
+  );
+
+  // Also update the seo-static-content div
   html = html.replace(
     /<div id="seo-static-content"[^>]*>[\s\S]*?<\/div>/,
     `<div id="seo-static-content" style="position:absolute;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden;">\n${route.staticContent}\n      </div>`
@@ -120,14 +129,14 @@ export function seoPlugin(routes: SEORouteData[]): Plugin {
         return;
       }
 
-      console.log(`\n🔧 [SEO Plugin] Generating ${routes.length} route-specific HTML files...\n`);
+      console.log(`\n🔧 [SEO Plugin] Generating ${routes.length} route-specific HTML files with pre-rendered content...\n`);
 
       // Update root index.html with homepage data
       const homeRoute = routes.find(r => r.path === '/');
       if (homeRoute) {
         const homeHtml = generateHtmlForRoute(homeRoute, templateHtml);
         writeFileSync(join(distDir, 'index.html'), homeHtml, 'utf-8');
-        console.log(`  ✅ / → dist/index.html`);
+        console.log(`  ✅ / → dist/index.html (with pre-rendered content)`);
       }
 
       // Generate sub-route HTML files
@@ -141,7 +150,7 @@ export function seoPlugin(routes: SEORouteData[]): Plugin {
 
         mkdirSync(outputDir, { recursive: true });
         writeFileSync(outputFile, routeHtml, 'utf-8');
-        console.log(`  ✅ ${route.path} → dist/${routePath}/index.html`);
+        console.log(`  ✅ ${route.path} → dist/${routePath}/index.html (pre-rendered)`);
       }
 
       // Generate sitemap.xml in dist
@@ -160,7 +169,7 @@ ${sitemapEntries}
       writeFileSync(join(distDir, 'sitemap.xml'), sitemapXml, 'utf-8');
       console.log(`  ✅ sitemap.xml (${routes.length} URLs)`);
 
-      console.log(`\n✨ [SEO Plugin] Done!\n`);
+      console.log(`\n✨ [SEO Plugin] Done! ${routes.length} pages pre-rendered for SEO.\n`);
     }
   };
 }
