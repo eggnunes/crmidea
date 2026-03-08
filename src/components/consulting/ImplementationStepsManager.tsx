@@ -316,6 +316,14 @@ export function ImplementationStepsManager({ clientId, clientName }: Implementat
         .sort((a, b) => a.ordem - b.ordem)[0];
       
       sendStepCompletionNotification(etapaAtual, nextEtapa);
+
+      // Scroll to next incomplete step after state update
+      if (nextEtapa) {
+        setTimeout(() => {
+          const nextEl = document.querySelector(`[data-step-id="${nextEtapa.id}"]`);
+          nextEl?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 150);
+      }
     }
   };
 
@@ -478,12 +486,14 @@ export function ImplementationStepsManager({ clientId, clientName }: Implementat
         <Accordion type="single" collapsible className="space-y-3">
           {sortedEtapas.map((etapa) => {
             const isNextStep = nextStep?.id === etapa.id;
+            // data-step-id is used for scrollIntoView after completing a step
             const isCompleted = etapa.concluida;
             
             return (
               <AccordionItem 
                 key={etapa.id} 
                 value={`etapa-${etapa.id}`}
+                data-step-id={etapa.id}
                 className={`rounded-lg overflow-hidden bg-card border ${
                   isCompleted
                     ? 'border-success/35'
