@@ -493,6 +493,7 @@ export function ImplementationStepsManager({ clientId, clientName }: Implementat
               <AccordionItem 
                 key={etapa.id} 
                 value={`etapa-${etapa.id}`}
+                data-step-id={etapa.id}
                 className={`rounded-lg overflow-hidden bg-card border ${
                   isCompleted
                     ? 'border-success/35'
