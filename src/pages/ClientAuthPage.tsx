@@ -43,7 +43,7 @@ export function ClientAuthPage() {
   const { consultantId: urlConsultantId } = useParams<{ consultantId: string }>();
   const consultantId = urlConsultantId || DEFAULT_CONSULTANT_ID;
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<"login" | "signup">("signup");
+  const [activeTab, setActiveTab] = useState<"login" | "signup">("login");
   const [loading, setLoading] = useState(false);
   const [signupSuccess, setSignupSuccess] = useState(false);
   const [forgotPasswordOpen, setForgotPasswordOpen] = useState(false);
@@ -334,8 +334,8 @@ export function ClientAuthPage() {
           <CardHeader>
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "login" | "signup")}>
               <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="signup">Cadastrar</TabsTrigger>
                 <TabsTrigger value="login">Entrar</TabsTrigger>
+                <TabsTrigger value="signup">Cadastrar</TabsTrigger>
               </TabsList>
             </Tabs>
           </CardHeader>
