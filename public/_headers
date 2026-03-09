@@ -1,3 +1,7 @@
+# Cache hashed assets (JS, CSS, images) for 1 year
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
 # Custom headers for SEO and caching
 /robots.txt
   Content-Type: text/plain; charset=utf-8
