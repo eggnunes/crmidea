@@ -465,6 +465,9 @@ export function HomePage() {
                   src={fotoRafael} 
                   alt="Rafael Egg - Mentor em IA para Advocacia"
                   className="relative w-64 h-80 md:w-72 md:h-96 object-cover object-top rounded-2xl shadow-2xl border-2 border-amber-500/30 transition-all duration-500 group-hover:scale-[1.02] group-hover:border-amber-500/60"
+                  fetchPriority="high"
+                  width={288}
+                  height={384}
                 />
               </div>
 
